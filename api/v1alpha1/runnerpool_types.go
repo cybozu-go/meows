@@ -23,11 +23,11 @@ import (
 
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
-	RepositoryName string
+	RepositoryName string `json:"repository_name"`
 
-	RunnerGroupName string
+	RunnerGroupName string `json:"runner_group_name"`
 
-	DeploymentSpec appsv1.DeploymentSpec
+	DeploymentSpec appsv1.DeploymentSpec `json:"deployment_spec"`
 }
 
 // +kubebuilder:object:root=true
@@ -37,7 +37,7 @@ type RunnerPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec RunnerPoolSpec `json:"spec,omitempty"`
+	Spec RunnerPoolSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
