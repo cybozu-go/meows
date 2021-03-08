@@ -11,11 +11,35 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: manager
+GO111MODULE = on
+export GO111MODULE
 
-# Run tests
-test: generate fmt vet manifests
-	go test ./... -coverprofile cover.out
+.PHONY: all
+all: test
+
+.PHONY: test
+test: test-tools generate manifests
+	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
+	staticcheck ./...
+	test -z "$$(nilerr ./... 2>&1 | tee /dev/stderr)"
+	go install ./...
+	go test -race -v ./...
+	go vet ./...
+
+.PHONY: test-tools
+test-tools: staticcheck nilerr
+
+.PHONY: staticcheck
+staticcheck:
+	if ! which staticcheck >/dev/null; then \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck; \
+	fi
+
+.PHONY: nilerr
+nilerr:
+	if ! which nilerr >/dev/null; then \
+		cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr; \
+	fi
 
 # Build manager binary
 manager: generate fmt vet
@@ -41,14 +65,6 @@ deploy: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-
-# Run go fmt against code
-fmt:
-	go fmt ./...
-
-# Run go vet against code
-vet:
-	go vet ./...
 
 # Generate code
 generate: controller-gen
