@@ -42,11 +42,11 @@ nilerr:
 	fi
 
 # Build manager binary
-manager: generate fmt vet
-	go build -o bin/manager main.go
+build: generate
+	go build -o bin/github-actions-controller main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: generate
 	go run ./main.go
 
 # Install CRDs into a cluster
@@ -71,7 +71,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: test
+docker-build: build
 	docker build . -t ${IMG}
 
 # Push the docker image
