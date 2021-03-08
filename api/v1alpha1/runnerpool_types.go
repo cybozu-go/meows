@@ -17,25 +17,17 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	RepositoryName string
 
-	// Foo is an example field of RunnerPool. Edit RunnerPool_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-}
+	RunnerGroupName string
 
-// RunnerPoolStatus defines the observed state of RunnerPool
-type RunnerPoolStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	DeploymentSpec appsv1.DeploymentSpec
 }
 
 // +kubebuilder:object:root=true
@@ -45,8 +37,7 @@ type RunnerPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   RunnerPoolSpec   `json:"spec,omitempty"`
-	Status RunnerPoolStatus `json:"status,omitempty"`
+	Spec RunnerPoolSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
