@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
@@ -57,13 +58,20 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	var d appsv1.Deployment
-	err := r.Get(ctx, req.NamespacedName, &d)
-	switch {
-	case err == nil:
-	case apierrors.IsNotFound(err):
-	default:
-		log.Error(err, "failed to get Deployment", "name", req.NamespacedName)
+	d.SetNamespace(rp.Namespace)
+	d.SetName(rp.Name)
+	op, err := ctrl.CreateOrUpdate(ctx, r.Client, &d, func() error {
+		// do something
+		return ctrl.SetControllerReference(&rp, &d, r.Scheme)
+
+	})
+	if err != nil {
+		log.Error(err, "unable to create-or-update Deployment")
 		return ctrl.Result{}, err
+
+	}
+	if op != controllerutil.OperationResultNone {
+		log.Info("reconcile Deployment successfully", "op", op)
 	}
 
 	return ctrl.Result{}, nil
@@ -72,6 +80,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&actionsv1alpha1.RunnerPool{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
 
