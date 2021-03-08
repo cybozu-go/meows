@@ -26,8 +26,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	actionsv1alpha1 "std/api/v1alpha1"
-	"std/controllers"
+	"github.com/cybozu-go/github-actions-controller/controllers"
+
+	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
