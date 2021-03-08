@@ -1,3 +1,7 @@
 domain: cybozu.com
 repo: std
+resources:
+- group: actions
+  kind: RunnerPool
+  version: v1alpha1
 version: "2"

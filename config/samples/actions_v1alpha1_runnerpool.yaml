@@ -1,0 +1,7 @@
+apiVersion: actions.cybozu.com/v1alpha1
+kind: RunnerPool
+metadata:
+  name: runnerpool-sample
+spec:
+  # Add fields here
+  foo: bar
