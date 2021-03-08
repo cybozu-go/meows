@@ -20,6 +20,9 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,9 +41,30 @@ type RunnerPoolReconciler struct {
 // +kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/status,verbs=get;update;patch
 
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("runnerpool", req.NamespacedName)
+	log := r.Log.WithValues("runnerpool", req.NamespacedName)
 
-	// your logic here
+	var rp actionsv1alpha1.RunnerPool
+	if err := r.Get(ctx, req.NamespacedName, &rp); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		log.Error(err, "unable to get RunnerPool", "name", req.NamespacedName)
+		return ctrl.Result{}, err
+	}
+
+	if !rp.ObjectMeta.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
+
+	var d appsv1.Deployment
+	err := r.Get(ctx, req.NamespacedName, &d)
+	switch {
+	case err == nil:
+	case apierrors.IsNotFound(err):
+	default:
+		log.Error(err, "failed to get Deployment", "name", req.NamespacedName)
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -49,4 +73,16 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&actionsv1alpha1.RunnerPool{}).
 		Complete(r)
+}
+
+func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        rp.Name,
+			Namespace:   rp.Namespace,
+			Labels:      rp.Labels,
+			Annotations: rp.Annotations,
+		},
+		Spec: rp.Spec.DeploymentSpec,
+	}
 }
