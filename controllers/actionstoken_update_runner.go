@@ -30,9 +30,8 @@ type ActionsTokenUpdator struct {
 	recorder record.EventRecorder
 	interval time.Duration
 
-	k8sClient        client.Client
-	githubClient     github.Registerer
-	organizationName string
+	k8sClient    client.Client
+	githubClient github.RegistrationTokenGenerator
 }
 
 // NewActionsTokenUpdator returns a new ActionsTokenUpdator struct
@@ -41,16 +40,14 @@ func NewActionsTokenUpdator(
 	recorder record.EventRecorder,
 	interval time.Duration,
 	k8sClient client.Client,
-	githubClient *github.Client,
-	organizationName string,
+	githubClient github.RegistrationTokenGenerator,
 ) manager.Runnable {
 	return &ActionsTokenUpdator{
-		log:              log,
-		recorder:         recorder,
-		interval:         interval,
-		k8sClient:        k8sClient,
-		githubClient:     githubClient,
-		organizationName: organizationName,
+		log:          log,
+		recorder:     recorder,
+		interval:     interval,
+		k8sClient:    k8sClient,
+		githubClient: githubClient,
 	}
 }
 
@@ -76,7 +73,6 @@ func (u *ActionsTokenUpdator) Start(ctx context.Context) error {
 func (u *ActionsTokenUpdator) reconcile(ctx context.Context) error {
 	token, err := u.githubClient.CreateOrganizationRegistrationToken(
 		ctx,
-		u.organizationName,
 	)
 	if err != nil {
 		return err

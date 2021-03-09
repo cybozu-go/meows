@@ -8,12 +8,15 @@ import (
 	"github.com/google/go-github/v33/github"
 )
 
-type Registerer interface {
-	CreateOrganizationRegistrationToken(context.Context, string) (string, error)
+// RegistrationTokenGenerator generates token for GitHub Action selfhosted runner
+type RegistrationTokenGenerator interface {
+	CreateOrganizationRegistrationToken(context.Context) (string, error)
 }
 
+// Client is GitHub Client wrapper
 type Client struct {
-	client *github.Client
+	client           *github.Client
+	organizationName string
 }
 
 // NewClient creates GitHub Actions Client
@@ -21,6 +24,7 @@ func NewClient(
 	appID int64,
 	appInstallationID int64,
 	appPrivateKeyPath string,
+	organizationName string,
 ) (*Client, error) {
 	rt, err := ghinstallation.NewKeyFromFile(
 		http.DefaultTransport,
@@ -31,17 +35,14 @@ func NewClient(
 	if err != nil {
 		return nil, err
 	}
-	return &Client{github.NewClient(&http.Client{Transport: rt})}, nil
+	return &Client{github.NewClient(&http.Client{Transport: rt}), organizationName}, nil
 }
 
 // CreateOrganizationRegistrationToken creates Actions token to register self-hosted runner for repository
-func (c *Client) CreateOrganizationRegistrationToken(
-	ctx context.Context,
-	organizationName string,
-) (string, error) {
+func (c *Client) CreateOrganizationRegistrationToken(ctx context.Context) (string, error) {
 	token, _, err := c.client.Actions.CreateOrganizationRegistrationToken(
 		ctx,
-		organizationName,
+		c.organizationName,
 	)
 	if err != nil {
 		return "", err
@@ -54,18 +55,11 @@ func (c *Client) CreateOrganizationRegistrationToken(
 type FakeClient struct{}
 
 // NewFakeClient creates GitHub Actions Client
-func NewFakeClient(
-	appID int64,
-	appInstallationID int64,
-	appPrivateKeyPath string,
-) (*FakeClient, error) {
-	return &FakeClient{}, nil
+func NewFakeClient() *FakeClient {
+	return &FakeClient{}
 }
 
 // CreateOrganizationRegistrationToken returns dummy token
-func (c *FakeClient) CreateOrganizationRegistrationToken(
-	ctx context.Context,
-	organizationName string,
-) (string, error) {
+func (c *FakeClient) CreateOrganizationRegistrationToken(ctx context.Context) (string, error) {
 	return "AAA", nil
 }

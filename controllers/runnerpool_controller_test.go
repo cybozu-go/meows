@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,6 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
+	"github.com/cybozu-go/github-actions-controller/github"
 )
 
 var _ = Describe("RunnerPool reconciler", func() {
@@ -25,11 +27,12 @@ var _ = Describe("RunnerPool reconciler", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		rpr := RunnerPoolReconciler{
-			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("RunnerPool"),
-			Scheme: mgr.GetScheme(),
-		}
+		rpr := NewRunnerPoolReconciler(
+			mgr.GetClient(),
+			ctrl.Log.WithName("controllers").WithName("RunnerPool"),
+			mgr.GetScheme(),
+			github.NewFakeClient(),
+		)
 		err = rpr.SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
 
