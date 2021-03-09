@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,9 +20,13 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
@@ -34,30 +38,60 @@ type RunnerPoolReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/finalizers,verbs=update
+// +kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/status,verbs=get;update;patch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the RunnerPool object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("runnerpool", req.NamespacedName)
+	log := r.Log.WithValues("runnerpool", req.NamespacedName)
 
-	// your logic here
+	var rp actionsv1alpha1.RunnerPool
+	if err := r.Get(ctx, req.NamespacedName, &rp); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		log.Error(err, "unable to get RunnerPool", "name", req.NamespacedName)
+		return ctrl.Result{}, err
+	}
+
+	if !rp.ObjectMeta.DeletionTimestamp.IsZero() {
+		return ctrl.Result{}, nil
+	}
+
+	var d appsv1.Deployment
+	d.SetNamespace(rp.Namespace)
+	d.SetName(rp.Name)
+	op, err := ctrl.CreateOrUpdate(ctx, r.Client, &d, func() error {
+		// do something
+		return ctrl.SetControllerReference(&rp, &d, r.Scheme)
+
+	})
+	if err != nil {
+		log.Error(err, "unable to create-or-update Deployment")
+		return ctrl.Result{}, err
+
+	}
+	if op != controllerutil.OperationResultNone {
+		log.Info("reconcile Deployment successfully", "op", op)
+	}
 
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&actionsv1alpha1.RunnerPool{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
+}
+
+func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        rp.Name,
+			Namespace:   rp.Namespace,
+			Labels:      rp.Labels,
+			Annotations: rp.Annotations,
+		},
+		Spec: rp.Spec.DeploymentSpec,
+	}
 }
