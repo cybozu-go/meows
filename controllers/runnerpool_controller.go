@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -30,6 +31,8 @@ import (
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
+
+const runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
 
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
@@ -46,8 +49,8 @@ type RunnerPoolReconciler struct {
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("runnerpool", req.NamespacedName)
 
-	var rp actionsv1alpha1.RunnerPool
-	if err := r.Get(ctx, req.NamespacedName, &rp); err != nil {
+	rp := &actionsv1alpha1.RunnerPool{}
+	if err := r.Get(ctx, req.NamespacedName, rp); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -55,17 +58,37 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	if !rp.ObjectMeta.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, nil
+	if rp.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
+			rp2 := rp.DeepCopy()
+			controllerutil.AddFinalizer(rp2, runnerPoolFinalizer)
+			patch := client.MergeFrom(rp)
+			if err := r.Patch(ctx, rp2, patch); err != nil {
+				log.Error(err, "failed to add finalizer")
+				return ctrl.Result{}, err
+			}
+		}
+	} else {
+		targetDeployment := &appsv1.Deployment{}
+		err := r.Get(ctx, req.NamespacedName, targetDeployment)
+		if err == nil {
+			return ctrl.Result{}, errors.New("deployment is not deleted yet")
+		}
+		if !apierrors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		rp2 := rp.DeepCopy()
+		controllerutil.RemoveFinalizer(rp2, runnerPoolFinalizer)
+		patch := client.MergeFrom(rp)
+		if err := r.Patch(ctx, rp2, patch); err != nil {
+			log.Error(err, "failed to remove finalizer")
+			return ctrl.Result{}, err
+		}
 	}
 
-	var d appsv1.Deployment
-	d.SetNamespace(rp.Namespace)
-	d.SetName(rp.Name)
-	op, err := ctrl.CreateOrUpdate(ctx, r.Client, &d, func() error {
-		// do something
-		return ctrl.SetControllerReference(&rp, &d, r.Scheme)
-
+	d := r.makeDeployment(rp)
+	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
+		return ctrl.SetControllerReference(rp, d, r.Scheme)
 	})
 	if err != nil {
 		log.Error(err, "unable to create-or-update Deployment")
