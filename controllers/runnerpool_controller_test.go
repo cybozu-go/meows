@@ -44,7 +44,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	AfterEach(func() {
 		ctx.Done()
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	})
 
 	It("should create Deployment", func() {
@@ -57,15 +57,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 					Namespace: namespace,
 				},
 				Spec: actionsv1alpha1.RunnerPoolSpec{
-					DeploymentSpec: appsv1.DeploymentSpec{
+					DeploymentSpec: actionsv1alpha1.DeploymentSpec{
 						Replicas: int32Ptr(1),
 						Selector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"app": name,
 							},
 						},
-						Template: corev1.PodTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
+						Template: actionsv1alpha1.PodTemplateSpec{
+							ObjectMeta: actionsv1alpha1.ObjectMeta{
 								Labels: map[string]string{
 									"app": name,
 								},
@@ -73,7 +73,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
 									{
-										Name:  "test",
+										Name:  controllerContainerName,
 										Image: "sample:latest",
 									},
 								},
@@ -87,31 +87,29 @@ var _ = Describe("RunnerPool reconciler", func() {
 		}
 
 		By("getting the created Deployment")
-		{
-			rp := new(actionsv1alpha1.RunnerPool)
-			err := k8sClient.Get(ctx, types.NamespacedName{
-				Name:      name,
-				Namespace: namespace,
-			}, rp)
-			Expect(err).To(Succeed())
-
-			d := new(appsv1.Deployment)
-			err = k8sClient.Get(ctx, types.NamespacedName{
-				Name:      name,
-				Namespace: namespace,
-			}, d)
-			Expect(err).To(Succeed())
-
-			Expect(d.Spec.Template.Spec.Volumes).To(HaveLen(1))
-			v := d.Spec.Template.Spec.Volumes[0]
-			Expect(v.Name).To(Equal(actionsTokenVolumeName))
-			Expect(v.VolumeSource.Secret.SecretName).To(Equal(actionsTokenSecretName))
-
-			Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
-			c := d.Spec.Template.Spec.Containers[0]
-			Expect(c.VolumeMounts).To(HaveLen(1))
-			Expect(c.VolumeMounts[0].Name).To(Equal(actionsTokenVolumeName))
-			Expect(c.VolumeMounts[0].MountPath).To(Equal(actionsTokenMountPath))
+		d := new(appsv1.Deployment)
+		nsn := types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
 		}
+		Eventually(func() error {
+			rp := new(actionsv1alpha1.RunnerPool)
+			if err := k8sClient.Get(ctx, nsn, rp); err != nil {
+				return err
+			}
+
+			return k8sClient.Get(ctx, nsn, d)
+		}).Should(Succeed())
+
+		Expect(d.Spec.Template.Spec.Volumes).To(HaveLen(1))
+		v := d.Spec.Template.Spec.Volumes[0]
+		Expect(v.Name).To(Equal(actionsTokenVolumeName))
+		Expect(v.VolumeSource.Secret.SecretName).To(Equal(actionsTokenSecretName))
+
+		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+		c := d.Spec.Template.Spec.Containers[0]
+		Expect(c.VolumeMounts).To(HaveLen(1))
+		Expect(c.VolumeMounts[0].Name).To(Equal(actionsTokenVolumeName))
+		Expect(c.VolumeMounts[0].MountPath).To(Equal(actionsTokenMountPath))
 	})
 })

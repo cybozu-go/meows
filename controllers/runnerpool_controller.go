@@ -54,13 +54,13 @@ type RunnerPoolReconciler struct {
 
 //+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/finalizers,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("runnerpool", req.NamespacedName)
 
-	log.Info("debug0")
 	rp := &actionsv1alpha1.RunnerPool{}
 	if err := r.Get(ctx, req.NamespacedName, rp); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -70,7 +70,6 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	log.Info("debug1")
 	if rp.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
 			rp2 := rp.DeepCopy()
@@ -99,14 +98,12 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 	}
 
-	log.Info("debug2")
 	d, err := r.makeDeployment(rp)
 	if err != nil {
 		log.Error(err, "failed to make Deployment definition")
 		return ctrl.Result{}, err
 	}
 
-	log.Info("debug3")
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
 		return ctrl.SetControllerReference(rp, d, r.Scheme)
 	})
@@ -138,10 +135,20 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 			Labels:      rp2.Labels,
 			Annotations: rp2.Annotations,
 		},
-		Spec: rp2.Spec.DeploymentSpec,
+		Spec: appsv1.DeploymentSpec{
+			Replicas: rp2.Spec.DeploymentSpec.Replicas,
+			Selector: rp2.Spec.DeploymentSpec.Selector,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      rp2.Spec.DeploymentSpec.Template.ObjectMeta.Labels,
+					Annotations: rp2.Spec.DeploymentSpec.Template.ObjectMeta.Annotations,
+				},
+				Spec: rp2.Spec.DeploymentSpec.Template.Spec,
+			},
+		},
 	}
 
-	ps := d.Spec.Template.Spec
+	ps := &d.Spec.Template.Spec
 	if len(ps.Containers) == 0 {
 		return nil, errors.New("spec.deploymentSpec.template.spec.containers should have 1 container")
 	}
@@ -167,9 +174,10 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 
 	// Add Secret mount to VolumeMounts
 	var container *corev1.Container
-	for _, c := range ps.Containers {
+	for i := range ps.Containers {
+		c := &ps.Containers[i]
 		if c.Name == controllerContainerName {
-			container = &c
+			container = c
 			break
 		}
 	}

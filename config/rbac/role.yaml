@@ -25,10 +25,14 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - actions.cybozu.com
+  - apps
   resources:
-  - runnerpools/status
+  - deployments
   verbs:
+  - create
+  - delete
   - get
+  - list
   - patch
   - update
+  - watch
