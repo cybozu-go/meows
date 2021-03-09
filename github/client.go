@@ -51,15 +51,14 @@ func (c *Client) CreateOrganizationRegistrationToken(ctx context.Context) (strin
 	return token.GetToken(), nil
 }
 
-// FakeClient is fake client for GitHub Actions
-type FakeClient struct{}
+type fakeClient struct{}
 
-// NewFakeClient creates GitHub Actions Client
-func NewFakeClient() *FakeClient {
-	return &FakeClient{}
+// NewfakeClient creates GitHub Actions Client
+func NewFakeClient() *fakeClient {
+	return &fakeClient{}
 }
 
 // CreateOrganizationRegistrationToken returns dummy token
-func (c *FakeClient) CreateOrganizationRegistrationToken(ctx context.Context) (string, error) {
+func (c *fakeClient) CreateOrganizationRegistrationToken(ctx context.Context) (string, error) {
 	return "AAA", nil
 }
