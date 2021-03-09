@@ -28,6 +28,7 @@ var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 var scheme = runtime.NewScheme()
+var namespace = "test-ns"
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -64,10 +65,9 @@ var _ = BeforeSuite(func() {
 
 	ctx := context.Background()
 	ns := &corev1.Namespace{}
-	ns.Name = "test-ns"
+	ns.Name = namespace
 	err = k8sClient.Create(ctx, ns)
 	Expect(err).ToNot(HaveOccurred())
-
 }, 60)
 
 var _ = AfterSuite(func() {

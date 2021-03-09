@@ -19,9 +19,11 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,7 +34,16 @@ import (
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
 
-const runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
+const (
+	runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
+
+	controllerContainerName = "controller"
+
+	actionsTokenSecretName = "github-actions-token"
+	actionsTokenSecretKey  = "GITHUB_ACTIONS_TOKEN"
+	actionsTokenVolumeName = "github-actions-token"
+	actionsTokenMountPath  = "/etc/github/token.json"
+)
 
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
@@ -49,6 +60,7 @@ type RunnerPoolReconciler struct {
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("runnerpool", req.NamespacedName)
 
+	log.Info("debug0")
 	rp := &actionsv1alpha1.RunnerPool{}
 	if err := r.Get(ctx, req.NamespacedName, rp); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -58,6 +70,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
+	log.Info("debug1")
 	if rp.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
 			rp2 := rp.DeepCopy()
@@ -86,14 +99,20 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 	}
 
-	d := r.makeDeployment(rp)
+	log.Info("debug2")
+	d, err := r.makeDeployment(rp)
+	if err != nil {
+		log.Error(err, "failed to make Deployment definition")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("debug3")
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
 		return ctrl.SetControllerReference(rp, d, r.Scheme)
 	})
 	if err != nil {
 		log.Error(err, "unable to create-or-update Deployment")
 		return ctrl.Result{}, err
-
 	}
 	if op != controllerutil.OperationResultNone {
 		log.Info("reconcile Deployment successfully", "op", op)
@@ -110,14 +129,68 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) *appsv1.Deployment {
-	return &appsv1.Deployment{
+func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) {
+	rp2 := rp.DeepCopy()
+	d := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        rp.Name,
-			Namespace:   rp.Namespace,
-			Labels:      rp.Labels,
-			Annotations: rp.Annotations,
+			Name:        rp2.Name,
+			Namespace:   rp2.Namespace,
+			Labels:      rp2.Labels,
+			Annotations: rp2.Annotations,
 		},
-		Spec: rp.Spec.DeploymentSpec,
+		Spec: rp2.Spec.DeploymentSpec,
 	}
+
+	ps := d.Spec.Template.Spec
+	if len(ps.Containers) == 0 {
+		return nil, errors.New("spec.deploymentSpec.template.spec.containers should have 1 container")
+	}
+
+	// Add Secret volume to Volumes
+	foundVolume := false
+	for _, v := range ps.Volumes {
+		if v.Name == actionsTokenVolumeName {
+			foundVolume = true
+			break
+		}
+	}
+	if !foundVolume {
+		ps.Volumes = append(ps.Volumes, corev1.Volume{
+			Name: actionsTokenVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: actionsTokenSecretName,
+				},
+			},
+		})
+	}
+
+	// Add Secret mount to VolumeMounts
+	var container *corev1.Container
+	for _, c := range ps.Containers {
+		if c.Name == controllerContainerName {
+			container = &c
+			break
+		}
+	}
+	if container == nil {
+		return nil, fmt.Errorf("%s should exist in one of spec.deploymentSpec.template.spec.containers", controllerContainerName)
+	}
+
+	foundMount := false
+	for _, v := range container.VolumeMounts {
+		if v.Name == actionsTokenMountPath {
+			foundMount = true
+			break
+		}
+	}
+	if !foundMount {
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			Name:      actionsTokenVolumeName,
+			ReadOnly:  true,
+			MountPath: actionsTokenMountPath,
+		})
+	}
+
+	return &d, nil
 }
