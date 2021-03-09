@@ -9,7 +9,7 @@ import (
 )
 
 type Registerer interface {
-	CreateRegistrationToken(context.Context, string, string) (string, error)
+	CreateOrganizationRegistrationToken(context.Context, string) (string, error)
 }
 
 type Client struct {
@@ -34,16 +34,14 @@ func NewClient(
 	return &Client{github.NewClient(&http.Client{Transport: rt})}, nil
 }
 
-// CreateRegistrationToken creates Actions token to register self-hosted runner for repository
-func (c *Client) CreateRegistrationToken(
+// CreateOrganizationRegistrationToken creates Actions token to register self-hosted runner for repository
+func (c *Client) CreateOrganizationRegistrationToken(
 	ctx context.Context,
-	repositoryOwnerName string,
-	repositoryName string,
+	organizationName string,
 ) (string, error) {
-	token, _, err := c.client.Actions.CreateRegistrationToken(
+	token, _, err := c.client.Actions.CreateOrganizationRegistrationToken(
 		ctx,
-		repositoryOwnerName,
-		repositoryName,
+		organizationName,
 	)
 	if err != nil {
 		return "", err
@@ -52,6 +50,7 @@ func (c *Client) CreateRegistrationToken(
 	return token.GetToken(), nil
 }
 
+// FakeClient is fake client for GitHub Actions
 type FakeClient struct{}
 
 // NewFakeClient creates GitHub Actions Client
@@ -63,11 +62,10 @@ func NewFakeClient(
 	return &FakeClient{}, nil
 }
 
-// CreateRegistrationToken returns dummy token
-func (c *FakeClient) CreateRegistrationToken(
+// CreateOrganizationRegistrationToken returns dummy token
+func (c *FakeClient) CreateOrganizationRegistrationToken(
 	ctx context.Context,
-	repositoryOwnerName string,
-	repositoryName string,
+	organizationName string,
 ) (string, error) {
 	return "AAA", nil
 }

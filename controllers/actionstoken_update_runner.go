@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -31,12 +30,9 @@ type ActionsTokenUpdator struct {
 	recorder record.EventRecorder
 	interval time.Duration
 
-	k8sClient client.Client
-	namespace string
-
-	githubClient        github.Registerer
-	repositoryOwnerName string
-	repositoryName      string
+	k8sClient        client.Client
+	githubClient     github.Registerer
+	organizationName string
 }
 
 // NewActionsTokenUpdator returns a new ActionsTokenUpdator struct
@@ -45,20 +41,16 @@ func NewActionsTokenUpdator(
 	recorder record.EventRecorder,
 	interval time.Duration,
 	k8sClient client.Client,
-	namespace string,
 	githubClient *github.Client,
-	repositoryOwnerName string,
-	repositoryName string,
+	organizationName string,
 ) manager.Runnable {
 	return &ActionsTokenUpdator{
-		log:                 log,
-		recorder:            recorder,
-		interval:            interval,
-		k8sClient:           k8sClient,
-		namespace:           namespace,
-		githubClient:        githubClient,
-		repositoryOwnerName: repositoryOwnerName,
-		repositoryName:      repositoryName,
+		log:              log,
+		recorder:         recorder,
+		interval:         interval,
+		k8sClient:        k8sClient,
+		githubClient:     githubClient,
+		organizationName: organizationName,
 	}
 }
 
@@ -82,10 +74,9 @@ func (u *ActionsTokenUpdator) Start(ctx context.Context) error {
 }
 
 func (u *ActionsTokenUpdator) reconcile(ctx context.Context) error {
-	token, err := u.githubClient.CreateRegistrationToken(
+	token, err := u.githubClient.CreateOrganizationRegistrationToken(
 		ctx,
-		u.repositoryOwnerName,
-		u.repositoryName,
+		u.organizationName,
 	)
 	if err != nil {
 		return err
@@ -93,17 +84,13 @@ func (u *ActionsTokenUpdator) reconcile(ctx context.Context) error {
 
 	var s corev1.Secret
 	err = u.k8sClient.Get(ctx, types.NamespacedName{
-		Namespace: u.namespace,
+		Namespace: "TODO",
 		Name:      secretName,
 	}, &s)
-	switch {
-	case apierrors.IsNotFound(err):
-		return u.k8sClient.Create(ctx, u.makeSecret(token))
-	case err == nil:
-		return u.k8sClient.Update(ctx, u.makeSecret(token))
-	default:
+	if err != nil {
 		return err
 	}
+	return u.k8sClient.Update(ctx, u.makeSecret(token))
 }
 
 func (u *ActionsTokenUpdator) makeSecret(token string) *corev1.Secret {

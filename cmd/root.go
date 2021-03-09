@@ -18,6 +18,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -26,6 +27,12 @@ var config struct {
 	metricsAddr          string
 	enableLeaderElection bool
 	probeAddr            string
+
+	fetchInterval     time.Duration
+	namespace         string
+	appID             int64
+	appInstallationID int64
+	appPrivateKeyPath string
 
 	organizationName string
 }
@@ -58,4 +65,10 @@ func init() {
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
+
+	fs.DurationVar(&config.fetchInterval, "token-fetch-interval", 19*time.Minute, "Interval to fetch GitHub Actions tokens.")
+	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App")
+	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App")
+	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key")
+	fs.StringVarP(&config.namespace, "namespace", "n", "default", "The namespace to create Secret")
 }

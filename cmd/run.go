@@ -12,6 +12,7 @@ import (
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/cybozu-go/github-actions-controller/controllers"
+	"github.com/cybozu-go/github-actions-controller/github"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -44,6 +45,16 @@ func run() error {
 		return err
 	}
 
+	c, err := github.NewClient(
+		config.appID,
+		config.appInstallationID,
+		config.appPrivateKeyPath,
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to create github client", "controller", "RunnerPool")
+		return err
+	}
+
 	rpr := &controllers.RunnerPoolReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("RunnerPool"),
@@ -53,6 +64,21 @@ func run() error {
 		setupLog.Error(err, "unable to create controller", "controller", "RunnerPool")
 		return err
 	}
+
+	atr := controllers.NewActionsTokenUpdator(
+		ctrl.Log.WithName("actions-token-updator"),
+		mgr.GetEventRecorderFor("actions-token-updator"),
+		config.fetchInterval,
+		mgr.GetClient(),
+		c,
+		config.organizationName,
+	)
+	if err := mgr.Add(atr); err != nil {
+		setupLog.Error(err, "unable to add runner to manager", "actions-token-runner")
+		return err
+
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
