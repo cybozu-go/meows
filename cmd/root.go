@@ -25,6 +25,7 @@ import (
 var config struct {
 	metricsAddr          string
 	enableLeaderElection bool
+	probeAddr            string
 
 	organizationName string
 }
@@ -54,6 +55,7 @@ func init() {
 	fs.BoolVar(&config.enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
 }
