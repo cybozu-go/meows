@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -43,6 +44,18 @@ var rootCmd = &cobra.Command{
 	Short: "Kubernetes controller for GitHub Actions self-hosted runner",
 	Long:  `Kubernetes controller for GitHub Actions self-hosted runner`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(config.organizationName) == 0 {
+			return errors.New("organization-name should be specified")
+		}
+		if config.appID == 0 {
+			return errors.New("app-id should be specified")
+		}
+		if config.appInstallationID == 0 {
+			return errors.New("app-id should be specified")
+		}
+		if len(config.appPrivateKeyPath) == 0 {
+			return errors.New("app-private-key-path should be specified")
+		}
 		return run()
 	},
 }
