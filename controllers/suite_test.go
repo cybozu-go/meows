@@ -41,6 +41,8 @@ var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 
+var _ = cfg
+
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 

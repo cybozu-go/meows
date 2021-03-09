@@ -22,8 +22,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
-
 var config struct {
 	metricsAddr          string
 	enableLeaderElection bool
