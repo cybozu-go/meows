@@ -87,6 +87,16 @@ func makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) 
 	return &d, nil
 }
 
-func makeSecret(rp *actionsv1alpha1.RunnerPool) (*corev1.Secret, error) {
-	return nil, nil
+func makeSecret(name, namespace, token string) *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		StringData: map[string]string{
+			tokenSecretKey: token,
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
 }

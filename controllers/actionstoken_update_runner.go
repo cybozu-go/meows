@@ -5,9 +5,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -71,31 +68,5 @@ func (u *ActionsTokenUpdator) Start(ctx context.Context) error {
 }
 
 func (u *ActionsTokenUpdator) reconcile(ctx context.Context) error {
-	token, err := u.githubClient.CreateOrganizationRegistrationToken(
-		ctx,
-	)
-	if err != nil {
-		return err
-	}
-
-	var s corev1.Secret
-	err = u.k8sClient.Get(ctx, types.NamespacedName{
-		Namespace: "TODO",
-		Name:      secretName,
-	}, &s)
-	if err != nil {
-		return err
-	}
-	return u.k8sClient.Update(ctx, u.makeSecret(token))
-}
-
-func (u *ActionsTokenUpdator) makeSecret(token string) *corev1.Secret {
-	return &corev1.Secret{
-		TypeMeta:   metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{},
-		StringData: map[string]string{
-			tokenSecretKey: token,
-		},
-		Type: corev1.SecretTypeOpaque,
-	}
+	return nil
 }

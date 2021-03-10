@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -88,21 +87,6 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		patch := client.MergeFrom(rp)
 		if err := r.Patch(ctx, rp2, patch); err != nil {
 			log.Error(err, "failed to remove finalizer")
-			return ctrl.Result{}, err
-		}
-	}
-
-	targetSecret := &corev1.Secret{}
-	err := r.Get(ctx, req.NamespacedName, targetSecret)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			log.Error(err, "failed to get secret")
-			return ctrl.Result{}, err
-		}
-		// TODO
-		_, err := r.githubClient.CreateOrganizationRegistrationToken(ctx)
-		if err != nil {
-			log.Error(err, "failed to generate token")
 			return ctrl.Result{}, err
 		}
 	}
