@@ -67,10 +67,10 @@ func run() error {
 		return err
 	}
 
-	atr := controllers.NewActionsTokenUpdator(
+	atr := controllers.NewOldTokenSweeper(
 		ctrl.Log.WithName("actions-token-updator"),
 		mgr.GetEventRecorderFor("actions-token-updator"),
-		config.fetchInterval,
+		config.tokenSweepInterval,
 		mgr.GetClient(),
 		c,
 	)

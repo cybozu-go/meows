@@ -10,6 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	tokenSecretKey = "GITHUB_ACTIONS_TOKEN"
+)
+
 func makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) {
 	rp2 := rp.DeepCopy()
 	d := appsv1.Deployment{
@@ -86,6 +90,8 @@ func makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) 
 
 	return &d, nil
 }
+
+var _ = makeSecret
 
 func makeSecret(name, namespace, token string) *corev1.Secret {
 	return &corev1.Secret{

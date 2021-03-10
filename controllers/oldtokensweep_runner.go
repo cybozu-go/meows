@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -12,17 +13,10 @@ import (
 	"github.com/cybozu-go/github-actions-controller/github"
 )
 
-const (
-	secretName = "actions-token"
-
-	tokenSecretKey = "GITHUB_ACTIONS_TOKEN"
-)
-
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create
 
-// ActionsTokenUpdator updates GitHub Actions Token periodically
-type ActionsTokenUpdator struct {
+// OldTokenSweeper sweeps unregistered GitHub Actions Token periodically
+type OldTokenSweeper struct {
 	log      logr.Logger
 	recorder record.EventRecorder
 	interval time.Duration
@@ -31,15 +25,15 @@ type ActionsTokenUpdator struct {
 	githubClient github.RegistrationTokenGenerator
 }
 
-// NewActionsTokenUpdator returns a new ActionsTokenUpdator struct
-func NewActionsTokenUpdator(
+// NewOldTokenSweeper returns OldTokenSweeper
+func NewOldTokenSweeper(
 	log logr.Logger,
 	recorder record.EventRecorder,
 	interval time.Duration,
 	k8sClient client.Client,
 	githubClient github.RegistrationTokenGenerator,
 ) manager.Runnable {
-	return &ActionsTokenUpdator{
+	return &OldTokenSweeper{
 		log:          log,
 		recorder:     recorder,
 		interval:     interval,
@@ -49,8 +43,8 @@ func NewActionsTokenUpdator(
 }
 
 // Start starts loop to update Actions runner token
-func (u *ActionsTokenUpdator) Start(ctx context.Context) error {
-	ticker := time.NewTicker(u.interval)
+func (r *OldTokenSweeper) Start(ctx context.Context) error {
+	ticker := time.NewTicker(r.interval)
 
 	defer ticker.Stop()
 	for {
@@ -58,15 +52,42 @@ func (u *ActionsTokenUpdator) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			err := u.reconcile(ctx)
+			err := r.run(ctx)
 			if err != nil {
-				u.log.Error(err, "failed to reconcile")
+				r.log.Error(err, "failed to run a loop")
 				return err
 			}
 		}
 	}
 }
 
-func (u *ActionsTokenUpdator) reconcile(ctx context.Context) error {
+func (r *OldTokenSweeper) run(ctx context.Context) error {
+	var podList corev1.PodList
+	err := r.k8sClient.List(ctx, &podList)
+	if err != nil {
+		return err
+	}
+
+	podSet := make(map[string]struct{})
+	for _, p := range podList.Items {
+		podSet[p.Name] = struct{}{}
+	}
+
+	runners, err := r.githubClient.ListOrganizationRunners(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, runner := range runners {
+		if runner.Name == nil || runner.ID == nil {
+			continue
+		}
+		if _, ok := podSet[*runner.Name]; !ok {
+			err := r.githubClient.RemoveOrganizationRunner(ctx, *runner.ID)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
