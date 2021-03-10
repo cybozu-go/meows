@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// NOTE: This script is copied from https://github.com/actions/runner/blob/main/src/Misc/layoutbin/RunnerService.js and is updated in some lines of code.
 // Copyright (c) GitHub. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
@@ -24,10 +25,12 @@ var runService = function() {
         try {
             if (interactive) {
                 console.log('Starting Runner listener interactively');
-                listener = childProcess.spawn(listenerExePath, ['run'].concat(process.argv.slice(3)), { env: process.env });
+                // NOTE: --once is added to kill runner after job finishes
+                listener = childProcess.spawn(listenerExePath, ['run', '--once'], { env: process.env });
             } else {
                 console.log('Starting Runner listener with startup type: service');
-                listener = childProcess.spawn(listenerExePath, ['run', '--startuptype', 'service'].concat(process.argv.slice(2)), { env: process.env });
+                // NOTE: --once is added to kill runner after job finishes
+                listener = childProcess.spawn(listenerExePath, ['run', '--startuptype', 'service', '--once'], { env: process.env });
             }
 
             console.log('Started listener process');

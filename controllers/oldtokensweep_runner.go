@@ -63,6 +63,7 @@ func (r *OldTokenSweeper) Start(ctx context.Context) error {
 
 func (r *OldTokenSweeper) run(ctx context.Context) error {
 	var podList corev1.PodList
+	// TODO
 	err := r.k8sClient.List(ctx, &podList)
 	if err != nil {
 		return err
@@ -73,7 +74,7 @@ func (r *OldTokenSweeper) run(ctx context.Context) error {
 		podSet[p.Name] = struct{}{}
 	}
 
-	runners, err := r.githubClient.ListOrganizationRunners(ctx)
+	runners, err := r.githubClient.ListRunners(ctx)
 	if err != nil {
 		return err
 	}
@@ -83,7 +84,7 @@ func (r *OldTokenSweeper) run(ctx context.Context) error {
 			continue
 		}
 		if _, ok := podSet[*runner.Name]; !ok {
-			err := r.githubClient.RemoveOrganizationRunner(ctx, *runner.ID)
+			err := r.githubClient.RemoveRunner(ctx, *runner.ID)
 			if err != nil {
 				return err
 			}

@@ -9,7 +9,8 @@ SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+CONTROLLER_IMG ?= controller:latest
+RUNNER_IMG ?= runner:latest
 
 CRD_OPTIONS ?=
 
@@ -99,11 +100,11 @@ run: manifests generate ## Run a controller from your host.
 
 .PHONY: build-controller-image
 build-cotroller-image: test ## Build docker image with the controller.
-	docker build -t ${IMG} .
+	docker build -t ${CONTROLLER_IMG} .
 
 .PHONY: build-runner-image
 build-runner-image: test ## Build docker image with the runner.
-	docker build -t ${IMG} .
+	docker build -f Dockerfile.runner -t ${RUNNER_IMG} .
 
 ##@ Deployment
 

@@ -13,11 +13,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/github"
 )
 
 var _ = Describe("RunnerPool reconciler", func() {
 	ctx := context.Background()
+	organizationName := "org"
+	repositoryName := "repo"
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -31,7 +32,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("RunnerPool"),
 			mgr.GetScheme(),
-			github.NewFakeClient(),
+			organizationName,
 		)
 		err = rpr.SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
@@ -50,7 +51,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		time.Sleep(100 * time.Millisecond)
 	})
 
-	It("should create Deployment", func() {
+	It("should not create Deployment", func() {
 		name := "runnerpool-0"
 		{
 			By("deploying RunnerPool resource")
@@ -60,8 +61,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 					Namespace: namespace,
 				},
 				Spec: actionsv1alpha1.RunnerPoolSpec{
+					RepositoryName: repositoryName,
 					DeploymentSpec: actionsv1alpha1.DeploymentSpec{
-						Replicas: int32Ptr(1),
 						Selector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"app": name,
@@ -76,7 +77,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
 									{
-										Name:  controllerContainerName,
+										Name:  "bad-name",
 										Image: "sample:latest",
 									},
 								},
@@ -102,8 +103,72 @@ var _ = Describe("RunnerPool reconciler", func() {
 			}
 
 			return k8sClient.Get(ctx, nsn, d)
-		}).Should(Succeed())
+		}, 5*time.Second).ShouldNot(Succeed())
+
+	})
+
+	It("should create Deployment", func() {
+		name := "runnerpool-1"
+		{
+			By("deploying RunnerPool resource")
+			rp := &actionsv1alpha1.RunnerPool{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+				Spec: actionsv1alpha1.RunnerPoolSpec{
+					RepositoryName: repositoryName,
+					DeploymentSpec: actionsv1alpha1.DeploymentSpec{
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": name,
+							},
+						},
+						Template: actionsv1alpha1.PodTemplateSpec{
+							ObjectMeta: actionsv1alpha1.ObjectMeta{
+								Labels: map[string]string{
+									"app": name,
+								},
+							},
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name:  runnerContainerName,
+										Image: "sample:latest",
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, rp)
+			Expect(err).To(Succeed())
+		}
+
+		By("getting the created Deployment")
+		d := new(appsv1.Deployment)
+		nsn := types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		}
+		Eventually(func() error {
+			rp := new(actionsv1alpha1.RunnerPool)
+			if err := k8sClient.Get(ctx, nsn, rp); err != nil {
+				return err
+			}
+
+			return k8sClient.Get(ctx, nsn, d)
+		}, 5*time.Second).Should(Succeed())
 
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+		c := d.Spec.Template.Spec.Containers[0]
+		Expect(c.Env).To(HaveLen(3))
+		Expect(c.Env[0].Name).To(Equal(runnerNameEnvKey))
+		Expect(c.Env[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))
+		Expect(c.Env[1].Name).To(Equal(runnerOrgEnvKey))
+		Expect(c.Env[1].Value).To(Equal(organizationName))
+		Expect(c.Env[2].Name).To(Equal(runnerRepoEnvKey))
+		Expect(c.Env[2].Value).To(Equal(repositoryName))
 	})
 })

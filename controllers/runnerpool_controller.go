@@ -3,45 +3,53 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/github"
 )
 
 const (
 	runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
 
-	controllerContainerName = "controller"
+	runnerContainerName = "runner"
 
-	actionsTokenSecretName = "github-actions-token"
-	actionsTokenSecretKey  = "GITHUB_ACTIONS_TOKEN"
-	actionsTokenVolumeName = "github-actions-token"
-	actionsTokenMountPath  = "/etc/github/token.json"
+	runnerNameEnvKey  = "RUNNER_NAME"
+	runnerOrgEnvKey   = "RUNNER_ORG"
+	runnerRepoEnvKey  = "RUNNER_REPO"
+	runnerTokenEnvKey = "RUNNER_TOKEN"
 )
 
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
 	client.Client
-	Log          logr.Logger
-	Scheme       *runtime.Scheme
-	githubClient github.RegistrationTokenGenerator
+	Log    logr.Logger
+	Scheme *runtime.Scheme
+
+	organizationName string
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, githubClient github.RegistrationTokenGenerator) *RunnerPoolReconciler {
+func NewRunnerPoolReconciler(
+	client client.Client,
+	log logr.Logger,
+	scheme *runtime.Scheme,
+	organizationName string,
+) *RunnerPoolReconciler {
 	return &RunnerPoolReconciler{
-		Client:       client,
-		Log:          log,
-		Scheme:       scheme,
-		githubClient: githubClient,
+		Client:           client,
+		Log:              log,
+		Scheme:           scheme,
+		organizationName: organizationName,
 	}
 }
 
@@ -91,7 +99,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 	}
 
-	d, err := makeDeployment(rp)
+	d, err := r.makeDeployment(rp)
 	if err != nil {
 		log.Error(err, "failed to make Deployment definition")
 		return ctrl.Result{}, err
@@ -117,4 +125,59 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&actionsv1alpha1.RunnerPool{}).
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
+}
+
+func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) {
+	rp2 := rp.DeepCopy()
+	d := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        rp2.Name,
+			Namespace:   rp2.Namespace,
+			Labels:      rp2.Labels,
+			Annotations: rp2.Annotations,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: rp2.Spec.DeploymentSpec.Replicas,
+			Selector: rp2.Spec.DeploymentSpec.Selector,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      rp2.Spec.DeploymentSpec.Template.ObjectMeta.Labels,
+					Annotations: rp2.Spec.DeploymentSpec.Template.ObjectMeta.Annotations,
+				},
+				Spec: rp2.Spec.DeploymentSpec.Template.Spec,
+			},
+		},
+	}
+
+	var container *corev1.Container
+	for i := range d.Spec.Template.Spec.Containers {
+		c := &d.Spec.Template.Spec.Containers[i]
+		if c.Name == runnerContainerName {
+			container = c
+			break
+		}
+	}
+	if container == nil {
+		return nil, fmt.Errorf("container with name %s should exist in the manifest", runnerContainerName)
+	}
+
+	container.Env = append(container.Env,
+		corev1.EnvVar{
+			Name: runnerNameEnvKey,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		corev1.EnvVar{
+			Name:  runnerOrgEnvKey,
+			Value: r.organizationName,
+		},
+		corev1.EnvVar{
+			Name:  runnerRepoEnvKey,
+			Value: rp.Spec.RepositoryName,
+		},
+	)
+	return &d, nil
 }

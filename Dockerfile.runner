@@ -54,7 +54,6 @@ RUN mkdir -p "$RUNNER_ASSETS_DIR" \
   && tar xzf ./runner.tar.gz \
   && rm runner.tar.gz \
   && ./bin/installdependencies.sh \
-  && rm ./bin/runsvc.sh \
   && rm ./bin/RunnerService.js \
   && chown -R 10000 $RUNNER_ASSETS_DIR
 
@@ -62,8 +61,7 @@ USER 10000
 COPY scripts/entrypoint.sh /usr/local/bin/
 COPY scripts/job-failed /usr/local/bin/
 COPY scripts/job-started /usr/local/bin/
-COPY scripts/patched/runsvc.sh ${RUNNER_ASSETS_DIR}/bin/
-COPY scripts/patched/RunnerService.js ${RUNNER_ASSETS_DIR}/bin/
+COPY scripts/RunnerService.js ${RUNNER_ASSETS_DIR}/bin/
 
 ENTRYPOINT ["/usr/local/bin/dumb-init", "--"]
 CMD ["/usr/local/bin/entrypoint.sh"]

@@ -25,8 +25,6 @@ import (
 type RunnerPoolSpec struct {
 	RepositoryName string `json:"repositoryName"`
 
-	RunnerGroupName string `json:"runnerGroupName"`
-
 	DeploymentSpec DeploymentSpec `json:"deploymentSpec"`
 }
 

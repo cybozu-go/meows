@@ -50,6 +50,7 @@ func run() error {
 		config.appInstallationID,
 		config.appPrivateKeyPath,
 		config.organizationName,
+		config.repositoryName,
 	)
 	if err != nil {
 		setupLog.Error(err, "unable to create github client", "controller", "RunnerPool")
@@ -60,7 +61,7 @@ func run() error {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("RunnerPool"),
 		mgr.GetScheme(),
-		c,
+		config.organizationName,
 	)
 	if err = rpr.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RunnerPool")
@@ -77,7 +78,6 @@ func run() error {
 	if err := mgr.Add(atr); err != nil {
 		setupLog.Error(err, "unable to add runner to manager", "actions-token-runner")
 		return err
-
 	}
 
 	// +kubebuilder:scaffold:builder

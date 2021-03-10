@@ -75,7 +75,3 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
-
-func int32Ptr(v int32) *int32 {
-	return &v
-}

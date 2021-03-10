@@ -6669,12 +6669,9 @@ spec:
                 type: object
               repositoryName:
                 type: string
-              runnerGroupName:
-                type: string
             required:
             - deploymentSpec
             - repositoryName
-            - runnerGroupName
             type: object
         required:
         - spec
