@@ -104,15 +104,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 			return k8sClient.Get(ctx, nsn, d)
 		}).Should(Succeed())
 
-		Expect(d.Spec.Template.Spec.Volumes).To(HaveLen(1))
-		v := d.Spec.Template.Spec.Volumes[0]
-		Expect(v.Name).To(Equal(actionsTokenVolumeName))
-		Expect(v.VolumeSource.Secret.SecretName).To(Equal(actionsTokenSecretName))
-
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
-		c := d.Spec.Template.Spec.Containers[0]
-		Expect(c.VolumeMounts).To(HaveLen(1))
-		Expect(c.VolumeMounts[0].Name).To(Equal(actionsTokenVolumeName))
-		Expect(c.VolumeMounts[0].MountPath).To(Equal(actionsTokenMountPath))
 	})
 })

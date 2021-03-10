@@ -97,13 +97,13 @@ build: generate ## Build manager binary.
 run: manifests generate ## Run a controller from your host.
 	go run ./main.go
 
-.PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
+.PHONY: build-controller-image
+build-cotroller-image: test ## Build docker image with the controller.
 	docker build -t ${IMG} .
 
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+.PHONY: build-runner-image
+build-runner-image: test ## Build docker image with the runner.
+	docker build -t ${IMG} .
 
 ##@ Deployment
 

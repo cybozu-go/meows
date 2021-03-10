@@ -41,26 +41,6 @@ func makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) 
 		return nil, errors.New("spec.deploymentSpec.template.spec.containers should have 1 container")
 	}
 
-	// Add Secret volume to Volumes
-	foundVolume := false
-	for _, v := range ps.Volumes {
-		if v.Name == actionsTokenVolumeName {
-			foundVolume = true
-			break
-		}
-	}
-	if !foundVolume {
-		ps.Volumes = append(ps.Volumes, corev1.Volume{
-			Name: actionsTokenVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: actionsTokenSecretName,
-				},
-			},
-		})
-	}
-
-	// Add Secret mount to VolumeMounts
 	var container *corev1.Container
 	for i := range ps.Containers {
 		c := &ps.Containers[i]
@@ -72,22 +52,6 @@ func makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) 
 	if container == nil {
 		return nil, fmt.Errorf("%s should exist in one of spec.deploymentSpec.template.spec.containers", controllerContainerName)
 	}
-
-	foundMount := false
-	for _, v := range container.VolumeMounts {
-		if v.Name == actionsTokenMountPath {
-			foundMount = true
-			break
-		}
-	}
-	if !foundMount {
-		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
-			Name:      actionsTokenVolumeName,
-			ReadOnly:  true,
-			MountPath: actionsTokenMountPath,
-		})
-	}
-
 	return &d, nil
 }
 
