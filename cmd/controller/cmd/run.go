@@ -67,25 +67,24 @@ func run() error {
 	wh := mgr.GetWebhookServer()
 	wh.Register("/mutate-pod", hooks.NewPodMutator(mgr.GetClient(), dec, c))
 
-	rpr := controllers.NewRunnerPoolReconciler(
+	reconciler := controllers.NewRunnerPoolReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("RunnerPool"),
 		mgr.GetScheme(),
 		config.organizationName,
 	)
-	if err = rpr.SetupWithManager(mgr); err != nil {
+	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RunnerPool")
 		return err
 	}
 
-	atr := controllers.NewOldTokenSweeper(
+	sweeper := controllers.NewUnusedRunnerSweeper(
 		ctrl.Log.WithName("actions-token-updator"),
-		mgr.GetEventRecorderFor("actions-token-updator"),
 		config.tokenSweepInterval,
 		mgr.GetClient(),
 		c,
 	)
-	if err := mgr.Add(atr); err != nil {
+	if err := mgr.Add(sweeper); err != nil {
 		setupLog.Error(err, "unable to add runner to manager", "actions-token-runner")
 		return err
 	}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -15,27 +14,24 @@ import (
 
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create
 
-// OldTokenSweeper sweeps unregistered GitHub Actions Token periodically
-type OldTokenSweeper struct {
+// UnusedRunnerSweeper sweeps unregistered GitHub Actions Token periodically
+type UnusedRunnerSweeper struct {
 	log      logr.Logger
-	recorder record.EventRecorder
 	interval time.Duration
 
 	k8sClient    client.Client
 	githubClient github.RegistrationTokenGenerator
 }
 
-// NewOldTokenSweeper returns OldTokenSweeper
-func NewOldTokenSweeper(
+// NewUnusedRunnerSweeper returns OldTokenSweeper
+func NewUnusedRunnerSweeper(
 	log logr.Logger,
-	recorder record.EventRecorder,
 	interval time.Duration,
 	k8sClient client.Client,
 	githubClient github.RegistrationTokenGenerator,
 ) manager.Runnable {
-	return &OldTokenSweeper{
+	return &UnusedRunnerSweeper{
 		log:          log,
-		recorder:     recorder,
 		interval:     interval,
 		k8sClient:    k8sClient,
 		githubClient: githubClient,
@@ -43,7 +39,7 @@ func NewOldTokenSweeper(
 }
 
 // Start starts loop to update Actions runner token
-func (r *OldTokenSweeper) Start(ctx context.Context) error {
+func (r *UnusedRunnerSweeper) Start(ctx context.Context) error {
 	ticker := time.NewTicker(r.interval)
 
 	defer ticker.Stop()
@@ -61,7 +57,7 @@ func (r *OldTokenSweeper) Start(ctx context.Context) error {
 	}
 }
 
-func (r *OldTokenSweeper) run(ctx context.Context) error {
+func (r *UnusedRunnerSweeper) run(ctx context.Context) error {
 	var podList corev1.PodList
 	// TODO
 	err := r.k8sClient.List(ctx, &podList)
