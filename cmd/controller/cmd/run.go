@@ -59,9 +59,11 @@ func run() error {
 		return err
 	}
 
-	// register webhook handlers
-	// admission.NewDecoder never returns non-nil error
-	dec, _ := admission.NewDecoder(scheme)
+	dec, err := admission.NewDecoder(scheme)
+	if err != nil {
+		setupLog.Error(err, "unable to create decoder", "controller", "RunnerPool")
+		return err
+	}
 	wh := mgr.GetWebhookServer()
 	wh.Register("/mutate-pod", hooks.NewPodMutator(mgr.GetClient(), dec, c))
 
