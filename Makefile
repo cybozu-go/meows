@@ -92,11 +92,11 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: build
 build: generate ## Build manager binary.
-	go build -o bin/github-actions-controller main.go
+	go build -o bin/github-actions-controller ./cmd/controller
 
 .PHONY: run
 run: manifests generate ## Run a controller from your host.
-	go run ./main.go
+	go run ./cmd/controller
 
 .PHONY: build-controller-image
 build-cotroller-image: test ## Build docker image with the controller.

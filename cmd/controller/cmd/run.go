@@ -14,6 +14,7 @@ import (
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/cybozu-go/github-actions-controller/controllers"
 	"github.com/cybozu-go/github-actions-controller/github"
+	"github.com/cybozu-go/github-actions-controller/hooks"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -62,7 +63,7 @@ func run() error {
 	// admission.NewDecoder never returns non-nil error
 	dec, _ := admission.NewDecoder(scheme)
 	wh := mgr.GetWebhookServer()
-	wh.Register("/mutate-pod", hooks.NewPodMutator(mgr.GetClient(), dec))
+	wh.Register("/mutate-pod", hooks.NewPodMutator(mgr.GetClient(), dec, c))
 
 	rpr := controllers.NewRunnerPoolReconciler(
 		mgr.GetClient(),

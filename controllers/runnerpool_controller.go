@@ -15,19 +15,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	actionscontroller "github.com/cybozu-go/github-actions-controller"
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
 
-const (
-	runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
-
-	runnerContainerName = "runner"
-
-	runnerNameEnvKey  = "RUNNER_NAME"
-	runnerOrgEnvKey   = "RUNNER_ORG"
-	runnerRepoEnvKey  = "RUNNER_REPO"
-	runnerTokenEnvKey = "RUNNER_TOKEN"
-)
+const runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
 
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
@@ -152,18 +144,18 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 	var container *corev1.Container
 	for i := range d.Spec.Template.Spec.Containers {
 		c := &d.Spec.Template.Spec.Containers[i]
-		if c.Name == runnerContainerName {
+		if c.Name == actionscontroller.RunnerContainerName {
 			container = c
 			break
 		}
 	}
 	if container == nil {
-		return nil, fmt.Errorf("container with name %s should exist in the manifest", runnerContainerName)
+		return nil, fmt.Errorf("container with name %s should exist in the manifest", actionscontroller.RunnerContainerName)
 	}
 
 	container.Env = append(container.Env,
 		corev1.EnvVar{
-			Name: runnerNameEnvKey,
+			Name: actionscontroller.RunnerNameEnvKey,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.name",
@@ -171,11 +163,11 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 			},
 		},
 		corev1.EnvVar{
-			Name:  runnerOrgEnvKey,
+			Name:  actionscontroller.RunnerOrgEnvKey,
 			Value: r.organizationName,
 		},
 		corev1.EnvVar{
-			Name:  runnerRepoEnvKey,
+			Name:  actionscontroller.RunnerRepoEnvKey,
 			Value: rp.Spec.RepositoryName,
 		},
 	)

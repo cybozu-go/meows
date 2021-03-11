@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	actionscontroller "github.com/cybozu-go/github-actions-controller"
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
 
@@ -133,7 +134,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
 									{
-										Name:  runnerContainerName,
+										Name:  actionscontroller.RunnerContainerName,
 										Image: "sample:latest",
 									},
 								},
@@ -164,11 +165,11 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
 		Expect(c.Env).To(HaveLen(3))
-		Expect(c.Env[0].Name).To(Equal(runnerNameEnvKey))
+		Expect(c.Env[0].Name).To(Equal(actionscontroller.RunnerNameEnvKey))
 		Expect(c.Env[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))
-		Expect(c.Env[1].Name).To(Equal(runnerOrgEnvKey))
+		Expect(c.Env[1].Name).To(Equal(actionscontroller.RunnerOrgEnvKey))
 		Expect(c.Env[1].Value).To(Equal(organizationName))
-		Expect(c.Env[2].Name).To(Equal(runnerRepoEnvKey))
+		Expect(c.Env[2].Name).To(Equal(actionscontroller.RunnerRepoEnvKey))
 		Expect(c.Env[2].Value).To(Equal(repositoryName))
 	})
 })
