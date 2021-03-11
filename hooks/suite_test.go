@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
@@ -59,7 +60,8 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
-	cfg, err := testEnv.Start()
+	var err error
+	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
@@ -67,6 +69,8 @@ var _ = BeforeSuite(func() {
 	err = clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = admissionv1beta1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = admissionv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
@@ -89,7 +93,7 @@ var _ = BeforeSuite(func() {
 
 	dec, err := admission.NewDecoder(scheme)
 	wh := mgr.GetWebhookServer()
-	wh.Register("/mutate-pod", NewPodMutator(mgr.GetClient(), dec, github.NewFakeClient()))
+	wh.Register("/pod/mutate", NewPodMutator(mgr.GetClient(), dec, github.NewFakeClient()))
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

@@ -54,42 +54,40 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	It("should not create Deployment", func() {
 		name := "runnerpool-0"
-		{
-			By("deploying RunnerPool resource")
-			rp := &actionsv1alpha1.RunnerPool{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: namespace,
-				},
-				Spec: actionsv1alpha1.RunnerPoolSpec{
-					RepositoryName: repositoryName,
-					DeploymentSpec: actionsv1alpha1.DeploymentSpec{
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
+		By("deploying RunnerPool resource")
+		rp := &actionsv1alpha1.RunnerPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: actionsv1alpha1.RunnerPoolSpec{
+				RepositoryName: repositoryName,
+				DeploymentSpec: actionsv1alpha1.DeploymentSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": name,
+						},
+					},
+					Template: actionsv1alpha1.PodTemplateSpec{
+						ObjectMeta: actionsv1alpha1.ObjectMeta{
+							Labels: map[string]string{
 								"app": name,
 							},
 						},
-						Template: actionsv1alpha1.PodTemplateSpec{
-							ObjectMeta: actionsv1alpha1.ObjectMeta{
-								Labels: map[string]string{
-									"app": name,
-								},
-							},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{
-									{
-										Name:  "bad-name",
-										Image: "sample:latest",
-									},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "bad-name",
+									Image: "sample:latest",
 								},
 							},
 						},
 					},
 				},
-			}
-			err := k8sClient.Create(ctx, rp)
-			Expect(err).To(Succeed())
+			},
 		}
+		err := k8sClient.Create(ctx, rp)
+		Expect(err).To(Succeed())
 
 		By("getting the created Deployment")
 		d := new(appsv1.Deployment)
@@ -105,47 +103,44 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 			return k8sClient.Get(ctx, nsn, d)
 		}, 5*time.Second).ShouldNot(Succeed())
-
 	})
 
 	It("should create Deployment", func() {
 		name := "runnerpool-1"
-		{
-			By("deploying RunnerPool resource")
-			rp := &actionsv1alpha1.RunnerPool{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: namespace,
-				},
-				Spec: actionsv1alpha1.RunnerPoolSpec{
-					RepositoryName: repositoryName,
-					DeploymentSpec: actionsv1alpha1.DeploymentSpec{
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
+		By("deploying RunnerPool resource")
+		rp := &actionsv1alpha1.RunnerPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: actionsv1alpha1.RunnerPoolSpec{
+				RepositoryName: repositoryName,
+				DeploymentSpec: actionsv1alpha1.DeploymentSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": name,
+						},
+					},
+					Template: actionsv1alpha1.PodTemplateSpec{
+						ObjectMeta: actionsv1alpha1.ObjectMeta{
+							Labels: map[string]string{
 								"app": name,
 							},
 						},
-						Template: actionsv1alpha1.PodTemplateSpec{
-							ObjectMeta: actionsv1alpha1.ObjectMeta{
-								Labels: map[string]string{
-									"app": name,
-								},
-							},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{
-									{
-										Name:  actionscontroller.RunnerContainerName,
-										Image: "sample:latest",
-									},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  actionscontroller.RunnerContainerName,
+									Image: "sample:latest",
 								},
 							},
 						},
 					},
 				},
-			}
-			err := k8sClient.Create(ctx, rp)
-			Expect(err).To(Succeed())
+			},
 		}
+		err := k8sClient.Create(ctx, rp)
+		Expect(err).To(Succeed())
 
 		By("getting the created Deployment")
 		d := new(appsv1.Deployment)
