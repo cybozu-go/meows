@@ -4,15 +4,18 @@ const (
 	// RunnerContainerName is a container name which runs GitHub Actions runner.
 	RunnerContainerName = "runner"
 
-	// RunnerNameEnvKey is a env field key for RUNNER_NAME.
-	RunnerNameEnvKey = "RUNNER_NAME"
+	// RunnerNameEnvName is a env field key for RUNNER_NAME.
+	RunnerNameEnvName = "RUNNER_NAME"
 
-	// RunnerOrgEnvKey is a env field key for RUNNER_ORG.
-	RunnerOrgEnvKey = "RUNNER_ORG"
+	// RunnerOrgEnvName is a env field key for RUNNER_ORG.
+	RunnerOrgEnvName = "RUNNER_ORG"
 
-	// RunnerRepoEnvKey is a env field key for RUNNER_REPO.
-	RunnerRepoEnvKey = "RUNNER_REPO"
+	// RunnerRepoEnvName is a env field key for RUNNER_REPO.
+	RunnerRepoEnvName = "RUNNER_REPO"
 
-	// RunnerTokenEnvKey is a env field key for RUNNER_TOKEN.
-	RunnerTokenEnvKey = "RUNNER_TOKEN"
+	// RunnerTokenEnvName is a env field key for RUNNER_TOKEN.
+	RunnerTokenEnvName = "RUNNER_TOKEN"
+
+	// RunnerWebhookLabelKey is a label key to tell this pod should be mutated.
+	RunnerWebhookLabelKey = "actions.cybozu.com/webhook"
 )

@@ -121,11 +121,19 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) {
 	rp2 := rp.DeepCopy()
+
+	// "true" is just a temporal value. We can change the value freely if needed.
+	l := rp2.GetLabels()
+	if l == nil {
+		l = make(map[string]string)
+	}
+	l[actionscontroller.RunnerWebhookLabelKey] = "true"
+
 	d := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        rp2.Name,
 			Namespace:   rp2.Namespace,
-			Labels:      rp2.Labels,
+			Labels:      l,
 			Annotations: rp2.Annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -155,7 +163,7 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 
 	container.Env = append(container.Env,
 		corev1.EnvVar{
-			Name: actionscontroller.RunnerNameEnvKey,
+			Name: actionscontroller.RunnerNameEnvName,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.name",
@@ -163,11 +171,11 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 			},
 		},
 		corev1.EnvVar{
-			Name:  actionscontroller.RunnerOrgEnvKey,
+			Name:  actionscontroller.RunnerOrgEnvName,
 			Value: r.organizationName,
 		},
 		corev1.EnvVar{
-			Name:  actionscontroller.RunnerRepoEnvKey,
+			Name:  actionscontroller.RunnerRepoEnvName,
 			Value: rp.Spec.RepositoryName,
 		},
 	)

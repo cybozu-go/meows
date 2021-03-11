@@ -162,14 +162,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 			return k8sClient.Get(ctx, nsn, d)
 		}, 5*time.Second).Should(Succeed())
 
+		Expect(d.Labels[actionscontroller.RunnerWebhookLabelKey]).To(Equal("true"))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
 		Expect(c.Env).To(HaveLen(3))
-		Expect(c.Env[0].Name).To(Equal(actionscontroller.RunnerNameEnvKey))
+		Expect(c.Env[0].Name).To(Equal(actionscontroller.RunnerNameEnvName))
 		Expect(c.Env[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))
-		Expect(c.Env[1].Name).To(Equal(actionscontroller.RunnerOrgEnvKey))
+		Expect(c.Env[1].Name).To(Equal(actionscontroller.RunnerOrgEnvName))
 		Expect(c.Env[1].Value).To(Equal(organizationName))
-		Expect(c.Env[2].Name).To(Equal(actionscontroller.RunnerRepoEnvKey))
+		Expect(c.Env[2].Name).To(Equal(actionscontroller.RunnerRepoEnvName))
 		Expect(c.Env[2].Value).To(Equal(repositoryName))
 	})
 })
