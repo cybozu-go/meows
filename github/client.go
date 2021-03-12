@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -102,7 +103,9 @@ func (c *Client) RemoveRunner(ctx context.Context, repositoryName string, runner
 	return nil
 }
 
-type fakeClient struct{}
+type fakeClient struct {
+	runners map[string][]*github.Runner
+}
 
 // NewfakeClient creates GitHub Actions Client
 func NewFakeClient() *fakeClient {
@@ -116,10 +119,25 @@ func (c *fakeClient) CreateRegistrationToken(ctx context.Context, repositoryName
 
 // ListRunners returns dummy list
 func (c *fakeClient) ListRunners(ctx context.Context, repositoryName string) ([]*github.Runner, error) {
-	return []*github.Runner{}, nil
+	// skip existance check because this is mock
+	v, _ := c.runners[repositoryName]
+	return v, nil
 }
 
 // RemoveRunner does not delete anything and returns success
 func (c *fakeClient) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
-	return nil
+	// skip existance and nil check below because this is mock
+	runners := c.runners[repositoryName]
+	for i, v := range runners {
+		if *v.ID == runnerID {
+			c.runners[repositoryName] = append(runners[:i], runners[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("not exist")
+}
+
+// SetRunners sets runners for multiple repositories
+func (c *fakeClient) SetRunners(runners map[string][]*github.Runner) {
+	c.runners = runners
 }
