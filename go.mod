@@ -1,6 +1,6 @@
 module github.com/cybozu-go/github-actions-controller
 
-go 1.15
+go 1.16
 
 require (
 	github.com/bradleyfalzon/ghinstallation v1.1.1
