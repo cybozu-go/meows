@@ -25,12 +25,6 @@ import (
 type RunnerPoolSpec struct {
 	RepositoryName string `json:"repositoryName"`
 
-	DeploymentSpec DeploymentSpec `json:"deploymentSpec"`
-}
-
-// DeploymentSpec describes spec of Deployment.
-// This is slightly modified from appsv1.DeploymentSpec.
-type DeploymentSpec struct {
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// +optional

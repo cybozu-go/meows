@@ -62,24 +62,22 @@ var _ = Describe("RunnerPool reconciler", func() {
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
 				RepositoryName: repositoryName,
-				DeploymentSpec: actionsv1alpha1.DeploymentSpec{
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": name,
+					},
+				},
+				Template: actionsv1alpha1.PodTemplateSpec{
+					ObjectMeta: actionsv1alpha1.ObjectMeta{
+						Labels: map[string]string{
 							"app": name,
 						},
 					},
-					Template: actionsv1alpha1.PodTemplateSpec{
-						ObjectMeta: actionsv1alpha1.ObjectMeta{
-							Labels: map[string]string{
-								"app": name,
-							},
-						},
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  "bad-name",
-									Image: "sample:latest",
-								},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "bad-name",
+								Image: "sample:latest",
 							},
 						},
 					},
@@ -115,24 +113,22 @@ var _ = Describe("RunnerPool reconciler", func() {
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
 				RepositoryName: repositoryName,
-				DeploymentSpec: actionsv1alpha1.DeploymentSpec{
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": name,
+					},
+				},
+				Template: actionsv1alpha1.PodTemplateSpec{
+					ObjectMeta: actionsv1alpha1.ObjectMeta{
+						Labels: map[string]string{
 							"app": name,
 						},
 					},
-					Template: actionsv1alpha1.PodTemplateSpec{
-						ObjectMeta: actionsv1alpha1.ObjectMeta{
-							Labels: map[string]string{
-								"app": name,
-							},
-						},
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  actionscontroller.RunnerContainerName,
-									Image: "sample:latest",
-								},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  actionscontroller.RunnerContainerName,
+								Image: "sample:latest",
 							},
 						},
 					},

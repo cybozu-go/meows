@@ -129,7 +129,7 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 	depLabels[actionscontroller.RunnerOrgLabelKey] = r.organizationName
 	depLabels[actionscontroller.RunnerRepoLabelKey] = rp.Spec.RepositoryName
 
-	podLabels := rp2.Spec.DeploymentSpec.Template.ObjectMeta.Labels
+	podLabels := rp2.Spec.Template.ObjectMeta.Labels
 	if podLabels == nil {
 		podLabels = make(map[string]string)
 	}
@@ -144,14 +144,14 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 			Annotations: rp2.Annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: rp2.Spec.DeploymentSpec.Replicas,
-			Selector: rp2.Spec.DeploymentSpec.Selector,
+			Replicas: rp2.Spec.Replicas,
+			Selector: rp2.Spec.Selector,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,
-					Annotations: rp2.Spec.DeploymentSpec.Template.ObjectMeta.Annotations,
+					Annotations: rp2.Spec.Template.ObjectMeta.Annotations,
 				},
-				Spec: rp2.Spec.DeploymentSpec.Template.Spec,
+				Spec: rp2.Spec.Template.Spec,
 			},
 		},
 	}
