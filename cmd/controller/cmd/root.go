@@ -35,7 +35,6 @@ var config struct {
 	appPrivateKeyPath  string
 
 	organizationName string
-	repositoryName   string
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -46,9 +45,6 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(config.organizationName) == 0 {
 			return errors.New("organization-name should be specified")
-		}
-		if len(config.repositoryName) == 0 {
-			return errors.New("repository-name should be specified")
 		}
 		if config.appID == 0 {
 			return errors.New("app-id should be specified")
@@ -81,7 +77,6 @@ func init() {
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
-	fs.StringVarP(&config.repositoryName, "repository-name", "r", "", "The GitHub repository name")
 
 	fs.DurationVar(&config.tokenSweepInterval, "token-fetch-interval", 30*time.Minute, "Interval to fetch GitHub Actions tokens.")
 	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App")

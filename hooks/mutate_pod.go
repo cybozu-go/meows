@@ -48,12 +48,14 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if _, ok := pod.Labels[actionscontroller.RunnerWebhookLabelKey]; !ok {
-		return admission.Allowed(fmt.Sprintf("skipped because pod does not have %s label", actionscontroller.RunnerWebhookLabelKey))
+	repo, ok := pod.Labels[actionscontroller.RunnerRepoLabelKey]
+	if !ok {
+		return admission.Allowed(fmt.Sprintf("skipped because pod does not have %s label", actionscontroller.RunnerRepoLabelKey))
 	}
 
-	if len(pod.Spec.Containers) == 0 {
-		return admission.Denied("denied because pod has no containers")
+	token, err := m.githubClient.CreateRegistrationToken(ctx, repo)
+	if err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
 	var container *corev1.Container
@@ -66,11 +68,6 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 	}
 	if container == nil {
 		return admission.Denied(fmt.Sprintf("denied because pod has no container name %s", actionscontroller.RunnerContainerName))
-	}
-
-	token, err := m.githubClient.CreateRegistrationToken(ctx)
-	if err != nil {
-		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
 	container.Env = append(container.Env, corev1.EnvVar{

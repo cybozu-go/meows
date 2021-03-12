@@ -22,7 +22,7 @@ var _ = Describe("mutate Pod webhook", func() {
 				Name:      pn,
 				Namespace: ns,
 				Labels: map[string]string{
-					actionscontroller.RunnerWebhookLabelKey: "true",
+					actionscontroller.RunnerRepoLabelKey: "true",
 				},
 			},
 			Spec: corev1.PodSpec{

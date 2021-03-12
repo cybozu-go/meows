@@ -16,6 +16,9 @@ const (
 	// RunnerTokenEnvName is a env field key for RUNNER_TOKEN.
 	RunnerTokenEnvName = "RUNNER_TOKEN"
 
-	// RunnerWebhookLabelKey is a label key to tell this pod should be mutated.
-	RunnerWebhookLabelKey = "actions.cybozu.com/webhook"
+	// RunnerOrgLabelKey is a label key for organization name.
+	RunnerOrgLabelKey = "actions.cybozu.com/organization"
+
+	// RunnerRepoLabelKey is a label key for repository name.
+	RunnerRepoLabelKey = "actions.cybozu.com/repository"
 )

@@ -157,7 +157,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 			return k8sClient.Get(ctx, nsn, d)
 		}, 5*time.Second).Should(Succeed())
 
-		Expect(d.Labels[actionscontroller.RunnerWebhookLabelKey]).To(Equal("true"))
+		Expect(d.Labels[actionscontroller.RunnerOrgLabelKey]).To(Equal(organizationName))
+		Expect(d.Labels[actionscontroller.RunnerRepoLabelKey]).To(Equal(repositoryName))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
 		Expect(c.Env).To(HaveLen(3))

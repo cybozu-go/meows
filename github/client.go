@@ -11,16 +11,15 @@ import (
 
 // RegistrationTokenGenerator generates token for GitHub Action selfhosted runner
 type RegistrationTokenGenerator interface {
-	CreateRegistrationToken(context.Context) (string, error)
-	ListRunners(context.Context) ([]*github.Runner, error)
-	RemoveRunner(context.Context, int64) error
+	CreateRegistrationToken(context.Context, string) (string, error)
+	ListRunners(context.Context, string) ([]*github.Runner, error)
+	RemoveRunner(context.Context, string, int64) error
 }
 
 // Client is GitHub Client wrapper
 type Client struct {
 	client           *github.Client
 	organizationName string
-	repositoryName   string
 }
 
 // NewClient creates GitHub Actions Client
@@ -29,7 +28,6 @@ func NewClient(
 	appInstallationID int64,
 	appPrivateKeyPath string,
 	organizationName string,
-	repositoryName string,
 ) (*Client, error) {
 	rt, err := ghinstallation.NewKeyFromFile(
 		http.DefaultTransport,
@@ -43,16 +41,15 @@ func NewClient(
 	return &Client{
 		client:           github.NewClient(&http.Client{Transport: rt}),
 		organizationName: organizationName,
-		repositoryName:   repositoryName,
 	}, nil
 }
 
 // CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization
-func (c *Client) CreateRegistrationToken(ctx context.Context) (string, error) {
+func (c *Client) CreateRegistrationToken(ctx context.Context, repositoryName string) (string, error) {
 	token, _, err := c.client.Actions.CreateRegistrationToken(
 		ctx,
 		c.organizationName,
-		c.repositoryName,
+		repositoryName,
 	)
 	if err != nil {
 		return "", err
@@ -62,7 +59,7 @@ func (c *Client) CreateRegistrationToken(ctx context.Context) (string, error) {
 }
 
 // ListRunners lists registered self-hosted runners for the organization
-func (c *Client) ListRunners(ctx context.Context) ([]*github.Runner, error) {
+func (c *Client) ListRunners(ctx context.Context, repositoryName string) ([]*github.Runner, error) {
 	var runners []*github.Runner
 
 	opts := github.ListOptions{PerPage: 100}
@@ -70,7 +67,7 @@ func (c *Client) ListRunners(ctx context.Context) ([]*github.Runner, error) {
 		list, res, err := c.client.Actions.ListRunners(
 			ctx,
 			c.organizationName,
-			c.repositoryName,
+			repositoryName,
 			&opts,
 		)
 		if err != nil {
@@ -88,11 +85,11 @@ func (c *Client) ListRunners(ctx context.Context) ([]*github.Runner, error) {
 }
 
 // RemoveRunner deletes an Actions runner of the organization
-func (c *Client) RemoveRunner(ctx context.Context, runnerID int64) error {
+func (c *Client) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
 	res, err := c.client.Actions.RemoveRunner(
 		ctx,
 		c.organizationName,
-		c.repositoryName,
+		repositoryName,
 		runnerID,
 	)
 	if err != nil {
@@ -113,16 +110,16 @@ func NewFakeClient() *fakeClient {
 }
 
 // CreateRegistrationToken returns dummy token
-func (c *fakeClient) CreateRegistrationToken(ctx context.Context) (string, error) {
+func (c *fakeClient) CreateRegistrationToken(ctx context.Context, repositoryName string) (string, error) {
 	return "AAA", nil
 }
 
 // ListRunners returns dummy list
-func (c *fakeClient) ListRunners(ctx context.Context) ([]*github.Runner, error) {
+func (c *fakeClient) ListRunners(ctx context.Context, repositoryName string) ([]*github.Runner, error) {
 	return []*github.Runner{}, nil
 }
 
 // RemoveRunner does not delete anything and returns success
-func (c *fakeClient) RemoveRunner(ctx context.Context, runnerID int64) error {
+func (c *fakeClient) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
 	return nil
 }

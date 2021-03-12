@@ -52,7 +52,6 @@ func run() error {
 		config.appInstallationID,
 		config.appPrivateKeyPath,
 		config.organizationName,
-		config.repositoryName,
 	)
 	if err != nil {
 		setupLog.Error(err, "unable to create github client", "controller", "RunnerPool")

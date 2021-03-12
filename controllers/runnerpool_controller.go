@@ -122,18 +122,25 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*appsv1.Deployment, error) {
 	rp2 := rp.DeepCopy()
 
-	// "true" is just a temporal value. We can change the value freely if needed.
-	l := rp2.GetLabels()
-	if l == nil {
-		l = make(map[string]string)
+	depLabels := rp2.GetLabels()
+	if depLabels == nil {
+		depLabels = make(map[string]string)
 	}
-	l[actionscontroller.RunnerWebhookLabelKey] = "true"
+	depLabels[actionscontroller.RunnerOrgLabelKey] = r.organizationName
+	depLabels[actionscontroller.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+
+	podLabels := rp2.Spec.DeploymentSpec.Template.ObjectMeta.Labels
+	if podLabels == nil {
+		podLabels = make(map[string]string)
+	}
+	podLabels[actionscontroller.RunnerOrgLabelKey] = r.organizationName
+	podLabels[actionscontroller.RunnerRepoLabelKey] = rp.Spec.RepositoryName
 
 	d := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        rp2.Name,
 			Namespace:   rp2.Namespace,
-			Labels:      l,
+			Labels:      depLabels,
 			Annotations: rp2.Annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -141,7 +148,7 @@ func (r *RunnerPoolReconciler) makeDeployment(rp *actionsv1alpha1.RunnerPool) (*
 			Selector: rp2.Spec.DeploymentSpec.Selector,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      rp2.Spec.DeploymentSpec.Template.ObjectMeta.Labels,
+					Labels:      podLabels,
 					Annotations: rp2.Spec.DeploymentSpec.Template.ObjectMeta.Annotations,
 				},
 				Spec: rp2.Spec.DeploymentSpec.Template.Spec,

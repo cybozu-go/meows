@@ -70,7 +70,7 @@ func (r *UnusedRunnerSweeper) run(ctx context.Context) error {
 		podSet[p.Name] = struct{}{}
 	}
 
-	runners, err := r.githubClient.ListRunners(ctx)
+	runners, err := r.githubClient.ListRunners(ctx, "TODO")
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (r *UnusedRunnerSweeper) run(ctx context.Context) error {
 			continue
 		}
 		if _, ok := podSet[*runner.Name]; !ok {
-			err := r.githubClient.RemoveRunner(ctx, *runner.ID)
+			err := r.githubClient.RemoveRunner(ctx, "TODO", *runner.ID)
 			if err != nil {
 				return err
 			}
