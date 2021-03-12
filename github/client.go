@@ -119,9 +119,7 @@ func (c *fakeClient) CreateRegistrationToken(ctx context.Context, repositoryName
 
 // ListRunners returns dummy list
 func (c *fakeClient) ListRunners(ctx context.Context, repositoryName string) ([]*github.Runner, error) {
-	// skip existance check because this is mock
-	v, _ := c.runners[repositoryName]
-	return v, nil
+	return c.runners[repositoryName], nil
 }
 
 // RemoveRunner does not delete anything and returns success
