@@ -49,7 +49,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	AfterEach(func() {
 		ctx.Done()
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	})
 
 	It("should not create Deployment", func() {
