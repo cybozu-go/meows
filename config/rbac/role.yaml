@@ -9,9 +9,8 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - events
+  - pods
   verbs:
-  - create
   - get
   - list
   - watch
