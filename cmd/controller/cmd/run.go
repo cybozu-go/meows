@@ -78,10 +78,11 @@ func run() error {
 	}
 
 	sweeper := controllers.NewUnusedRunnerSweeper(
+		mgr.GetClient(),
 		ctrl.Log.WithName("actions-token-updator"),
 		config.tokenSweepInterval,
-		mgr.GetClient(),
 		c,
+		config.organizationName,
 	)
 	if err := mgr.Add(sweeper); err != nil {
 		setupLog.Error(err, "unable to add runner to manager", "actions-token-runner")

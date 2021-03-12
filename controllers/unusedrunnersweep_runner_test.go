@@ -11,6 +11,7 @@ import (
 )
 
 var _ = Describe("UnusedRunnerSweeper runner", func() {
+	const organizationName = "org"
 	ctx := context.Background()
 
 	BeforeEach(func() {
@@ -22,10 +23,11 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		sweeper := NewUnusedRunnerSweeper(
+			mgr.GetClient(),
 			ctrl.Log.WithName("actions-token-updator"),
 			time.Second,
-			mgr.GetClient(),
 			github.NewFakeClient(),
+			organizationName,
 		)
 		err = mgr.Add(sweeper)
 		Expect(err).ToNot(HaveOccurred())
