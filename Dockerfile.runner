@@ -4,10 +4,7 @@ ARG RUNNER_VERSION=2.277.1
 ARG DUMB_INIT_VERSION=1.2.2
 ARG KUBERNETES_VERSION=1.19.7
 
-ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
-RUN mkdir /opt/hostedtoolcache \
-  && chmod g+rwx /opt/hostedtoolcache
-
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y \
   && apt-get install -y software-properties-common \
   && add-apt-repository -y ppa:git-core/ppa \
@@ -48,14 +45,18 @@ RUN curl -sSLf -o /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/rel
 
 # /runner directory will be deleted later, so keep this under /runnertmp once
 ARG RUNNER_ASSETS_DIR=/runner
-RUN mkdir -p "$RUNNER_ASSETS_DIR" \
-  && cd "$RUNNER_ASSETS_DIR" \
+RUN mkdir -p ${RUNNER_ASSETS_DIR} \
+  && cd ${RUNNER_ASSETS_DIR} \
   && curl -L -o runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz \
   && tar xzf ./runner.tar.gz \
   && rm runner.tar.gz \
   && ./bin/installdependencies.sh \
   && rm ./bin/RunnerService.js \
-  && chown -R 10000 $RUNNER_ASSETS_DIR
+  && chown -R 10000 ${RUNNER_ASSETS_DIR}
+
+ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
+RUN mkdir -p ${AGENT_TOOLSDIRECTORY} \
+  && chmod g+rwx ${AGENT_TOOLSDIRECTORY}
 
 USER 10000
 COPY scripts/entrypoint.sh /usr/local/bin/
