@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cybozu-go/github-actions-controller/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -23,8 +24,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
-	"github.com/cybozu-go/github-actions-controller/github"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to

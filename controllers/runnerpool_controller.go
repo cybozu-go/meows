@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,9 +15,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
 
 const runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
@@ -52,6 +51,7 @@ func NewRunnerPoolReconciler(
 // move the current state of the cluster closer to the desired state.
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("runnerpool", req.NamespacedName)
+	log.Info("start reconciliation loop", "name", req.NamespacedName)
 
 	rp := &actionsv1alpha1.RunnerPool{}
 	if err := r.Get(ctx, req.NamespacedName, rp); err != nil {
@@ -102,7 +102,6 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	// TODO: compare hash
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
 		return ctrl.SetControllerReference(rp, d, r.Scheme)
 	})

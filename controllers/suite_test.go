@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -16,8 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 

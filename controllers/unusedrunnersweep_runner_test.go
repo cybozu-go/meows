@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	"github.com/cybozu-go/github-actions-controller/github"
 	gogithub "github.com/google/go-github/v33/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -13,9 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/github"
 )
 
 var _ = Describe("UnusedRunnerSweeper runner", func() {

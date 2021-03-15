@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	"github.com/cybozu-go/github-actions-controller/github"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/github"
 )
 
 const (

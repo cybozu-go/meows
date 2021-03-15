@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -11,9 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 )
 
 var _ = Describe("RunnerPool reconciler", func() {
