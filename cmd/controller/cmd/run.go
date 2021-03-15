@@ -39,7 +39,7 @@ func run() error {
 		MetricsBindAddress:     config.metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: config.probeAddr,
-		LeaderElection:         config.enableLeaderElection,
+		LeaderElection:         true,
 		LeaderElectionID:       "6bee5a22.cybozu.com",
 	})
 	if err != nil {
@@ -64,7 +64,7 @@ func run() error {
 		return err
 	}
 	wh := mgr.GetWebhookServer()
-	wh.Register("/mutate-pod", hooks.NewPodMutator(mgr.GetClient(), dec, c))
+	wh.Register("/pod/mutate", hooks.NewPodMutator(mgr.GetClient(), dec, c))
 
 	reconciler := controllers.NewRunnerPoolReconciler(
 		mgr.GetClient(),
@@ -80,7 +80,7 @@ func run() error {
 	sweeper := controllers.NewUnusedRunnerSweeper(
 		mgr.GetClient(),
 		ctrl.Log.WithName("actions-token-updator"),
-		config.tokenSweepInterval,
+		config.runnerSweepInterval,
 		c,
 		config.organizationName,
 	)

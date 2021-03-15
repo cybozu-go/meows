@@ -25,14 +25,13 @@ import (
 )
 
 var config struct {
-	metricsAddr          string
-	enableLeaderElection bool
-	probeAddr            string
+	metricsAddr string
+	probeAddr   string
 
-	tokenSweepInterval time.Duration
-	appID              int64
-	appInstallationID  int64
-	appPrivateKeyPath  string
+	runnerSweepInterval time.Duration
+	appID               int64
+	appInstallationID   int64
+	appPrivateKeyPath   string
 
 	organizationName string
 }
@@ -70,16 +69,13 @@ func Execute() {
 
 func init() {
 	fs := rootCmd.Flags()
-	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	fs.BoolVar(&config.enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
+	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
 
-	fs.DurationVar(&config.tokenSweepInterval, "token-fetch-interval", 30*time.Minute, "Interval to fetch GitHub Actions tokens.")
 	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App")
 	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App")
 	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key")
+	fs.DurationVar(&config.runnerSweepInterval, "runner-sweep-interval", 30*time.Minute, "Interval to sweep unused GitHub Actions runners.")
 }
