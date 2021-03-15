@@ -3,5 +3,20 @@ kind: RunnerPool
 metadata:
   name: runnerpool-sample
 spec:
-  # Add fields here
-  foo: bar
+  # TODO
+  repositoryName: hostrunner-poc
+  replicas: 3
+  selector:
+    matchLabels:
+      app: actions-runner
+  template:
+    metadata:
+      labels:
+        app: actions-runner
+    spec:
+      containers:
+      - name: runner
+        image: runner:latest
+        # TODO
+        imagePullPolicy: Never
+
