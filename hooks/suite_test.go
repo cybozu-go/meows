@@ -9,16 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cybozu-go/github-actions-controller/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-
-	//+kubebuilder:scaffold:imports
 	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,6 +23,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/cybozu-go/github-actions-controller/github"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -93,7 +91,12 @@ var _ = BeforeSuite(func() {
 
 	dec, err := admission.NewDecoder(scheme)
 	wh := mgr.GetWebhookServer()
-	wh.Register("/pod/mutate", NewPodMutator(mgr.GetClient(), dec, github.NewFakeClient()))
+	wh.Register("/pod/mutate", NewPodMutator(
+		mgr.GetClient(),
+		ctrl.Log.WithName("actions-token-pod-mutater"),
+		dec,
+		github.NewFakeClient(),
+	))
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook

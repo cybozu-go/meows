@@ -64,7 +64,12 @@ func run() error {
 		return err
 	}
 	wh := mgr.GetWebhookServer()
-	wh.Register("/pod/mutate", hooks.NewPodMutator(mgr.GetClient(), dec, c))
+	wh.Register("/pod/mutate", hooks.NewPodMutator(
+		mgr.GetClient(),
+		ctrl.Log.WithName("actions-token-pod-mutater"),
+		dec,
+		c,
+	))
 
 	reconciler := controllers.NewRunnerPoolReconciler(
 		mgr.GetClient(),
@@ -79,7 +84,7 @@ func run() error {
 
 	sweeper := controllers.NewUnusedRunnerSweeper(
 		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-updator"),
+		ctrl.Log.WithName("unused-runner-sweeper"),
 		config.runnerSweepInterval,
 		c,
 		config.organizationName,

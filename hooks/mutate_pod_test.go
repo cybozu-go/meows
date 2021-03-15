@@ -1,13 +1,12 @@
 package hooks
 
 import (
+	actionscontroller "github.com/cybozu-go/github-actions-controller"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
 )
 
 var _ = Describe("mutate Pod webhook", func() {
