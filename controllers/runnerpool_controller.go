@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -63,30 +62,36 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	if rp.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
-			rp2 := rp.DeepCopy()
-			controllerutil.AddFinalizer(rp2, runnerPoolFinalizer)
-			patch := client.MergeFrom(rp)
-			if err := r.Patch(ctx, rp2, patch); err != nil {
-				log.Error(err, "failed to add finalizer")
+	if !rp.ObjectMeta.DeletionTimestamp.IsZero() {
+		d := &appsv1.Deployment{}
+		err := r.Get(ctx, req.NamespacedName, d)
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "failed to get deployment")
+			return ctrl.Result{}, err
+		}
+		if err == nil {
+			err := r.Delete(ctx, d)
+			if err != nil {
+				log.Error(err, "failed to delete Deployment", "name", req.NamespacedName)
 				return ctrl.Result{}, err
 			}
-		}
-	} else {
-		targetDeployment := &appsv1.Deployment{}
-		err := r.Get(ctx, req.NamespacedName, targetDeployment)
-		if err == nil {
-			return ctrl.Result{}, errors.New("deployment is not deleted yet")
-		}
-		if !apierrors.IsNotFound(err) {
-			return ctrl.Result{}, err
 		}
 		rp2 := rp.DeepCopy()
 		controllerutil.RemoveFinalizer(rp2, runnerPoolFinalizer)
 		patch := client.MergeFrom(rp)
 		if err := r.Patch(ctx, rp2, patch); err != nil {
 			log.Error(err, "failed to remove finalizer")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
+		rp2 := rp.DeepCopy()
+		controllerutil.AddFinalizer(rp2, runnerPoolFinalizer)
+		patch := client.MergeFrom(rp)
+		if err := r.Patch(ctx, rp2, patch); err != nil {
+			log.Error(err, "failed to add finalizer")
 			return ctrl.Result{}, err
 		}
 	}
