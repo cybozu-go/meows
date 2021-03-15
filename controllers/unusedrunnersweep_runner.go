@@ -119,17 +119,18 @@ func (r *UnusedRunnerSweeper) run(ctx context.Context) error {
 				r.log.Error(err, "got invalid runner")
 				return err
 			}
-			if *runner.Status == statusOnline {
-				r.log.Info(fmt.Sprintf("skip deleting online runner %s (id: %d)", *runner.Name, *runner.ID))
-				continue
-			}
 			if _, ok := podSet[*runner.Name]; !ok {
-				r.log.Info(fmt.Sprintf("remove runner %s (id: %d)", *runner.Name, *runner.ID))
+				if *runner.Status == statusOnline {
+					r.log.Info(fmt.Sprintf("skipped deleting online runner %s (id: %d)", *runner.Name, *runner.ID))
+					continue
+				}
+
 				err := r.githubClient.RemoveRunner(ctx, repo, *runner.ID)
 				if err != nil {
 					r.log.Error(err, fmt.Sprintf("failed to remove runner %s (id: %d)", *runner.Name, *runner.ID))
 					return err
 				}
+				r.log.Info(fmt.Sprintf("removed runner %s (id: %d)", *runner.Name, *runner.ID))
 			}
 		}
 	}
