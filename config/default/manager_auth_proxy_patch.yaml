@@ -23,4 +23,7 @@ spec:
         args:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=127.0.0.1:8080"
-        - "--leader-elect"
+        - "--organization-name=$(GITHUB_ORG_NAME)"
+        - "--app-id=$(GITHUB_APP_ID)"
+        - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
+        - "--app-private-key-path=/etc/github/app.pem"
