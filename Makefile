@@ -56,7 +56,7 @@ setup: ## Setup necessary tools.
 .PHONY: clean
 clean: ## Clean files>
 	rm -f bin/*
-	rm -f testbin/*
+	rm -rf testbin/*
 
 ##@ Test
 
@@ -77,8 +77,8 @@ check-generate: ## Generate manifests and code, and check if diff exists.
 test: ## Run unit tests.
 	{ \
 	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh && \
-	fetch_envtest_tools $(ENVTEST_ASSETS_DIR) && \
-	setup_envtest_env $(PWD)/$(ENVTEST_ASSETS_DIR) && \
+	fetch_envtest_tools $(notdir $(ENVTEST_ASSETS_DIR)) && \
+	setup_envtest_env $(ENVTEST_ASSETS_DIR) && \
 	go test -v -count=1 ./... -coverprofile cover.out ; \
 	}
 

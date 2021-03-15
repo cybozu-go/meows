@@ -15,6 +15,11 @@ import (
 	"github.com/cybozu-go/github-actions-controller/github"
 )
 
+const (
+	statusOnline  = "online"
+	statusOffline = "offline"
+)
+
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // UnusedRunnerSweeper sweeps unregistered GitHub Actions Token periodically
@@ -54,9 +59,10 @@ func (r *UnusedRunnerSweeper) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			r.log.Info("run a sweeping loop")
 			err := r.run(ctx)
 			if err != nil {
-				r.log.Error(err, "failed to run a loop")
+				r.log.Error(err, "failed to run a sweeping loop")
 				return err
 			}
 		}
@@ -107,11 +113,19 @@ func (r *UnusedRunnerSweeper) run(ctx context.Context) error {
 			return err
 		}
 
+		r.log.Info(fmt.Sprintf("%d pods and %d runners were found", len(podSet), len(runners)))
 		for _, runner := range runners {
-			if runner.Name == nil || runner.ID == nil {
+			if runner.Name == nil || runner.ID == nil || runner.Status == nil {
+				err := fmt.Errorf("runner should have name, ID and status %#v", runner)
+				r.log.Error(err, "got invalid runner")
+				return err
+			}
+			if *runner.Status == statusOnline {
+				r.log.Info(fmt.Sprintf("skip deleting online runner %s (id: %d)", *runner.Name, *runner.ID))
 				continue
 			}
 			if _, ok := podSet[*runner.Name]; !ok {
+				r.log.Info(fmt.Sprintf("remove runner %s (id: %d)", *runner.Name, *runner.ID))
 				err := r.githubClient.RemoveRunner(ctx, repo, *runner.ID)
 				if err != nil {
 					r.log.Error(err, fmt.Sprintf("failed to remove runner %s (id: %d)", *runner.Name, *runner.ID))

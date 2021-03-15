@@ -77,14 +77,15 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 					{Namespace: "ns1", Name: "p11"},
 				},
 				[]*gogithub.Runner{
-					{Name: strPtr("p00"), ID: int64Ptr(1)},
-					{Name: strPtr("p10"), ID: int64Ptr(2)},
-					{Name: strPtr("old0"), ID: int64Ptr(3)},
-					{Name: strPtr("old1"), ID: int64Ptr(4)},
+					{Name: strPtr("p00"), ID: int64Ptr(1), Status: strPtr(statusOnline)},
+					{Name: strPtr("p10"), ID: int64Ptr(2), Status: strPtr(statusOffline)},
+					{Name: strPtr("oldonline0"), ID: int64Ptr(3), Status: strPtr(statusOnline)},
+					{Name: strPtr("oldoffline0"), ID: int64Ptr(4), Status: strPtr(statusOffline)},
 				},
 				map[string]struct{}{
-					"p00": {},
-					"p10": {},
+					"p00":        {},
+					"p10":        {},
+					"oldonline0": {},
 				},
 			},
 			{
@@ -96,14 +97,15 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 					{Namespace: "ns1", Name: "p11"},
 				},
 				[]*gogithub.Runner{
-					{Name: strPtr("p00"), ID: int64Ptr(1)},
-					{Name: strPtr("p10"), ID: int64Ptr(2)},
-					{Name: strPtr("old0"), ID: int64Ptr(3)},
-					{Name: strPtr("old1"), ID: int64Ptr(4)},
+					{Name: strPtr("p00"), ID: int64Ptr(1), Status: strPtr(statusOnline)},
+					{Name: strPtr("p10"), ID: int64Ptr(2), Status: strPtr(statusOffline)},
+					{Name: strPtr("oldonline0"), ID: int64Ptr(3), Status: strPtr(statusOnline)},
+					{Name: strPtr("oldoffline0"), ID: int64Ptr(4), Status: strPtr(statusOffline)},
 				},
 				map[string]struct{}{
-					"p00": {},
-					"p10": {},
+					"p00":        {},
+					"p10":        {},
+					"oldonline0": {},
 				},
 			},
 		}

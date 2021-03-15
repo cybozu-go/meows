@@ -102,6 +102,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
+	// TODO: compare hash
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
 		return ctrl.SetControllerReference(rp, d, r.Scheme)
 	})
