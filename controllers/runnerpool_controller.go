@@ -160,6 +160,7 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 
 	d.Spec.Replicas = rp2.Spec.Replicas
 	d.Spec.Selector = rp2.Spec.Selector
+	d.Spec.Strategy = rp2.Spec.Strategy
 
 	podLabels := rp2.Spec.Template.ObjectMeta.Labels
 	if podLabels == nil {

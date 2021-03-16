@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,6 +38,10 @@ type RunnerPoolSpec struct {
 
 	// Template describes the pods that will be created.
 	Template PodTemplateSpec `json:"template"`
+
+	// The deployment strategy to use to replace existing pods with new ones.
+	// +optional
+	Strategy appsv1.DeploymentStrategy `json:"strategy,omitempty"`
 }
 
 // PodTemplateSpec describes the data a pod should have when created from a template.
