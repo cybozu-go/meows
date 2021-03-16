@@ -2,13 +2,13 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	actionscontroller "github.com/cybozu-go/github-actions-controller"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -84,20 +84,20 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 	now := time.Now()
 	for _, po := range podList.Items {
+		name := types.NamespacedName{Name: po.GetName(), Namespace: po.GetNamespace()}
+
 		v, ok := po.Annotations[actionscontroller.PodDeletionTimeKey]
-		// if a pod has no annotation with the key, just keep it.
 		if !ok {
 			r.log.Info(
-				fmt.Sprintf("kept pod undeleted because it has no annotation %s", actionscontroller.PodDeletionTimeKey),
-				"name", po.GetName(),
-				"namespace", po.GetNamespace(),
+				"skipped deleting pod because it has no annotation on "+actionscontroller.PodDeletionTimeKey,
+				"name", name,
 			)
 			continue
 		}
 
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			r.log.Error(err, "failed to parse pod annotation")
+			r.log.Error(err, "skipped deleting pod because failed to parse annotation with "+v, "name", name)
 			return err
 		}
 		if t.After(now) {
@@ -106,10 +106,9 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 		err = r.k8sClient.Delete(ctx, &po)
 		if err != nil {
-			r.log.Error(err, "failed to delete pod")
+			r.log.Error(err, "failed to delete pod", "name", name)
 			return err
 		}
-		r.log.Info("deleted pod", "name", po.GetName(), "namespace", po.GetNamespace())
 	}
 
 	return nil
