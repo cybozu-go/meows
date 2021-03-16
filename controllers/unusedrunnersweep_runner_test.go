@@ -19,8 +19,8 @@ import (
 
 var _ = Describe("UnusedRunnerSweeper runner", func() {
 	ctx := context.Background()
-	organizationName := "org"
-	repositoryName := "repo"
+	organizationName := "runnersweep-org"
+	repositoryName := "runnersweep-repo"
 	interval := time.Second
 
 	githubClient := github.NewFakeClient()
@@ -57,7 +57,7 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 		time.Sleep(500 * time.Millisecond)
 	})
 
-	It("should delete unused token", func() {
+	It("should delete unused runner", func() {
 		By("creating namespaces")
 		createNamespaces(ctx, []string{"ns0", "ns1"})
 

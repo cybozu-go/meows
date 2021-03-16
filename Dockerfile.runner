@@ -43,7 +43,6 @@ RUN curl -L https://dl.k8s.io/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kub
 RUN curl -sSLf -o /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v${DUMB_INIT_VERSION}/dumb-init_${DUMB_INIT_VERSION}_amd64 \
   && chmod +x /usr/local/bin/dumb-init
 
-# /runner directory will be deleted later, so keep this under /runnertmp once
 ARG RUNNER_ASSETS_DIR=/runner
 RUN mkdir -p ${RUNNER_ASSETS_DIR} \
   && cd ${RUNNER_ASSETS_DIR} \

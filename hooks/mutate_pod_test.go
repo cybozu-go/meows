@@ -14,14 +14,13 @@ var _ = Describe("mutate Pod webhook", func() {
 		By("creating Pod with webhook label")
 		pn := "p0"
 		ns := "default"
-		cn := "should-not-be-added"
 
 		pod := corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      pn,
 				Namespace: ns,
 				Labels: map[string]string{
-					actionscontroller.RunnerRepoLabelKey: "true",
+					actionscontroller.RunnerRepoLabelKey: "repo",
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -31,7 +30,7 @@ var _ = Describe("mutate Pod webhook", func() {
 						Image: "sample:latest",
 					},
 					{
-						Name:  cn,
+						Name:  "should-not-be-added",
 						Image: "sample:latest",
 					},
 				},
@@ -63,7 +62,6 @@ var _ = Describe("mutate Pod webhook", func() {
 		By("creating Pod without webhook label")
 		pn := "p1"
 		ns := "default"
-		cn := "should-not-be-added"
 
 		By("creating Pod")
 		pod := corev1.Pod{
@@ -74,7 +72,7 @@ var _ = Describe("mutate Pod webhook", func() {
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Name:  cn,
+						Name:  "should-not-be-added",
 						Image: "sample:latest",
 					},
 				},

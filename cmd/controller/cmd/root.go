@@ -28,12 +28,14 @@ var config struct {
 	metricsAddr string
 	probeAddr   string
 
-	runnerSweepInterval time.Duration
-	appID               int64
-	appInstallationID   int64
-	appPrivateKeyPath   string
+	appID             int64
+	appInstallationID int64
+	appPrivateKeyPath string
+	organizationName  string
 
-	organizationName string
+	runnerSweepInterval time.Duration
+	podSweepInterval    time.Duration
+	defaultPodDeadline  string
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -72,10 +74,12 @@ func init() {
 	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
-	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
-
 	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App")
 	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App")
 	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key")
-	fs.DurationVar(&config.runnerSweepInterval, "runner-sweep-interval", 30*time.Minute, "Interval to sweep unused GitHub Actions runners.")
+	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
+
+	fs.DurationVar(&config.runnerSweepInterval, "runner-sweep-interval", 30*time.Minute, "Interval to watch and sweep unused GitHub Actions runners.")
+	fs.DurationVar(&config.podSweepInterval, "pod-delete-interval", time.Minute, "Interval to watch and delete Pods.")
+	fs.StringVar(&config.defaultPodDeadline, "default-pod-deadline", "17:00", "Time in HH:mm format in UTC to delete Pods.")
 }

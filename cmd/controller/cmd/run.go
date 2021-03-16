@@ -78,19 +78,30 @@ func run() error {
 		config.organizationName,
 	)
 	if err = reconciler.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RunnerPool")
+		setupLog.Error(err, "unable to create controller", "controller", "runner-pool-reconciler")
 		return err
 	}
 
-	sweeper := controllers.NewUnusedRunnerSweeper(
+	runnerSweeper := controllers.NewUnusedRunnerSweeper(
 		mgr.GetClient(),
 		ctrl.Log.WithName("unused-runner-sweeper"),
 		config.runnerSweepInterval,
 		c,
 		config.organizationName,
 	)
-	if err := mgr.Add(sweeper); err != nil {
-		setupLog.Error(err, "unable to add runner to manager", "actions-token-runner")
+	if err := mgr.Add(runnerSweeper); err != nil {
+		setupLog.Error(err, "unable to add runner sweeper to manager", "runner", "runner-sweeper")
+		return err
+	}
+
+	podSweeper := controllers.NewPodSweeper(
+		mgr.GetClient(),
+		ctrl.Log.WithName("actions-token-updator"),
+		config.podSweepInterval,
+		config.organizationName,
+	)
+	if err := mgr.Add(podSweeper); err != nil {
+		setupLog.Error(err, "unable to add pod sweeper to manager", "runner", "pod-sweeper")
 		return err
 	}
 

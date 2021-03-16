@@ -185,7 +185,7 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 		return fmt.Errorf("container with name %s should exist in the manifest", actionscontroller.RunnerContainerName)
 	}
 
-	var envMap map[string]struct{}
+	envMap := make(map[string]struct{})
 	for _, v := range container.Env {
 		envMap[v.Name] = struct{}{}
 	}

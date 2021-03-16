@@ -17,8 +17,9 @@ import (
 
 var _ = Describe("RunnerPool reconciler", func() {
 	ctx := context.Background()
-	organizationName := "org"
-	repositoryName := "repo"
+	organizationName := "runnerpool-org"
+	repositoryName := "runnerpool-repo"
+	namespace := "runnerpool-ns"
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -49,6 +50,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 	AfterEach(func() {
 		ctx.Done()
 		time.Sleep(500 * time.Millisecond)
+	})
+
+	It("should create Namespace", func() {
+		By("creating namespace")
+		ctx := context.Background()
+		ns := &corev1.Namespace{}
+		ns.Name = namespace
+		err := k8sClient.Create(ctx, ns)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	It("should not create Deployment", func() {

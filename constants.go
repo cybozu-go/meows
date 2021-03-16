@@ -21,4 +21,7 @@ const (
 
 	// RunnerRepoLabelKey is a label key for repository name.
 	RunnerRepoLabelKey = "actions.cybozu.com/repository"
+
+	// PodDeletionTimeKey is an annotation key to manage pod deletion time.
+	PodDeletionTimeKey = "runnerDeleteAt"
 )

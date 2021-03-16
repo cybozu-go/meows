@@ -1,14 +1,12 @@
 package controllers
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -27,7 +25,6 @@ var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 var scheme = runtime.NewScheme()
-var namespace = "test-ns"
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -61,12 +58,6 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-
-	ctx := context.Background()
-	ns := &corev1.Namespace{}
-	ns.Name = namespace
-	err = k8sClient.Create(ctx, ns)
-	Expect(err).ToNot(HaveOccurred())
 }, 60)
 
 var _ = AfterSuite(func() {
