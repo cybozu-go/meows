@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/github"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -69,7 +69,7 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 	selector, err := metav1.LabelSelectorAsSelector(
 		&metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				actionscontroller.RunnerOrgLabelKey: r.githubClient.GetOrganizationName(),
+				constants.RunnerOrgLabelKey: r.githubClient.GetOrganizationName(),
 			},
 		},
 	)
@@ -89,9 +89,9 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 
 	podSets := make(map[string]map[string]struct{})
 	for _, po := range podList.Items {
-		repo, ok := po.Labels[actionscontroller.RunnerRepoLabelKey]
+		repo, ok := po.Labels[constants.RunnerRepoLabelKey]
 		if !ok {
-			err := fmt.Errorf("pod should have %s label", actionscontroller.RunnerRepoLabelKey)
+			err := fmt.Errorf("pod should have %s label", constants.RunnerRepoLabelKey)
 			r.log.Error(err, "unable to get repository name")
 			return err
 		}

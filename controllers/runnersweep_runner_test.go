@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/github"
 	gogithub "github.com/google/go-github/v33/github"
 	. "github.com/onsi/ginkgo"
@@ -175,8 +175,8 @@ func createPods(
 				Name:      n.Name,
 				Namespace: n.Namespace,
 				Labels: map[string]string{
-					actionscontroller.RunnerOrgLabelKey:  organizationName,
-					actionscontroller.RunnerRepoLabelKey: repositoryName,
+					constants.RunnerOrgLabelKey:  organizationName,
+					constants.RunnerRepoLabelKey: repositoryName,
 				},
 			},
 			Spec: corev1.PodSpec{

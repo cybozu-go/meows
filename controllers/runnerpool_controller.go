@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/github-actions-controller"
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -161,8 +161,8 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 	if depLabels == nil {
 		depLabels = make(map[string]string)
 	}
-	depLabels[actionscontroller.RunnerOrgLabelKey] = r.organizationName
-	depLabels[actionscontroller.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+	depLabels[constants.RunnerOrgLabelKey] = r.organizationName
+	depLabels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
 	d.ObjectMeta.Labels = depLabels
 
 	d.Spec.Replicas = rp2.Spec.Replicas
@@ -173,8 +173,8 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 	if podLabels == nil {
 		podLabels = make(map[string]string)
 	}
-	podLabels[actionscontroller.RunnerOrgLabelKey] = r.organizationName
-	podLabels[actionscontroller.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+	podLabels[constants.RunnerOrgLabelKey] = r.organizationName
+	podLabels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
 	d.Spec.Template.ObjectMeta.Labels = podLabels
 
 	d.Spec.Template.ObjectMeta.Annotations = rp2.Spec.Template.ObjectMeta.Annotations
@@ -183,13 +183,13 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 	var container *corev1.Container
 	for i := range d.Spec.Template.Spec.Containers {
 		c := &d.Spec.Template.Spec.Containers[i]
-		if c.Name == actionscontroller.RunnerContainerName {
+		if c.Name == constants.RunnerContainerName {
 			container = c
 			break
 		}
 	}
 	if container == nil {
-		return fmt.Errorf("container with name %s should exist in the manifest", actionscontroller.RunnerContainerName)
+		return fmt.Errorf("container with name %s should exist in the manifest", constants.RunnerContainerName)
 	}
 
 	envMap := make(map[string]struct{})
@@ -197,11 +197,11 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 		envMap[v.Name] = struct{}{}
 	}
 
-	if _, ok := envMap[actionscontroller.RunnerNameEnvName]; !ok {
+	if _, ok := envMap[constants.RunnerNameEnvName]; !ok {
 		container.Env = append(
 			container.Env,
 			corev1.EnvVar{
-				Name: actionscontroller.RunnerNameEnvName,
+				Name: constants.RunnerNameEnvName,
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{
 						FieldPath: "metadata.name",
@@ -210,20 +210,20 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 			},
 		)
 	}
-	if _, ok := envMap[actionscontroller.RunnerOrgEnvName]; !ok {
+	if _, ok := envMap[constants.RunnerOrgEnvName]; !ok {
 		container.Env = append(
 			container.Env,
 			corev1.EnvVar{
-				Name:  actionscontroller.RunnerOrgEnvName,
+				Name:  constants.RunnerOrgEnvName,
 				Value: r.organizationName,
 			},
 		)
 	}
-	if _, ok := envMap[actionscontroller.RunnerRepoEnvName]; !ok {
+	if _, ok := envMap[constants.RunnerRepoEnvName]; !ok {
 		container.Env = append(
 			container.Env,
 			corev1.EnvVar{
-				Name:  actionscontroller.RunnerRepoEnvName,
+				Name:  constants.RunnerRepoEnvName,
 				Value: rp.Spec.RepositoryName,
 			},
 		)

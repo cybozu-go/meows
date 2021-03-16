@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/github-actions-controller"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -67,10 +67,10 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 				Name:      "sample0",
 				Namespace: namespace,
 				Labels: map[string]string{
-					actionscontroller.RunnerOrgLabelKey: organizationName,
+					constants.RunnerOrgLabelKey: organizationName,
 				},
 				Annotations: map[string]string{
-					actionscontroller.PodDeletionTimeKey: time.Now().Add(5 * time.Second).Format(time.RFC3339),
+					constants.PodDeletionTimeKey: time.Now().Add(5 * time.Second).Format(time.RFC3339),
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -106,7 +106,7 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 				Name:      "sample1",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					actionscontroller.PodDeletionTimeKey: time.Now().Add(time.Second).Format(time.RFC3339),
+					constants.PodDeletionTimeKey: time.Now().Add(time.Second).Format(time.RFC3339),
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -135,8 +135,10 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 
 		By("cofirming Pod is deleted eventually")
-		pod.Annotations[actionscontroller.PodDeletionTimeKey] = time.Now().Format(time.RFC3339)
+		pod.Annotations[constants.PodDeletionTimeKey] = time.Now().Format(time.RFC3339)
 		err = k8sClient.Update(ctx, &pod)
+		Expect(err).ShouldNot(HaveOccurred())
+
 		Eventually(func() error {
 			pod := corev1.Pod{}
 			err := k8sClient.Get(

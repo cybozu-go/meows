@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/github"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -59,12 +59,12 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	org, ok := pod.Labels[actionscontroller.RunnerOrgLabelKey]
+	org, ok := pod.Labels[constants.RunnerOrgLabelKey]
 	if !ok {
 		m.log.Info(
 			fmt.Sprintf(
 				"skipped because pod does not have %s label",
-				actionscontroller.RunnerOrgLabelKey,
+				constants.RunnerOrgLabelKey,
 			),
 			"name", namespacedName,
 		)
@@ -82,12 +82,12 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Allowed("non-target")
 	}
 
-	repo, ok := pod.Labels[actionscontroller.RunnerRepoLabelKey]
+	repo, ok := pod.Labels[constants.RunnerRepoLabelKey]
 	if !ok {
 		m.log.Info(
 			fmt.Sprintf(
 				"skipped because pod does not have %s label",
-				actionscontroller.RunnerRepoLabelKey,
+				constants.RunnerRepoLabelKey,
 			),
 			"name", namespacedName,
 		)
@@ -103,19 +103,19 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 	var container *corev1.Container
 	for i := range pod.Spec.Containers {
 		c := &pod.Spec.Containers[i]
-		if c.Name == actionscontroller.RunnerContainerName {
+		if c.Name == constants.RunnerContainerName {
 			container = c
 			break
 		}
 	}
 	if container == nil {
-		err := fmt.Errorf("pod should have a container named %s", actionscontroller.RunnerContainerName)
+		err := fmt.Errorf("pod should have a container named %s", constants.RunnerContainerName)
 		m.log.Error(err, "unable to find target container", "name", namespacedName)
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	container.Env = append(container.Env, corev1.EnvVar{
-		Name:  actionscontroller.RunnerTokenEnvName,
+		Name:  constants.RunnerTokenEnvName,
 		Value: token,
 	})
 	marshaledPod, err := json.Marshal(pod)

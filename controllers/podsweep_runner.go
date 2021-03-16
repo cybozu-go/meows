@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,7 +64,7 @@ func (r *PodSweeper) run(ctx context.Context) error {
 	selector, err := metav1.LabelSelectorAsSelector(
 		&metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				actionscontroller.RunnerOrgLabelKey: r.organizationName,
+				constants.RunnerOrgLabelKey: r.organizationName,
 			},
 		},
 	)
@@ -86,10 +86,10 @@ func (r *PodSweeper) run(ctx context.Context) error {
 	for _, po := range podList.Items {
 		name := types.NamespacedName{Name: po.GetName(), Namespace: po.GetNamespace()}
 
-		v, ok := po.Annotations[actionscontroller.PodDeletionTimeKey]
+		v, ok := po.Annotations[constants.PodDeletionTimeKey]
 		if !ok {
 			r.log.Info(
-				"skipped deleting pod because it has no annotation on "+actionscontroller.PodDeletionTimeKey,
+				"skipped deleting pod because it has no annotation on "+constants.PodDeletionTimeKey,
 				"name", name,
 			)
 			continue

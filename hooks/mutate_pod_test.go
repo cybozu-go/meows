@@ -1,7 +1,7 @@
 package hooks
 
 import (
-	actionscontroller "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/github-actions-controller"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -20,14 +20,14 @@ var _ = Describe("mutate Pod webhook", func() {
 				Name:      pn,
 				Namespace: ns,
 				Labels: map[string]string{
-					actionscontroller.RunnerOrgLabelKey:  organizationName,
-					actionscontroller.RunnerRepoLabelKey: "repo",
+					constants.RunnerOrgLabelKey:  organizationName,
+					constants.RunnerRepoLabelKey: "repo",
 				},
 			},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Name:  actionscontroller.RunnerContainerName,
+						Name:  constants.RunnerContainerName,
 						Image: "sample:latest",
 					},
 					{
@@ -54,7 +54,7 @@ var _ = Describe("mutate Pod webhook", func() {
 		Expect(ret.Spec.Containers).To(HaveLen(2))
 		c0 := ret.Spec.Containers[0]
 		Expect(c0.Env).To(HaveLen(1))
-		Expect(c0.Env[0].Name).To(Equal(actionscontroller.RunnerTokenEnvName))
+		Expect(c0.Env[0].Name).To(Equal(constants.RunnerTokenEnvName))
 		c1 := ret.Spec.Containers[1]
 		Expect(c1.Env).To(HaveLen(0))
 	})
@@ -70,7 +70,7 @@ var _ = Describe("mutate Pod webhook", func() {
 					Name:      pn,
 					Namespace: ns,
 					Labels: map[string]string{
-						actionscontroller.RunnerOrgLabelKey: organizationName,
+						constants.RunnerOrgLabelKey: organizationName,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -111,7 +111,7 @@ var _ = Describe("mutate Pod webhook", func() {
 					Name:      pn,
 					Namespace: ns,
 					Labels: map[string]string{
-						actionscontroller.RunnerRepoLabelKey: "repo",
+						constants.RunnerRepoLabelKey: "repo",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -151,8 +151,8 @@ var _ = Describe("mutate Pod webhook", func() {
 					Name:      pn,
 					Namespace: ns,
 					Labels: map[string]string{
-						actionscontroller.RunnerOrgLabelKey:  "incorrect-fake-org",
-						actionscontroller.RunnerRepoLabelKey: "repo",
+						constants.RunnerOrgLabelKey:  "incorrect-fake-org",
+						constants.RunnerRepoLabelKey: "repo",
 					},
 				},
 				Spec: corev1.PodSpec{
