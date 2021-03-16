@@ -33,7 +33,7 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		sweeper := NewUnusedRunnerSweeper(
+		sweeper := NewRunnerSweeper(
 			mgr.GetClient(),
 			ctrl.Log.WithName("actions-token-updator"),
 			interval,

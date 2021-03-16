@@ -82,7 +82,7 @@ func run() error {
 		return err
 	}
 
-	runnerSweeper := controllers.NewUnusedRunnerSweeper(
+	runnerSweeper := controllers.NewRunnerSweeper(
 		mgr.GetClient(),
 		ctrl.Log.WithName("unused-runner-sweeper"),
 		config.runnerSweepInterval,

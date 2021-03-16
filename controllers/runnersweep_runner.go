@@ -21,8 +21,8 @@ const (
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
-// UnusedRunnerSweeper sweeps unregistered GitHub Actions Token periodically
-type UnusedRunnerSweeper struct {
+// RunnerSweeper sweeps unregistered GitHub Actions Token periodically
+type RunnerSweeper struct {
 	k8sClient client.Client
 	log       logr.Logger
 	interval  time.Duration
@@ -31,15 +31,15 @@ type UnusedRunnerSweeper struct {
 	organizationName string
 }
 
-// NewUnusedRunnerSweeper returns OldTokenSweeper
-func NewUnusedRunnerSweeper(
+// NewRunnerSweeper returns OldTokenSweeper
+func NewRunnerSweeper(
 	k8sClient client.Client,
 	log logr.Logger,
 	interval time.Duration,
 	githubClient github.RegistrationTokenGenerator,
 	organizationName string,
 ) manager.Runnable {
-	return &UnusedRunnerSweeper{
+	return &RunnerSweeper{
 		k8sClient:        k8sClient,
 		log:              log,
 		interval:         interval,
@@ -49,7 +49,7 @@ func NewUnusedRunnerSweeper(
 }
 
 // Start starts loop to update Actions runner token
-func (r *UnusedRunnerSweeper) Start(ctx context.Context) error {
+func (r *RunnerSweeper) Start(ctx context.Context) error {
 	ticker := time.NewTicker(r.interval)
 
 	defer ticker.Stop()
@@ -68,7 +68,7 @@ func (r *UnusedRunnerSweeper) Start(ctx context.Context) error {
 	}
 }
 
-func (r *UnusedRunnerSweeper) run(ctx context.Context) error {
+func (r *RunnerSweeper) run(ctx context.Context) error {
 	selector, err := metav1.LabelSelectorAsSelector(
 		&metav1.LabelSelector{
 			MatchLabels: map[string]string{
