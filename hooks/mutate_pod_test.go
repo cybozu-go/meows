@@ -20,6 +20,7 @@ var _ = Describe("mutate Pod webhook", func() {
 				Name:      pn,
 				Namespace: ns,
 				Labels: map[string]string{
+					actionscontroller.RunnerOrgLabelKey:  organizationName,
 					actionscontroller.RunnerRepoLabelKey: "repo",
 				},
 			},
@@ -59,41 +60,127 @@ var _ = Describe("mutate Pod webhook", func() {
 	})
 
 	It("should not add token to env", func() {
-		By("creating Pod without webhook label")
-		pn := "p1"
-		ns := "default"
+		{
+			pn := "p1"
+			ns := "default"
 
-		By("creating Pod")
-		pod := corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      pn,
-				Namespace: ns,
-			},
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{
-					{
-						Name:  "should-not-be-added",
-						Image: "sample:latest",
+			By("creating Pod without repo label")
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      pn,
+					Namespace: ns,
+					Labels: map[string]string{
+						actionscontroller.RunnerOrgLabelKey: organizationName,
 					},
 				},
-			},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "should-not-be-added",
+							Image: "sample:latest",
+						},
+					},
+				},
+			}
+
+			err := k8sClient.Create(ctx, &pod)
+			Expect(err).NotTo(HaveOccurred())
+
+			ret := &corev1.Pod{}
+			err = k8sClient.Get(
+				ctx,
+				types.NamespacedName{
+					Name:      pn,
+					Namespace: ns,
+				},
+				ret,
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ret.Spec.Containers).To(HaveLen(1))
+			c0 := ret.Spec.Containers[0]
+			Expect(c0.Env).To(HaveLen(0))
+
 		}
+		{
+			pn := "p2"
+			ns := "default"
 
-		err := k8sClient.Create(ctx, &pod)
-		Expect(err).NotTo(HaveOccurred())
+			By("creating Pod without org label")
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      pn,
+					Namespace: ns,
+					Labels: map[string]string{
+						actionscontroller.RunnerRepoLabelKey: "repo",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "should-not-be-added",
+							Image: "sample:latest",
+						},
+					},
+				},
+			}
 
-		ret := &corev1.Pod{}
-		err = k8sClient.Get(
-			ctx,
-			types.NamespacedName{
-				Name:      pn,
-				Namespace: ns,
-			},
-			ret,
-		)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(ret.Spec.Containers).To(HaveLen(1))
-		c0 := ret.Spec.Containers[0]
-		Expect(c0.Env).To(HaveLen(0))
+			err := k8sClient.Create(ctx, &pod)
+			Expect(err).NotTo(HaveOccurred())
+
+			ret := &corev1.Pod{}
+			err = k8sClient.Get(
+				ctx,
+				types.NamespacedName{
+					Name:      pn,
+					Namespace: ns,
+				},
+				ret,
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ret.Spec.Containers).To(HaveLen(1))
+			c0 := ret.Spec.Containers[0]
+			Expect(c0.Env).To(HaveLen(0))
+		}
+		{
+			pn := "p3"
+			ns := "default"
+
+			By("creating Pod with non-target org label")
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      pn,
+					Namespace: ns,
+					Labels: map[string]string{
+						actionscontroller.RunnerOrgLabelKey:  "incorrect-fake-org",
+						actionscontroller.RunnerRepoLabelKey: "repo",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "should-not-be-added",
+							Image: "sample:latest",
+						},
+					},
+				},
+			}
+
+			err := k8sClient.Create(ctx, &pod)
+			Expect(err).NotTo(HaveOccurred())
+
+			ret := &corev1.Pod{}
+			err = k8sClient.Get(
+				ctx,
+				types.NamespacedName{
+					Name:      pn,
+					Namespace: ns,
+				},
+				ret,
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ret.Spec.Containers).To(HaveLen(1))
+			c0 := ret.Spec.Containers[0]
+			Expect(c0.Env).To(HaveLen(0))
+		}
 	})
 })

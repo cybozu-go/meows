@@ -29,6 +29,8 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
+const organizationName = "org"
+
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
@@ -94,7 +96,7 @@ var _ = BeforeSuite(func() {
 		mgr.GetClient(),
 		ctrl.Log.WithName("actions-token-pod-mutater"),
 		dec,
-		github.NewFakeClient(),
+		github.NewFakeClient(organizationName),
 	))
 	Expect(err).NotTo(HaveOccurred())
 

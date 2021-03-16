@@ -59,6 +59,29 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
+	org, ok := pod.Labels[actionscontroller.RunnerOrgLabelKey]
+	if !ok {
+		m.log.Info(
+			fmt.Sprintf(
+				"skipped because pod does not have %s label",
+				actionscontroller.RunnerOrgLabelKey,
+			),
+			"name", namespacedName,
+		)
+		return admission.Allowed("non-target")
+	}
+	targetOrg := m.githubClient.GetOrganizationName()
+	if org != targetOrg {
+		m.log.Info(
+			fmt.Sprintf(
+				"skipped because pod organizationName is not %s",
+				targetOrg,
+			),
+			"name", namespacedName,
+		)
+		return admission.Allowed("non-target")
+	}
+
 	repo, ok := pod.Labels[actionscontroller.RunnerRepoLabelKey]
 	if !ok {
 		m.log.Info(
@@ -68,7 +91,7 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 			),
 			"name", namespacedName,
 		)
-		return admission.Allowed("ok")
+		return admission.Allowed("non-target")
 	}
 
 	token, err := m.githubClient.CreateRegistrationToken(ctx, repo)

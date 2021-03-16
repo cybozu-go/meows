@@ -27,8 +27,7 @@ type RunnerSweeper struct {
 	log       logr.Logger
 	interval  time.Duration
 
-	githubClient     github.RegistrationTokenGenerator
-	organizationName string
+	githubClient github.RegistrationTokenGenerator
 }
 
 // NewRunnerSweeper returns OldTokenSweeper
@@ -37,14 +36,12 @@ func NewRunnerSweeper(
 	log logr.Logger,
 	interval time.Duration,
 	githubClient github.RegistrationTokenGenerator,
-	organizationName string,
 ) manager.Runnable {
 	return &RunnerSweeper{
-		k8sClient:        k8sClient,
-		log:              log,
-		interval:         interval,
-		githubClient:     githubClient,
-		organizationName: organizationName,
+		k8sClient:    k8sClient,
+		log:          log,
+		interval:     interval,
+		githubClient: githubClient,
 	}
 }
 
@@ -72,7 +69,7 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 	selector, err := metav1.LabelSelectorAsSelector(
 		&metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				actionscontroller.RunnerOrgLabelKey: r.organizationName,
+				actionscontroller.RunnerOrgLabelKey: r.githubClient.GetOrganizationName(),
 			},
 		},
 	)

@@ -12,6 +12,7 @@ import (
 
 // RegistrationTokenGenerator generates token for GitHub Action selfhosted runner
 type RegistrationTokenGenerator interface {
+	GetOrganizationName() string
 	CreateRegistrationToken(context.Context, string) (string, error)
 	ListRunners(context.Context, string) ([]*github.Runner, error)
 	RemoveRunner(context.Context, string, int64) error
@@ -45,7 +46,12 @@ func NewClient(
 	}, nil
 }
 
-// CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization
+// GetOrganizationName returns organizationName.
+func (c *Client) GetOrganizationName() string {
+	return c.organizationName
+}
+
+// CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization.
 func (c *Client) CreateRegistrationToken(ctx context.Context, repositoryName string) (string, error) {
 	token, _, err := c.client.Actions.CreateRegistrationToken(
 		ctx,
@@ -59,7 +65,7 @@ func (c *Client) CreateRegistrationToken(ctx context.Context, repositoryName str
 	return token.GetToken(), nil
 }
 
-// ListRunners lists registered self-hosted runners for the organization
+// ListRunners lists registered self-hosted runners for the organization.
 func (c *Client) ListRunners(ctx context.Context, repositoryName string) ([]*github.Runner, error) {
 	var runners []*github.Runner
 
@@ -85,7 +91,7 @@ func (c *Client) ListRunners(ctx context.Context, repositoryName string) ([]*git
 	return runners, nil
 }
 
-// RemoveRunner deletes an Actions runner of the organization
+// RemoveRunner deletes an Actions runner of the organization.
 func (c *Client) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
 	res, err := c.client.Actions.RemoveRunner(
 		ctx,
@@ -103,27 +109,34 @@ func (c *Client) RemoveRunner(ctx context.Context, repositoryName string, runner
 	return nil
 }
 
-type fakeClient struct {
-	runners map[string][]*github.Runner
+// FakeClient is a fake client
+type FakeClient struct {
+	organizationName string
+	runners          map[string][]*github.Runner
 }
 
-// NewfakeClient creates GitHub Actions Client
-func NewFakeClient() *fakeClient {
-	return &fakeClient{}
+// NewFakeClient creates GitHub Actions Client.
+func NewFakeClient(organizationName string) *FakeClient {
+	return &FakeClient{organizationName: organizationName}
 }
 
-// CreateRegistrationToken returns dummy token
-func (c *fakeClient) CreateRegistrationToken(ctx context.Context, repositoryName string) (string, error) {
+// GetOrganizationName returns organizationName.
+func (c *FakeClient) GetOrganizationName() string {
+	return c.organizationName
+}
+
+// CreateRegistrationToken returns dummy token.
+func (c *FakeClient) CreateRegistrationToken(ctx context.Context, repositoryName string) (string, error) {
 	return "AAA", nil
 }
 
-// ListRunners returns dummy list
-func (c *fakeClient) ListRunners(ctx context.Context, repositoryName string) ([]*github.Runner, error) {
+// ListRunners returns dummy list.
+func (c *FakeClient) ListRunners(ctx context.Context, repositoryName string) ([]*github.Runner, error) {
 	return c.runners[repositoryName], nil
 }
 
-// RemoveRunner does not delete anything and returns success
-func (c *fakeClient) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
+// RemoveRunner does not delete anything and returns success.
+func (c *FakeClient) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
 	// skip existance and nil check below because this is mock
 	runners := c.runners[repositoryName]
 	for i, v := range runners {
@@ -136,6 +149,6 @@ func (c *fakeClient) RemoveRunner(ctx context.Context, repositoryName string, ru
 }
 
 // SetRunners sets runners for multiple repositories
-func (c *fakeClient) SetRunners(runners map[string][]*github.Runner) {
+func (c *FakeClient) SetRunners(runners map[string][]*github.Runner) {
 	c.runners = runners
 }

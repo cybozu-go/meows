@@ -47,7 +47,7 @@ func run() error {
 		return err
 	}
 
-	c, err := github.NewClient(
+	githubClient, err := github.NewClient(
 		config.appID,
 		config.appInstallationID,
 		config.appPrivateKeyPath,
@@ -68,7 +68,7 @@ func run() error {
 		mgr.GetClient(),
 		ctrl.Log.WithName("actions-token-pod-mutater"),
 		dec,
-		c,
+		githubClient,
 	))
 
 	reconciler := controllers.NewRunnerPoolReconciler(
@@ -86,8 +86,7 @@ func run() error {
 		mgr.GetClient(),
 		ctrl.Log.WithName("unused-runner-sweeper"),
 		config.runnerSweepInterval,
-		c,
-		config.organizationName,
+		githubClient,
 	)
 	if err := mgr.Add(runnerSweeper); err != nil {
 		setupLog.Error(err, "unable to add runner sweeper to manager", "runner", "runner-sweeper")

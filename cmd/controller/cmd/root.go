@@ -80,6 +80,6 @@ func init() {
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
 
 	fs.DurationVar(&config.runnerSweepInterval, "runner-sweep-interval", 30*time.Minute, "Interval to watch and sweep unused GitHub Actions runners.")
-	fs.DurationVar(&config.podSweepInterval, "pod-delete-interval", time.Minute, "Interval to watch and delete Pods.")
+	fs.DurationVar(&config.podSweepInterval, "pod-sweep-interval", time.Minute, "Interval to watch and delete Pods.")
 	fs.StringVar(&config.defaultPodDeadline, "default-pod-deadline", "17:00", "Time in HH:mm format in UTC to delete Pods.")
 }

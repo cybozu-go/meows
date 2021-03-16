@@ -17,13 +17,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var _ = Describe("UnusedRunnerSweeper runner", func() {
+var _ = Describe("RunnerSweeper runner", func() {
 	ctx := context.Background()
 	organizationName := "runnersweep-org"
 	repositoryName := "runnersweep-repo"
 	interval := time.Second
 
-	githubClient := github.NewFakeClient()
+	githubClient := github.NewFakeClient(organizationName)
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -38,7 +38,6 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 			ctrl.Log.WithName("actions-token-updator"),
 			interval,
 			githubClient,
-			organizationName,
 		)
 		err = mgr.Add(sweeper)
 		Expect(err).ToNot(HaveOccurred())
@@ -117,7 +116,7 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 			Eventually(func() error {
 				runnersActual, _ := githubClient.ListRunners(ctx, repositoryName)
 				if len(tt.runnersExpected) != len(runnersActual) {
-					return fmt.Errorf("length mismatch: expected %#v, actual %#v", tt.runnersExpected, runnersActual)
+					return fmt.Errorf("length mismatch: expected %#v, actual %#v", tt.runnersExpected, makeNameList(runnersActual))
 				}
 				for _, runner := range runnersActual {
 					if _, ok := tt.runnersExpected[*runner.Name]; !ok {
@@ -200,4 +199,12 @@ func int64Ptr(v int64) *int64 {
 
 func strPtr(v string) *string {
 	return &v
+}
+
+func makeNameList(runners []*gogithub.Runner) []string {
+	l := make([]string, len(runners))
+	for i, v := range runners {
+		l[i] = *v.Name
+	}
+	return l
 }

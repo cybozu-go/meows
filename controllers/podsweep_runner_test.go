@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	actionscontroller "github.com/cybozu-go/github-actions-controller"
@@ -83,7 +84,7 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 		}
 
 		err := k8sClient.Create(ctx, &pod)
-		Expect(err).NotTo(HaveOccurred())
+		Expect(err).ShouldNot(HaveOccurred())
 
 		By("cofirming Pod is deleted eventually")
 		Eventually(func() error {
@@ -119,11 +120,11 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 		}
 
 		err := k8sClient.Create(ctx, &pod)
-		Expect(err).NotTo(HaveOccurred())
+		Expect(err).ShouldNot(HaveOccurred())
 
 		By("cofirming Pod is not deleted")
 		time.Sleep(5 * time.Second)
-		k8sClient.Get(
+		err = k8sClient.Get(
 			ctx,
 			types.NamespacedName{
 				Name:      pod.Name,
@@ -131,5 +132,26 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 			},
 			&corev1.Pod{},
 		)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("cofirming Pod is deleted eventually")
+		pod.Annotations[actionscontroller.PodDeletionTimeKey] = time.Now().Format(time.RFC3339)
+		err = k8sClient.Update(ctx, &pod)
+		Eventually(func() error {
+			pod := corev1.Pod{}
+			err := k8sClient.Get(
+				ctx,
+				types.NamespacedName{
+					Name:      pod.Name,
+					Namespace: pod.Namespace,
+				},
+				&pod,
+			)
+			if err != nil {
+				return err
+			}
+			fmt.Println(pod)
+			return nil
+		}, 10*time.Second).Should(HaveOccurred())
 	})
 })
