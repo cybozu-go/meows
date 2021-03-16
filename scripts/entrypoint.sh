@@ -32,11 +32,6 @@ mkdir -p _work
 
 ./bin/runsvc.sh --once
 
-if [ ! kubectl get po >/dev/null 2>&1 ]; then
-    echo "not in kubernetes cluster, so exit"
-    exit 0
-fi
-
 if [ -f /tmp/failed ]; then
     echo "Label pods with current time + 20m"
     kubectl annotate pods ${RUNNER_NAME} --overwrite delete-at=$(date -d "20 minutes")
@@ -44,4 +39,5 @@ else
     echo "Label pods with current time"
     kubectl annotate pods ${RUNNER_NAME} --overwrite delete-at=$(date)
 fi
+sleep infinity
 
