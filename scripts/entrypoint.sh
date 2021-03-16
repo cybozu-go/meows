@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -22,22 +22,12 @@ if [ -z "${RUNNER_REPO}" ]; then
   exit 1
 fi
 
-echo "https://github.com/${RUNNER_ORG}/${RUNNER_REPO}"
-
 cd /runner
 mkdir -p _work
 ./config.sh --unattended --replace --name "${RUNNER_NAME}" --url "https://github.com/${RUNNER_ORG}/${RUNNER_REPO}" --token "${RUNNER_TOKEN}" --work /runner/_work
 
 # TODO: run placemat
 
-./bin/runsvc.sh --once
+./bin/runsvc.sh
 
-if [ -f /tmp/failed ]; then
-    echo "Label pods with current time + 20m"
-    kubectl annotate pods ${RUNNER_NAME} --overwrite delete-at=$(date -d "20 minutes")
-else
-    echo "Label pods with current time"
-    kubectl annotate pods ${RUNNER_NAME} --overwrite delete-at=$(date)
-fi
-sleep infinity
-
+/usr/local/bin/wait.sh

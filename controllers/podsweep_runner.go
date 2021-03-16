@@ -88,10 +88,6 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 		v, ok := po.Annotations[constants.PodDeletionTimeKey]
 		if !ok {
-			r.log.Info(
-				"skipped deleting pod because it has no annotation on "+constants.PodDeletionTimeKey,
-				"name", name,
-			)
 			continue
 		}
 

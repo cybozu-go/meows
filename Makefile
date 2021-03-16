@@ -1,14 +1,16 @@
+CURL := curl -sSLf
+
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_GEN_VERSION := 0.4.1
 KUSTOMIZE_VERSION := 3.8.7
 K8S_VERSION := 1.19.7
 KIND_VERSION := 0.10.0
+CERT_MANAGER_VERSION := 1.2.0
 
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 BIN_DIR := $(PROJECT_DIR)/bin
 ENVTEST_ASSETS_DIR := $(PROJECT_DIR)/testbin
 E2E_DIR := $(PROJECT_DIR)/e2e
-KIND_CONFIG := $(E2E_DIR)/config/kind.yaml
 
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
 KUSTOMIZE := $(BIN_DIR)/kustomize
@@ -23,12 +25,19 @@ export KUBECTL
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
-CURL := curl -sSLf
 
 # Image URL to use all building/pushing image targets
 CONTROLLER_IMG ?= controller:latest
 RUNNER_IMG ?= runner:latest
+
+# kind envs
 KIND_CLUSTER_NAME ?= e2e-actions
+KIND_CONFIG := $(E2E_DIR)/config/kind.yaml
+
+GITHUB_ORGANIZATION ?=
+GITHUB_APP_ID ?=
+GITHUB_APP_INSTALLATION_ID ?=
+GITHUB_APP_PRIVATE_KEY_PATH ?=
 
 CRD_OPTIONS ?=
 
@@ -57,53 +66,6 @@ setup: ## Setup necessary tools.
 clean: ## Clean files>
 	rm -f bin/*
 	rm -rf testbin/*
-
-##@ Test
-
-.PHONY: lint
-lint: ## Run gofmt, staticcheck, nilerr and vet.
-	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
-	$(STATICCHECK) ./...
-	test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
-	go vet ./...
-
-.PHONY: check-generate
-check-generate: ## Generate manifests and code, and check if diff exists.
-	$(MAKE) manifests
-	$(MAKE) generate
-	git diff --exit-code --name-only
-
-.PHONY: test
-test: ## Run unit tests.
-	{ \
-	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh && \
-	fetch_envtest_tools $(notdir $(ENVTEST_ASSETS_DIR)) && \
-	setup_envtest_env $(ENVTEST_ASSETS_DIR) && \
-	go test -v -count=1 ./... -coverprofile cover.out ; \
-	}
-
-.PHONY: e2etest
-e2etest: ## Run e2e test.
-	env E2ETEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v ./e2e
-
-.PHONY: start-kind
-start-kind: ## Start kind cluster.
-	$(KIND) create cluster --image kindest/node:v$(K8S_VERSION) --name $(KIND_CLUSTER_NAME) --config $(KIND_CONFIG)
-
-.PHONY: stop-kind
-stop-kind: ## Stop kind cluster
-	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
-
-.PHONY: load-images
-load-images: load-controller-image load-runner-image ## Load docker images onto k8s cluster.
-
-.PHONY: load-controller-image
-load-controller-image:
-	$(KIND) load docker-image $(CONTROLLER_IMG) --name $(KIND_CLUSTER_NAME)
-
-.PHONY: load-runner-image
-load-runner-image:
-	$(KIND) load docker-image $(RUNNER_IMG) --name $(KIND_CLUSTER_NAME)
 
 ##@ Build
 
@@ -134,23 +96,82 @@ build-controller-image:
 build-runner-image:
 	docker build -f Dockerfile.runner -t ${RUNNER_IMG} .
 
+##@ Test
+
+.PHONY: lint
+lint: ## Run gofmt, staticcheck, nilerr and vet.
+	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
+	$(STATICCHECK) ./...
+	test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
+	go vet ./...
+
+.PHONY: check-generate
+check-generate: ## Generate manifests and code, and check if diff exists.
+	$(MAKE) manifests
+	$(MAKE) generate
+	git diff --exit-code --name-only
+
+.PHONY: test
+test: ## Run unit tests.
+	{ \
+	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh && \
+	fetch_envtest_tools $(notdir $(ENVTEST_ASSETS_DIR)) && \
+	setup_envtest_env $(ENVTEST_ASSETS_DIR) && \
+	go test -v -count=1 ./... -coverprofile cover.out ; \
+	}
+
+.PHONY: e2etest
+e2etest: ## Run e2e test.
+	env E2ETEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v ./e2e
+
 ##@ Deployment
+
+.PHONY: start-kind
+start-kind: ## Start kind cluster.
+	$(KIND) create cluster --image kindest/node:v$(K8S_VERSION) --name $(KIND_CLUSTER_NAME) --config $(KIND_CONFIG)
+
+.PHONY: stop-kind
+stop-kind: ## Stop kind cluster
+	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
+
+.PHONY: load-images
+load-images: load-controller-image load-runner-image ## Load docker images onto k8s cluster.
+
+.PHONY: load-controller-image
+load-controller-image:
+	$(KIND) load docker-image $(CONTROLLER_IMG) --name $(KIND_CLUSTER_NAME)
+
+.PHONY: load-runner-image
+load-runner-image:
+	$(KIND) load docker-image $(RUNNER_IMG) --name $(KIND_CLUSTER_NAME)
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
 
 .PHONY: uninstall
 uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
+	-$(KUBECTL) label ns default actions.cybozu.com/pod-mutate-
+	-$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
+	-$(KUBECTL) delete -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) create ns actions-system
+	$(KUBECTL) create secret generic github-app-secret \
+		-n actions-system \
+		--from-literal=organization-name=$(GITHUB_ORGANIZATION) \
+		--from-literal=app-id=$(GITHUB_APP_ID) \
+		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
+		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) delete secret -n actions-system github-app-secret
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
