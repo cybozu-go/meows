@@ -6399,6 +6399,13 @@ spec:
             - selector
             - template
             type: object
+          status:
+            description: RunnerPoolStatus defines status of RunnerPool
+            properties:
+              created:
+                description: Creted is true when the child Deployment is created
+                type: boolean
+            type: object
         required:
         - spec
         type: object

@@ -68,6 +68,12 @@ type ObjectMeta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// RunnerPoolStatus defines status of RunnerPool
+type RunnerPoolStatus struct {
+	// Creted is true when the child Deployment is created
+	Created bool `json:"created,omitempty"`
+}
+
 //+kubebuilder:object:root=true
 
 // RunnerPool is the Schema for the runnerpools API
@@ -75,7 +81,8 @@ type RunnerPool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec RunnerPoolSpec `json:"spec"`
+	Spec   RunnerPoolSpec   `json:"spec"`
+	Status RunnerPoolStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -11,6 +11,7 @@ rules:
   resources:
   - pods
   verbs:
+  - delete
   - get
   - list
   - watch
@@ -31,6 +32,14 @@ rules:
   resources:
   - runnerpools/finalizers
   verbs:
+  - update
+- apiGroups:
+  - actions.cybozu.com
+  resources:
+  - runnerpools/status
+  verbs:
+  - get
+  - patch
   - update
 - apiGroups:
   - apps

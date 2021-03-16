@@ -45,6 +45,7 @@ func NewRunnerPoolReconciler(
 }
 
 //+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get
@@ -105,12 +106,26 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return r.updateDeploymentWithRunnerPool(rp, d)
 	})
 	if err != nil {
-		log.Error(err, "unable to create-or-update Deployment")
+		log.Error(err, "unable to create-or-update Deployment", "name", req.NamespacedName)
 		return ctrl.Result{}, err
 	}
+	log.Info("completed create-or-update successfully with status "+string(op), "name", req.NamespacedName)
 
-	log.Info("finished reconciliation successfully", "op", op)
+	rp.Status.Created = true
+	err = r.Status().Update(ctx, rp)
+	if err != nil {
+		log.Error(err, "failed to update status", "name", req.NamespacedName)
+		return ctrl.Result{}, err
+	}
 	return ctrl.Result{}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&actionsv1alpha1.RunnerPool{}).
+		Owns(&appsv1.Deployment{}).
+		Complete(r)
 }
 
 func (r *RunnerPoolReconciler) addFinalizer(ctx context.Context, rp *actionsv1alpha1.RunnerPool) error {
@@ -137,14 +152,6 @@ func (r *RunnerPoolReconciler) cleanUpOwnedResources(ctx context.Context, namesp
 		return err
 	}
 	return r.Delete(ctx, d)
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&actionsv1alpha1.RunnerPool{}).
-		Owns(&appsv1.Deployment{}).
-		Complete(r)
 }
 
 func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha1.RunnerPool, d *appsv1.Deployment) error {
