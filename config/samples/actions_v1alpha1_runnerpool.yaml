@@ -3,8 +3,7 @@ kind: RunnerPool
 metadata:
   name: runnerpool-sample
 spec:
-  # TODO
-  repositoryName: hostrunner-poc
+  repositoryName: repository-sample
   replicas: 3
   selector:
     matchLabels:
@@ -17,8 +16,6 @@ spec:
       containers:
       - name: runner
         image: runner:latest
-        # TODO
-        imagePullPolicy: Never
       serviceAccountName: runner
 ---
 apiVersion: v1

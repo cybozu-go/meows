@@ -31,8 +31,6 @@ spec:
         - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
         - "--app-private-key-path=/etc/github/app.pem"
         image: controller:latest
-        # TODO
-        imagePullPolicy: Never
         name: manager
         env:
           - name: "GITHUB_ORG_NAME"

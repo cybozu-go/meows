@@ -32,7 +32,7 @@ RUNNER_IMG ?= runner:latest
 
 # kind envs
 KIND_CLUSTER_NAME ?= e2e-actions
-KIND_CONFIG := $(E2E_DIR)/config/kind.yaml
+KIND_CONFIG := $(E2E_DIR)/kind.yaml
 
 GITHUB_ORGANIZATION ?=
 GITHUB_APP_ID ?=
@@ -120,9 +120,25 @@ test: ## Run unit tests.
 	go test -v -count=1 ./... -coverprofile cover.out ; \
 	}
 
-.PHONY: e2etest
-e2etest: ## Run e2e test.
-	env E2ETEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v ./e2e
+.PHONY: prepare
+prepare: start-kind load-images ## Prepare for e2e test.
+	$(KUBECTL) create ns actions-system
+	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
+	$(KUBECTL) create secret generic github-app-secret \
+		-n actions-system \
+		--from-literal=organization-name=$(GITHUB_ORGANIZATION) \
+		--from-literal=app-id=$(GITHUB_APP_ID) \
+		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
+		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
+	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
+	$(KUBECTL) wait pods -n cert-manager -l app.kubernetes.io/name=cert-manager --for=condition=Ready
+	$(KUBECTL) wait pods -n cert-manager -l app=webhook --for=condition=Ready --timeout=1m
+
+.PHONY: e2e
+e2e: ## Run e2e test.
+	$(MAKE) install
+	$(KUSTOMIZE) build --load_restrictor='none' $(E2E_DIR)/manifests | $(KUBECTL) apply -f -
+	env E2ETEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v $(E2E_DIR)
 
 ##@ Deployment
 
@@ -147,31 +163,19 @@ load-runner-image:
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
-	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
 
 .PHONY: uninstall
 uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	-$(KUBECTL) label ns default actions.cybozu.com/pod-mutate-
-	-$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
-	-$(KUBECTL) delete -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) create ns actions-system
-	$(KUBECTL) create secret generic github-app-secret \
-		-n actions-system \
-		--from-literal=organization-name=$(GITHUB_ORGANIZATION) \
-		--from-literal=app-id=$(GITHUB_APP_ID) \
-		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
-		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) delete secret -n actions-system github-app-secret
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
 
 # go-get-tool will 'go get' any package $2 and install it to $1.

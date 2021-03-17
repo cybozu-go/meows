@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: actions-system
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: manager
+        imagePullPolicy: Never

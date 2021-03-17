@@ -10,6 +10,15 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const (
+	systemNS   = "actions-system"
+	runnerNS   = "default"
+	numRunners = 3
+
+	orgName  = "neco-test"
+	repoName = "github-actions-controller-ci"
+)
+
 var binDir string
 
 func TestE2e(t *testing.T) {
