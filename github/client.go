@@ -53,13 +53,16 @@ func (c *Client) GetOrganizationName() string {
 
 // CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization.
 func (c *Client) CreateRegistrationToken(ctx context.Context, repositoryName string) (string, error) {
-	token, _, err := c.client.Actions.CreateRegistrationToken(
+	token, res, err := c.client.Actions.CreateRegistrationToken(
 		ctx,
 		c.organizationName,
 		repositoryName,
 	)
 	if err != nil {
 		return "", err
+	}
+	if res.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("status should be %d but %d", http.StatusCreated, res.StatusCode)
 	}
 
 	return token.GetToken(), nil
@@ -80,12 +83,15 @@ func (c *Client) ListRunners(ctx context.Context, repositoryName string) ([]*git
 		if err != nil {
 			return nil, err
 		}
+		if res.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("status should be %d but %d", http.StatusOK, res.StatusCode)
+		}
 
 		runners = append(runners, list.Runners...)
 		if res.NextPage == 0 {
 			break
-
 		}
+
 		opts.Page = res.NextPage
 	}
 	return runners, nil
@@ -104,7 +110,6 @@ func (c *Client) RemoveRunner(ctx context.Context, repositoryName string, runner
 	}
 	if res.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("status should be %d but %d", http.StatusNoContent, res.StatusCode)
-
 	}
 	return nil
 }
