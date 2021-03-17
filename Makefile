@@ -85,15 +85,15 @@ build: generate ## Build manager binary.
 run: manifests generate ## Run a controller from your host.
 	go run ./cmd/controller
 
-.PHONY: build-images
-build-images: build-controller-image build-runner-image ## Build both container and runner docker images.
+.PHONY: images
+images: controller-image runner-image ## Build both container and runner docker images.
 
-.PHONY: build-controller-image
-build-controller-image:
+.PHONY: controller-image
+controller-image:
 	docker build -t ${CONTROLLER_IMG} .
 
-.PHONY: build-runner-image
-build-runner-image:
+.PHONY: runner-image
+runner-image:
 	docker build -f Dockerfile.runner -t ${RUNNER_IMG} .
 
 ##@ Test

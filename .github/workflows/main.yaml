@@ -1,0 +1,21 @@
+name: main
+on:
+  pull_request:
+  push:
+    branches:
+      - 'main'
+jobs:
+  build:
+    name: Build image
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - run: |
+          make setup
+          make lint
+          make test
+          make build
+          make images
