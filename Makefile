@@ -121,7 +121,7 @@ test: ## Run unit tests.
 	}
 
 .PHONY: prepare
-prepare: start-kind load-images ## Prepare for e2e test.
+prepare: start-kind load ## Prepare for e2e test.
 	$(KUBECTL) create ns actions-system
 	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
 	$(KUBECTL) create secret generic github-app-secret \
@@ -150,8 +150,8 @@ start-kind: ## Start kind cluster.
 stop-kind: ## Stop kind cluster
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
 
-.PHONY: load-images
-load-images: load-controller-image load-runner-image ## Load docker images onto k8s cluster.
+.PHONY: load
+load: load-controller-image load-runner-image ## Load docker images onto k8s cluster.
 
 .PHONY: load-controller-image
 load-controller-image:

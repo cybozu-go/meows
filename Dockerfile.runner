@@ -59,7 +59,6 @@ RUN mkdir -p ${AGENT_TOOLSDIRECTORY} \
 
 USER 10000
 COPY scripts/entrypoint.sh /usr/local/bin/
-COPY scripts/wait.sh /usr/local/bin/
 COPY scripts/job-failed /usr/local/bin/
 COPY scripts/RunnerService.js ${RUNNER_ASSETS_DIR}/bin/
 
