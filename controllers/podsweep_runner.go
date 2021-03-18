@@ -82,7 +82,7 @@ func (r *PodSweeper) run(ctx context.Context) error {
 		return err
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 	for _, po := range podList.Items {
 		name := types.NamespacedName{Name: po.GetName(), Namespace: po.GetNamespace()}
 

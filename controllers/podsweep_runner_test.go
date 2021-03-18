@@ -106,7 +106,7 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 				Name:      "sample1",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					constants.PodDeletionTimeKey: time.Now().Add(time.Second).Format(time.RFC3339),
+					constants.PodDeletionTimeKey: time.Now().UTC().Add(time.Second).Format(time.RFC3339),
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -135,7 +135,7 @@ var _ = Describe("UnusedRunnerSweeper runner", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 
 		By("cofirming Pod is deleted eventually")
-		pod.Annotations[constants.PodDeletionTimeKey] = time.Now().Format(time.RFC3339)
+		pod.Annotations[constants.PodDeletionTimeKey] = time.Now().UTC().Format(time.RFC3339)
 		err = k8sClient.Update(ctx, &pod)
 		Expect(err).ShouldNot(HaveOccurred())
 

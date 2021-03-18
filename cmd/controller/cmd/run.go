@@ -84,7 +84,7 @@ func run() error {
 
 	runnerSweeper := controllers.NewRunnerSweeper(
 		mgr.GetClient(),
-		ctrl.Log.WithName("unused-runner-sweeper"),
+		ctrl.Log.WithName("runner-sweeper"),
 		config.runnerSweepInterval,
 		githubClient,
 	)
@@ -95,7 +95,7 @@ func run() error {
 
 	podSweeper := controllers.NewPodSweeper(
 		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-updator"),
+		ctrl.Log.WithName("pod-sweeper"),
 		config.podSweepInterval,
 		config.organizationName,
 	)
