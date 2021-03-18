@@ -38,6 +38,7 @@ var _ = Describe("RunnerSweeper runner", func() {
 			ctrl.Log.WithName("actions-token-updator"),
 			interval,
 			githubClient,
+			[]string{repositoryName},
 		)
 		err = mgr.Add(sweeper)
 		Expect(err).ToNot(HaveOccurred())

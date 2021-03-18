@@ -80,6 +80,6 @@ var _ = BeforeSuite(func() {
 	githubClient = github.NewClient(&http.Client{Transport: rt})
 })
 
-var _ = Describe("TopoLVM", func() {
+var _ = Describe("github-actions-controller", func() {
 	Context("E2E", testE2E)
 })

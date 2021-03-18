@@ -34,7 +34,6 @@ RUNNER_IMG ?= runner:latest
 KIND_CLUSTER_NAME ?= e2e-actions
 KIND_CONFIG := $(E2E_DIR)/kind.yaml
 
-GITHUB_ORGANIZATION ?=
 GITHUB_APP_ID ?=
 GITHUB_APP_INSTALLATION_ID ?=
 GITHUB_APP_PRIVATE_KEY_PATH ?=
@@ -126,12 +125,12 @@ prepare: start-kind load ## Prepare for e2e test.
 	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
 	$(KUBECTL) create secret generic github-app-secret \
 		-n actions-system \
-		--from-literal=organization-name=$(GITHUB_ORGANIZATION) \
 		--from-literal=app-id=$(GITHUB_APP_ID) \
 		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
 		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
-	$(KUBECTL) wait pods -n cert-manager -l app.kubernetes.io/name=cert-manager --for=condition=Ready
+	$(KUBECTL) wait pods -n cert-manager -l app=cert-manager --for=condition=Ready --timeout=1m
+	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=1m
 	$(KUBECTL) wait pods -n cert-manager -l app=webhook --for=condition=Ready --timeout=1m
 
 .PHONY: e2e

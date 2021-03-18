@@ -17,6 +17,7 @@ var config struct {
 	appInstallationID int64
 	appPrivateKeyPath string
 	organizationName  string
+	repositoryNames   []string
 
 	runnerSweepInterval time.Duration
 	podSweepInterval    time.Duration
@@ -30,6 +31,9 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(config.organizationName) == 0 {
 			return errors.New("organization-name should be specified")
+		}
+		if len(config.repositoryNames) == 0 {
+			return errors.New("repository-names should not be empty")
 		}
 		if config.appID == 0 {
 			return errors.New("app-id should be specified")
@@ -58,10 +62,11 @@ func init() {
 	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
-	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App")
-	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App")
-	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key")
+	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App.")
+	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App.")
+	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key.")
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
+	fs.StringSliceVarP(&config.repositoryNames, "repository-names", "r", []string{}, "The GitHub repository names, separated with comma.")
 
 	fs.DurationVar(&config.runnerSweepInterval, "runner-sweep-interval", 30*time.Minute, "Interval to watch and sweep unused GitHub Actions runners.")
 	fs.DurationVar(&config.podSweepInterval, "pod-sweep-interval", time.Minute, "Interval to watch and delete Pods.")

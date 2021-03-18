@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -27,7 +28,8 @@ type RunnerSweeper struct {
 	log       logr.Logger
 	interval  time.Duration
 
-	githubClient github.RegistrationTokenGenerator
+	githubClient    github.RegistrationTokenGenerator
+	repositoryNames []string
 }
 
 // NewRunnerSweeper returns OldTokenSweeper
@@ -36,12 +38,14 @@ func NewRunnerSweeper(
 	log logr.Logger,
 	interval time.Duration,
 	githubClient github.RegistrationTokenGenerator,
+	repositoryNames []string,
 ) manager.Runnable {
 	return &RunnerSweeper{
-		k8sClient:    k8sClient,
-		log:          log,
-		interval:     interval,
-		githubClient: githubClient,
+		k8sClient:       k8sClient,
+		log:             log,
+		interval:        interval,
+		githubClient:    githubClient,
+		repositoryNames: repositoryNames,
 	}
 }
 
@@ -88,16 +92,24 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 	}
 
 	podSets := make(map[string]map[string]struct{})
+	// This ensures that the sweeper sweeps runners on the certaion repositories
+	// if there is no Pod.
+	for _, repo := range r.repositoryNames {
+		podSets[repo] = make(map[string]struct{})
+	}
+
 	for _, po := range podList.Items {
+		name := types.NamespacedName{Name: po.Name, Namespace: po.Namespace}
+
 		repo, ok := po.Labels[constants.RunnerRepoLabelKey]
 		if !ok {
-			err := fmt.Errorf("pod should have %s label", constants.RunnerRepoLabelKey)
-			r.log.Error(err, "unable to get repository name")
-			return err
+			r.log.Info(fmt.Sprintf("pod does not have %s label, so skip", constants.RunnerRepoLabelKey), "name", name)
+			continue
 		}
 
 		if podSets[repo] == nil {
-			podSets[repo] = make(map[string]struct{})
+			r.log.Info(fmt.Sprintf("pod has an unregistered repository name %s, so skip", repo), "name", name)
+			continue
 		}
 		podSets[repo][po.Name] = struct{}{}
 	}

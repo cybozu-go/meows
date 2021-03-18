@@ -19,18 +19,14 @@ spec:
         runAsNonRoot: true
       containers:
       - args:
-        - "--organization-name=$(GITHUB_ORG_NAME)"
+        - "--organization-name=your-organization-name"
+        - "--repository-names=repoA,repoB"
         - "--app-id=$(GITHUB_APP_ID)"
         - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
         - "--app-private-key-path=/etc/github/app.pem"
         image: controller:latest
         name: manager
         env:
-          - name: "GITHUB_ORG_NAME"
-            valueFrom:
-              secretKeyRef:
-                name: github-app-secret
-                key: organization-name
           - name: "GITHUB_APP_ID"
             valueFrom:
               secretKeyRef:
