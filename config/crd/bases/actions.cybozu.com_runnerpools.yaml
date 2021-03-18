@@ -42,6 +42,8 @@ spec:
                 format: int32
                 type: integer
               repositoryName:
+                description: RepositoryName describes repository name to register
+                  Pods as self-hosted runners.
                 type: string
               selector:
                 description: Label selector for pods. Existing ReplicaSets whose pods
@@ -6402,8 +6404,8 @@ spec:
           status:
             description: RunnerPoolStatus defines status of RunnerPool
             properties:
-              created:
-                description: Creted is true when the child Deployment is created
+              bound:
+                description: Bound is true when the child Deployment is created.
                 type: boolean
             type: object
         required:
@@ -6411,6 +6413,8 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

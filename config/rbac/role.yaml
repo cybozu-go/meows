@@ -30,12 +30,6 @@ rules:
 - apiGroups:
   - actions.cybozu.com
   resources:
-  - runnerpools/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - actions.cybozu.com
-  resources:
   - runnerpools/status
   verbs:
   - get
@@ -53,9 +47,3 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - apps
-  resources:
-  - deployments/status
-  verbs:
-  - get

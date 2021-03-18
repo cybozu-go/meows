@@ -92,8 +92,8 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 	}
 
 	podSets := make(map[string]map[string]struct{})
-	// This ensures that the sweeper sweeps runners on the certaion repositories
-	// if there is no Pod.
+	// This ensures that the sweeper sweeps runners on the certain repositories
+	// even if there is no Pod existing.
 	for _, repo := range r.repositoryNames {
 		podSets[repo] = make(map[string]struct{})
 	}

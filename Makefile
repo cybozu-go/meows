@@ -120,7 +120,9 @@ test: ## Run unit tests.
 	}
 
 .PHONY: prepare
-prepare: start-kind load ## Prepare for e2e test.
+prepare: ## Prepare for e2e test.
+	$(MAKE) start-kind
+	$(MAKE) load
 	$(KUBECTL) create ns actions-system
 	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
 	$(KUBECTL) create secret generic github-app-secret \

@@ -1,19 +1,3 @@
-/*
-Copyright 2021.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package v1alpha1
 
 import (
@@ -22,8 +6,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NOTE: Some lines of the code are proudly copied from Kubernetes project.
+// https://github.com/kubernetes/apimachinery/tree/master/pkg/apis/meta/v1
+// https://github.com/kubernetes/api/tree/master/core/v1
+// https://github.com/kubernetes/api/tree/master/apps/v1
+
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
+	// RepositoryName describes repository name to register Pods as self-hosted
+	// runners.
 	RepositoryName string `json:"repositoryName"`
 
 	// Number of desired pods. This is a pointer to distinguish between explicit
@@ -70,11 +61,13 @@ type ObjectMeta struct {
 
 // RunnerPoolStatus defines status of RunnerPool
 type RunnerPoolStatus struct {
-	// Creted is true when the child Deployment is created
-	Created bool `json:"created,omitempty"`
+	// Bound is true when the child Deployment is created.
+	// +optional
+	Bound bool `json:"bound,omitempty"`
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
 
 // RunnerPool is the Schema for the runnerpools API
 type RunnerPool struct {

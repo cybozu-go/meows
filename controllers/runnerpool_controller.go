@@ -46,23 +46,20 @@ func NewRunnerPoolReconciler(
 
 //+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("runnerpool", req.NamespacedName)
-	log.Info("start reconciliation loop", "name", req.NamespacedName)
+	r.Log.Info("start reconciliation loop", "name", req.NamespacedName)
 
 	rp := &actionsv1alpha1.RunnerPool{}
 	if err := r.Get(ctx, req.NamespacedName, rp); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("runnerpool is not found", "name", req.NamespacedName)
+			r.Log.Info("runnerpool is not found")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "unable to get RunnerPool", "name", req.NamespacedName)
+		r.Log.Error(err, "unable to get RunnerPool", "name", req.NamespacedName)
 		return ctrl.Result{}, err
 	}
 
@@ -70,28 +67,28 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
 			err := r.addFinalizer(ctx, rp)
 			if err != nil {
-				log.Error(err, "failed to add finalizer", "name", req.NamespacedName)
+				r.Log.Error(err, "failed to add finalizer", "name", req.NamespacedName)
 				return ctrl.Result{}, err
 			}
 			// Result does not change even if not requeued here.
 			// This just breaks down one reconciliation loop into small steps for simplicity.
-			log.Info("added finalizer", "name", req.NamespacedName)
+			r.Log.Info("added finalizer", "name", req.NamespacedName)
 			return ctrl.Result{Requeue: true}, nil
 		}
 	} else {
 		if controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
 			err := r.cleanUpOwnedResources(ctx, req.NamespacedName)
 			if err != nil {
-				log.Error(err, "failed to clean up deployment", "name", req.NamespacedName)
+				r.Log.Error(err, "failed to clean up deployment", "name", req.NamespacedName)
 				return ctrl.Result{}, err
 			}
 
 			err = r.removeFinalizer(ctx, rp)
 			if err != nil {
-				log.Error(err, "failed to remove finalizer", "name", req.NamespacedName)
+				r.Log.Error(err, "failed to remove finalizer", "name", req.NamespacedName)
 				return ctrl.Result{}, err
 			}
-			log.Info("removed finalizer", "name", req.NamespacedName)
+			r.Log.Info("removed finalizer", "name", req.NamespacedName)
 		}
 		return ctrl.Result{}, nil
 	}
@@ -106,15 +103,15 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return r.updateDeploymentWithRunnerPool(rp, d)
 	})
 	if err != nil {
-		log.Error(err, "unable to create-or-update Deployment", "name", req.NamespacedName)
+		r.Log.Error(err, "unable to create-or-update Deployment", "name", req.NamespacedName)
 		return ctrl.Result{}, err
 	}
-	log.Info("completed create-or-update successfully with status "+string(op), "name", req.NamespacedName)
+	r.Log.Info("completed create-or-update successfully with status "+string(op), "name", req.NamespacedName)
 
-	rp.Status.Created = true
+	rp.Status.Bound = true
 	err = r.Status().Update(ctx, rp)
 	if err != nil {
-		log.Error(err, "failed to update status", "name", req.NamespacedName)
+		r.Log.Error(err, "failed to update status", "name", req.NamespacedName)
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil

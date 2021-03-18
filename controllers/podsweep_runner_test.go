@@ -14,7 +14,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var _ = Describe("UnusedRunnerSweeper runner", func() {
+var _ = Describe("PodSweeper runner", func() {
 	ctx := context.Background()
 	organizationName := "podsweep-org"
 	namespace := "podsweep-ns"

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
@@ -29,13 +30,13 @@ var _ = Describe("RunnerPool reconciler", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		rpr := NewRunnerPoolReconciler(
+		r := NewRunnerPoolReconciler(
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("RunnerPool"),
 			mgr.GetScheme(),
 			organizationName,
 		)
-		err = rpr.SetupWithManager(mgr)
+		err = r.SetupWithManager(mgr)
 		Expect(err).ToNot(HaveOccurred())
 
 		go func() {
@@ -63,7 +64,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	It("should not create Deployment", func() {
 		name := "runnerpool-0"
-		By("deploying RunnerPool resource")
+		By("deploying RunnerPool resource without the container with the required name")
 		rp := &actionsv1alpha1.RunnerPool{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
@@ -159,7 +160,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 				return err
 			}
 
-			return k8sClient.Get(ctx, nsn, d)
+			if err := k8sClient.Get(ctx, nsn, d); err != nil {
+				return err
+			}
+
+			if !rp.Status.Bound {
+				return errors.New(`status "bound" should be true`)
+			}
+			return nil
 		}, 5*time.Second).Should(Succeed())
 
 		Expect(d.Labels[constants.RunnerOrgLabelKey]).To(Equal(organizationName))
