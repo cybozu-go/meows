@@ -3,10 +3,13 @@ kind: RunnerPool
 metadata:
   name: runnerpool-sample
 spec:
-  repositoryName: hostrunner-poc
+  repositoryName: github-actions-controller-ci
   template:
     spec:
       containers:
       - name: runner
         image: runner:latest
         imagePullPolicy: Never
+        env:
+          - name: EXTEND_DURATION
+            value: "30 sec"
