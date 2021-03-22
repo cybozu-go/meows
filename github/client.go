@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v33/github"
@@ -93,6 +94,7 @@ func (c *Client) ListRunners(ctx context.Context, repositoryName string) ([]*git
 		}
 
 		opts.Page = res.NextPage
+		time.Sleep(500 * time.Microsecond)
 	}
 	return runners, nil
 }

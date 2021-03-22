@@ -121,6 +121,18 @@ test: ## Run unit tests.
 
 .PHONY: prepare
 prepare: ## Prepare for e2e test.
+	if [ -z "$${GITHUB_APP_ID}" ]; then \
+	  echo "GITHUB_APP_ID must be set" 1>&2; \
+	  exit 1; \
+	fi
+	if [ -z "$${GITHUB_APP_INSTALLATION_ID}" ]; then \
+	  echo "GITHUB_APP_INSTALLATION_ID must be set" 1>&2; \
+	  exit 1; \
+	fi
+	if [ -z "$${GITHUB_APP_PRIVATE_KEY_PATH}" ]; then \
+	  echo "GITHUB_APP_PRIVATE_KEY_PATH must be set" 1>&2; \
+	  exit 1; \
+	fi
 	$(MAKE) start-kind
 	$(MAKE) load
 	$(KUBECTL) create ns actions-system

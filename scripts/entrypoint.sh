@@ -30,20 +30,15 @@ mkdir -p _work
 
 ./bin/runsvc.sh
 
-if [ -z "${RUNNER_NAME}" ]; then
-  echo "RUNNER_NAME must be set" 1>&2
-  exit 1
-fi
-
 if [ -z "${EXTEND_DURATION}" ]; then
   EXTEND_DURATION="20m"
 fi
 
 if [ -f /tmp/failed ]; then
-    echo "Label pods with current time + ${EXTEND_MINUTES}m"
+    echo "Annotate pods with the time ${EXTEND_DURATION} later"
     kubectl annotate pods ${RUNNER_NAME} --overwrite actions.cybozu.com/deletedAt=$(date -Iseconds -u -d "${EXTEND_DURATION}")
 else
-    echo "Label pods with current time"
+    echo "Annotate pods with current time"
     kubectl annotate pods ${RUNNER_NAME} --overwrite actions.cybozu.com/deletedAt=$(date -Iseconds -u)
 fi
 sleep infinity

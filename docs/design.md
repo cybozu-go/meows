@@ -5,13 +5,13 @@ Motivation
 ----------
 
 To run GitHub Actions self-hosted runners faster and stably by making full use of
-the machine resource in the staging environment.
+idle machine resources.
 
 Goals
 -----
 
-- Deploy and manage GitHub Actions self-hosted runners on multiple bare-metal
-  servers easily with Kubernetes.
+- Deploy and manage GitHub Actions self-hosted runners on multiple servers easily
+  by using Kubernetes.
 - Enable runners to finish a time-consuming initialization step before jobs are
   assigned in order not to make users wait longer.
 - Extend lifetime of runners from outside when jobs are failed, to investigate
@@ -19,18 +19,23 @@ Goals
 - Notify users whether jobs are failed or not via Slack and extend the lifetime
   from Slack.
 
+Non-Goals
+---------
+
+- Autoscaling
+
 Components
 ------------
 
-- Runner: `Pod` to run GitHub Actions self-hosted runner on
+- Runner `Pod`: `Pod` to run GitHub Actions self-hosted runner on.
 - Controller manager
   - `RunnerPool` reconciler: A controller for the `RunnerPool` custom resource(CR).
   -  `Pod` Mutating webhook: A mutating webhook to inject a GitHub Actions
      registration token to `Pod` `env`.
-  - Runner sweeper: A periodical task runner to sweep runners's registration
-    records via GitHub API.
-  - `Pod` sweeper: A periodical task runner to sweep Pods which exceeds the deletion
-    time limit.
+  - Runner sweeper: A component to sweep registered information about runners
+    on GitHub periodically.
+  - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time
+    limit periodically.
 - Slack agent: Server for notifying user whether jobs are failed or not and
   accepting extending requests from outside of Kubernetes.
 
@@ -49,27 +54,23 @@ Architecture
 1. The mutating webhook creates registration tokens via GitHub API and injects
   them to the `Pod`s' `env` fields.
 1. Each runner `Pod` runs the following commands.
-  1. Register itself as a self-hosted runner with the injected token.
-  1. Initialize runner environment by doing the user-defnied process.
-  1. Start a long polling process and wait for GitHub Actions to assign a job.
-  1. Run an assigned job.
-  1. Call the Slack agent to notify users.
-    - GitHub API does not seem to provide a way to know which runner ran a
-      succeded or failed job.
-    - This repository provides a simple `job-failed` command, and asks users to
-      execute this command when the job is failed. The `if: failure()` syntax
-      allows users to run a step only when one of previous steps exit with non-zero
-      code.
-  1. Annotate the `Pod` manifest for itself with a timestamp when to delete this
-    `Pod`.
-    - If the job is succeded or canceled, the `Pod` annotates itself with the
-      current time.
-    - If the job is failed, the `Pod` annotate itself with the future time, for
-      example 20 min later.
+   1. Register itself as a self-hosted runner with the injected token.
+   1. Initialize runner environment by doing the user-defined process.
+   1. Start a long polling process and wait for GitHub Actions to assign a job.
+   1. Run an assigned job.
+   1. Call the Slack agent to notify users. GitHub API does not seem to provide
+      a way to know which runner ran a succeeded or failed job. So, this repository
+      provides a simple `job-failed` command, and asks users to execute this
+      command when the job is failed.  The `if: failure()` syntax allows users
+      to run the step only when one of previous steps exit with non-zero code.
+   1. Annotate the `Pod` manifest for itself with a timestamp when to delete this
+     `Pod`. If the job is succeded or canceled, the `Pod` annotates itself with
+      the current time.If the job is failed, the `Pod` annotate itself with the
+      future time, for example 20 min later.
 1. The Slack agent notifies the result of the job on a Slack channel.
 1. Users can extend the failed runner if they want to by clicking a button on Slack.
 1. The Slack agent is running a WebSocket process to watch extending messages.
-  If it receives a message, it annotate the `Pod` manifest with the designated time.
+  If it receives a message, it annotates the `Pod` manifest with the designated time.
 1. `Pod` sweeper periodically checks if there are `Pod`s annotated with the old
   timestamp, and if any, it deletes `Pod`s.
 
@@ -77,22 +78,22 @@ Architecture
 
 A runner `Pod` has the following state as a GitHub Actions job runner.
 
-- registerred: `Pod` registerred itself on GitHub Actions.
+- registered: `Pod` registered itself on GitHub Actions.
 - initialized: `Pod` finished the initialization.
 - listening: `Pod` starts listening with Long Polling.
 - assigned: `Pod` is assigned a job and starts running it.
 - debug: The job has finished with failure and Users can enter `Pod` to debug.
 
-Runner `Pod`s might not need to manage all of these state, but some of thes states
-are useful to check the system is properly running or not.
+Runner `Pod`s might not need to manage all of these state, but some of them are
+useful to check the system is properly running or not.
 The state "debug" is a must to be watched to keep runner `Pod`s in stock.
 Users can leave many failed runner `Pod`s for investigation, but the number of
-replicas is also limited. Exposing the state as Prometheus metrics alllows users
+replicas is also limited. Exposing the state as Prometheus metrics allows users
 to aggregate the number of `Pod`s in each state and raise alerts that they are
 running out of available runners.
 
 However, as mentioned above, GitHub API does not provide a way to connect the job
-status infomataion with the self-hosted runner.  So, runner `Pod`s have to execute
+status information with the self-hosted runner.  So, runner `Pod`s have to execute
 commands to tell the metrics exporter server that the state has changed.
 
 ### Why is webhook needed ?
@@ -110,6 +111,6 @@ This is mainly because GitHub Actions registration token expires after 1 hour as
   `Pod` restarts by having liveness probe fail, `Pod`s do not need to re-register
   itself to GitHub Actions.
   However, if `Pod`s are recreated in some reasons, it cannot register itself again.
-- Persistent volumes can store the resitration infomation, but stateless workloads
-  are generally easy to manage.
+- Persistent volumes can store the resitration information, but stateful workloads
+  are generally more diffcult to manage than stateless workloads.
 

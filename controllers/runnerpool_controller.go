@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -159,7 +160,7 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 		depLabels = make(map[string]string)
 	}
 	depLabels[constants.RunnerOrgLabelKey] = r.organizationName
-	depLabels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+	depLabels[constants.RunnerRepoLabelKey] = rp2.Spec.RepositoryName
 	d.ObjectMeta.Labels = depLabels
 
 	d.Spec.Replicas = rp2.Spec.Replicas
@@ -171,15 +172,14 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 		podLabels = make(map[string]string)
 	}
 	podLabels[constants.RunnerOrgLabelKey] = r.organizationName
-	podLabels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+	podLabels[constants.RunnerRepoLabelKey] = rp2.Spec.RepositoryName
 	d.Spec.Template.ObjectMeta.Labels = podLabels
 
 	d.Spec.Template.ObjectMeta.Annotations = rp2.Spec.Template.ObjectMeta.Annotations
-	d.Spec.Template.Spec = rp2.Spec.Template.Spec
 
 	var container *corev1.Container
-	for i := range d.Spec.Template.Spec.Containers {
-		c := &d.Spec.Template.Spec.Containers[i]
+	for i := range rp2.Spec.Template.Spec.Containers {
+		c := &rp2.Spec.Template.Spec.Containers[i]
 		if c.Name == constants.RunnerContainerName {
 			container = c
 			break
@@ -224,6 +224,10 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 				Value: rp.Spec.RepositoryName,
 			},
 		)
+	}
+
+	if !equality.Semantic.DeepDerivative(&rp2.Spec.Template.Spec, &d.Spec.Template.Spec) {
+		d.Spec.Template.Spec = rp2.Spec.Template.Spec
 	}
 	return ctrl.SetControllerReference(rp, d, r.Scheme)
 }

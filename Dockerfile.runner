@@ -1,4 +1,4 @@
-FROM quay.io/cybozu/ubuntu-debug:20.04
+FROM quay.io/cybozu/ubuntu:20.04
 
 ARG RUNNER_VERSION=2.277.1
 ARG DUMB_INIT_VERSION=1.2.2
@@ -9,32 +9,7 @@ RUN apt-get update -y \
   && apt-get install -y software-properties-common \
   && add-apt-repository -y ppa:git-core/ppa \
   && apt-get update -y \
-  && apt-get install -y --no-install-recommends \
-    build-essential \
-    dnsutils \
-    git \
-    iproute2 \
-    iputils-ping \
-    jq \
-    libunwind8 \
-    locales \
-    netcat \
-    openssh-client \
-    parallel \
-    rsync \
-    shellcheck \
-    sudo \
-    telnet \
-    time \
-    tzdata \
-    unzip \
-    upx \
-    wget \
-    zip \
-    zstd \
-    vim \
-    # this is need to run actions runner
-    libyaml-dev \
+  && apt-get install -y --no-install-recommends libyaml-dev \
   && rm -rf /var/lib/apt/lists/*
 
 RUN curl -L https://dl.k8s.io/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl \
@@ -46,6 +21,7 @@ RUN curl -sSLf -o /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/rel
 ARG RUNNER_ASSETS_DIR=/runner
 RUN mkdir -p ${RUNNER_ASSETS_DIR} \
   && cd ${RUNNER_ASSETS_DIR} \
+  && curl -L -O https://raw.githubusercontent.com/actions/runner/${RUNNER_VERSION}/LICENSE \
   && curl -L -o runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz \
   && tar xzf ./runner.tar.gz \
   && rm runner.tar.gz \

@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
@@ -70,7 +69,7 @@ var _ = Describe("PodSweeper runner", func() {
 					constants.RunnerOrgLabelKey: organizationName,
 				},
 				Annotations: map[string]string{
-					constants.PodDeletionTimeKey: time.Now().Add(5 * time.Second).Format(time.RFC3339),
+					constants.PodDeletionTimeKey: time.Now().Add(time.Second).Format(time.RFC3339),
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -100,60 +99,83 @@ var _ = Describe("PodSweeper runner", func() {
 	})
 
 	It("should not delete pods", func() {
-		By("creating Pod without labels")
-		pod := corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "sample1",
-				Namespace: namespace,
-				Annotations: map[string]string{
-					constants.PodDeletionTimeKey: time.Now().UTC().Add(time.Second).Format(time.RFC3339),
+		testCases := []struct {
+			name  string
+			input corev1.Pod
+		}{
+			{
+				"without labels",
+				corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "sample1",
+						Namespace: namespace,
+						Annotations: map[string]string{
+							constants.PodDeletionTimeKey: time.Now().UTC().Format(time.RFC3339),
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "sample",
+								Image: "sample:latest",
+							},
+						},
+					},
 				},
 			},
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{
-					{
-						Name:  "sample",
-						Image: "sample:latest",
+			{
+				"without annotation",
+				corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "sample2",
+						Namespace: namespace,
+						Labels: map[string]string{
+							constants.RunnerOrgLabelKey: organizationName,
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "sample",
+								Image: "sample:latest",
+							},
+						},
 					},
 				},
 			},
 		}
 
-		err := k8sClient.Create(ctx, &pod)
-		Expect(err).ShouldNot(HaveOccurred())
+		for _, tt := range testCases {
+			By("creating pod " + tt.name)
+			pod := tt.input
+			err := k8sClient.Create(ctx, &pod)
+			Expect(err).ShouldNot(HaveOccurred())
 
-		By("cofirming Pod is not deleted")
-		time.Sleep(5 * time.Second)
-		err = k8sClient.Get(
-			ctx,
-			types.NamespacedName{
-				Name:      pod.Name,
-				Namespace: pod.Namespace,
-			},
-			&corev1.Pod{},
-		)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		By("cofirming Pod is deleted eventually")
-		pod.Annotations[constants.PodDeletionTimeKey] = time.Now().UTC().Format(time.RFC3339)
-		err = k8sClient.Update(ctx, &pod)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		Eventually(func() error {
-			pod := corev1.Pod{}
-			err := k8sClient.Get(
+			By("cofirming Pod is not deleted")
+			time.Sleep(5 * time.Second)
+			err = k8sClient.Get(
 				ctx,
 				types.NamespacedName{
 					Name:      pod.Name,
 					Namespace: pod.Namespace,
 				},
-				&pod,
+				&corev1.Pod{},
 			)
-			if err != nil {
-				return err
-			}
-			fmt.Println(pod)
-			return nil
-		}, 10*time.Second).Should(HaveOccurred())
+			Expect(err).ShouldNot(HaveOccurred())
+
+			By("cofirming Pod is deleted")
+			err = k8sClient.Delete(ctx, &pod)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(func() error {
+				return k8sClient.Get(
+					ctx,
+					types.NamespacedName{
+						Name:      pod.Name,
+						Namespace: pod.Namespace,
+					},
+					&corev1.Pod{},
+				)
+			}, 10*time.Second).Should(HaveOccurred())
+		}
 	})
 })

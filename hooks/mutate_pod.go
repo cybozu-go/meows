@@ -94,12 +94,6 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Allowed("non-target")
 	}
 
-	token, err := m.githubClient.CreateRegistrationToken(ctx, repo)
-	if err != nil {
-		m.log.Error(err, "failed to create actions registration token", "repository", repo)
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-
 	var container *corev1.Container
 	for i := range pod.Spec.Containers {
 		c := &pod.Spec.Containers[i]
@@ -112,6 +106,18 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 		err := fmt.Errorf("pod should have a container named %s", constants.RunnerContainerName)
 		m.log.Error(err, "unable to find target container", "name", namespacedName)
 		return admission.Errored(http.StatusBadRequest, err)
+	}
+
+	token, err := m.githubClient.CreateRegistrationToken(ctx, repo)
+	if err != nil {
+		m.log.Error(err, "failed to create actions registration token", "repository", repo)
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	for _, v := range container.Env {
+		if v.Name == constants.RunnerTokenEnvName {
+			return admission.Allowed("token already exists")
+		}
 	}
 
 	container.Env = append(container.Env, corev1.EnvVar{

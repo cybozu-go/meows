@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"fmt"
+	"net"
+	"strconv"
+
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/cybozu-go/github-actions-controller/controllers"
 	"github.com/cybozu-go/github-actions-controller/github"
 	"github.com/cybozu-go/github-actions-controller/hooks"
-	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -30,12 +33,22 @@ func init() {
 }
 
 func run() error {
-	ctrl.SetLogger(zap.New(zap.StacktraceLevel(zapcore.DPanicLevel)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
+
+	host, p, err := net.SplitHostPort(config.webhookAddr)
+	if err != nil {
+		return fmt.Errorf("invalid webhook address: %s, %v", config.webhookAddr, err)
+	}
+	port, err := strconv.Atoi(p)
+	if err != nil {
+		return fmt.Errorf("invalid webhook address: %s, %v", config.webhookAddr, err)
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     config.metricsAddr,
-		Port:                   9443,
+		Host:                   host,
+		Port:                   port,
 		HealthProbeBindAddress: config.probeAddr,
 		LeaderElection:         true,
 		LeaderElectionID:       "6bee5a22.cybozu.com",

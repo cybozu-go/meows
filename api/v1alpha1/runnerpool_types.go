@@ -1,3 +1,6 @@
+// Package v1alpha1 contains API Schema definitions for the actions v1alpha1 API group
+//+kubebuilder:object:generate=true
+//+groupName=actions.cybozu.com
 package v1alpha1
 
 import (
@@ -43,7 +46,6 @@ type PodTemplateSpec struct {
 	ObjectMeta `json:"metadata,omitempty"`
 
 	// Specification of the desired behavior of the pod.
-	// The name of the MySQL server container in this spec must be `mysqld`.
 	Spec corev1.PodSpec `json:"spec"`
 }
 

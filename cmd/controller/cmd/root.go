@@ -2,16 +2,22 @@ package cmd
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
+	zapOpts zap.Options
+
 	metricsAddr string
 	probeAddr   string
+	webhookAddr string
 
 	appID             int64
 	appInstallationID int64
@@ -61,6 +67,7 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "Listen address for the webhook endpoint")
 
 	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App.")
 	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App.")
@@ -70,4 +77,9 @@ func init() {
 
 	fs.DurationVar(&config.runnerSweepInterval, "runner-sweep-interval", 30*time.Minute, "Interval to watch and sweep unused GitHub Actions runners.")
 	fs.DurationVar(&config.podSweepInterval, "pod-sweep-interval", time.Minute, "Interval to watch and delete Pods.")
+
+	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+	fs.AddGoFlagSet(goflags)
 }

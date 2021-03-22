@@ -32,7 +32,7 @@ type RunnerSweeper struct {
 	repositoryNames []string
 }
 
-// NewRunnerSweeper returns OldTokenSweeper
+// NewRunnerSweeper returns RunnerSweeper
 func NewRunnerSweeper(
 	k8sClient client.Client,
 	log logr.Logger,

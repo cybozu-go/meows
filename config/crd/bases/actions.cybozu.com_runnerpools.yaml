@@ -159,8 +159,6 @@ spec:
                     type: object
                   spec:
                     description: Specification of the desired behavior of the pod.
-                      The name of the MySQL server container in this spec must be
-                      `mysqld`.
                     properties:
                       activeDeadlineSeconds:
                         description: Optional duration in seconds the pod may be active
