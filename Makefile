@@ -79,6 +79,7 @@ generate:
 .PHONY: build
 build: generate ## Build manager binary.
 	go build -o bin/github-actions-controller ./cmd/controller
+	go build -o bin/slack-agent ./cmd/slack-agent
 
 .PHONY: run
 run: manifests generate ## Run a controller from your host.

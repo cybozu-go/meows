@@ -67,7 +67,7 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "Listen address for the webhook endpoint")
+	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "The address the webhook endpoint binds to")
 
 	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App.")
 	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App.")
