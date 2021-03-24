@@ -1,0 +1,15 @@
+domain: cybozu.com
+layout: go.kubebuilder.io/v3
+projectName: github-actions-controller
+repo: github.com/cybozu-go/github-actions-controller
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cybozu.com
+  group: actions
+  kind: RunnerPool
+  path: github.com/cybozu-go/github-actions-controller/api/v1alpha1
+  version: v1alpha1
+version: "3"

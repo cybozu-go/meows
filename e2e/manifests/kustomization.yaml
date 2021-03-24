@@ -1,0 +1,7 @@
+bases:
+- ../../config/default
+- ../../config/samples/actions_v1alpha1_runnerpool.yaml
+
+patchesStrategicMerge:
+- manager.yaml
+- runner.yaml

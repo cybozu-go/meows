@@ -1,0 +1,15 @@
+apiVersion: actions.cybozu.com/v1alpha1
+kind: RunnerPool
+metadata:
+  name: runnerpool-sample
+spec:
+  repositoryName: github-actions-controller-ci
+  template:
+    spec:
+      containers:
+      - name: runner
+        image: runner:latest
+        imagePullPolicy: Never
+        env:
+          - name: EXTEND_DURATION
+            value: "30 sec"

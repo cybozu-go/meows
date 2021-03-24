@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: actions-system
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: manager
+        imagePullPolicy: Never
+        args:
+        - "--organization-name=neco-test"
+        - "--repository-names=github-actions-controller-ci"
+        - "--app-id=$(GITHUB_APP_ID)"
+        - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
+        - "--app-private-key-path=/etc/github/app.pem"
+        - "--runner-sweep-interval=30s"
+        - "--pod-sweep-interval=1s"
