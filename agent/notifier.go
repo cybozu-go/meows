@@ -1,4 +1,4 @@
-package slack
+package agent
 
 import (
 	"context"
@@ -7,22 +7,26 @@ import (
 
 	"github.com/cybozu-go/well"
 	"github.com/gin-gonic/gin"
+	"github.com/slack-go/slack"
 )
 
 // Notifier receives requests from Pods and send message to Slack.
 type Notifier struct {
 	listenAddr  string
-	slackClient WebhookMessageNotifier
+	webhookURL  string
+	postWebhook func(string, *slack.WebhookMessage) error
 }
 
 // NewNotifier creates Notifier.
 func NewNotifier(
 	listenAddr string,
-	slackClient WebhookMessageNotifier,
+	webhookURL string,
+	postWebhook func(string, *slack.WebhookMessage) error,
 ) *Notifier {
 	return &Notifier{
 		listenAddr,
-		slackClient,
+		webhookURL,
+		postWebhook,
 	}
 }
 
@@ -56,8 +60,8 @@ func (s *Notifier) postSlack(c *gin.Context, isSucceeded bool) {
 		return
 	}
 
-	if err := s.slackClient.Notify(
-		context.Background(),
+	if err := s.postWebhook(
+		s.webhookURL,
 		makeJobResultMsg(
 			p.JobName,
 			p.PodNamespace,

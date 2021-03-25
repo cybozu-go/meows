@@ -2,17 +2,29 @@ package cmd
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
-	"github.com/cybozu-go/github-actions-controller/slack"
+	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
+	"github.com/slack-go/slack"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+const (
+	appTokenFlagName = "app-token"
+	botTokenFlagName = "bot-token"
+	retryFlagName    = "retry"
+	noExtendFlagName = "no-extend"
 )
 
 var extenderConfig struct {
-	appToken string
-	botToken string
+	appToken        string
+	botToken        string
+	numRetryConnect uint
+
+	noExtend bool
 }
 
 var extenderCmd = &cobra.Command{
@@ -20,21 +32,38 @@ var extenderCmd = &cobra.Command{
 	Short: "extender starts Slack agent to receive interactive messages from Slack",
 	Long:  `notifier starts Slack agent to receive interactive messages from Slack`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(extenderConfig.appToken) == 0 {
-			log.ErrorExit(errors.New(`"app-token" should not be empty`))
+		appToken := viper.GetString(appTokenFlagName)
+		if len(appToken) == 0 {
+			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, appTokenFlagName))
 		}
 
-		if len(extenderConfig.botToken) == 0 {
-			log.ErrorExit(errors.New(`"bot-token" should not be empty`))
+		botToken := viper.GetString(botTokenFlagName)
+		if len(botToken) == 0 {
+			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, botTokenFlagName))
 		}
-		env := well.NewEnvironment(context.Background())
-		s := slack.NewSocketModeClient(
-			extenderConfig.appToken,
-			extenderConfig.botToken,
-		)
-		env.Go(s.ListenInteractiveEvents)
-		env.Go(s.Run)
-		err := well.Wait()
+
+		f := agent.InteractiveEventHandler
+		if viper.GetBool(noExtendFlagName) {
+			f = func(cb *slack.InteractionCallback) error {
+				fmt.Println(cb.Message.Text)
+				return nil
+			}
+		}
+
+		s := agent.NewSocketModeClient(appToken, botToken, f)
+
+		var err error
+		retry := viper.GetUint("retry")
+		for i := uint(0); i < retry+1; i++ {
+			env := well.NewEnvironment(context.Background())
+			env.Go(s.ListenInteractiveEvents)
+			env.Go(s.Run)
+			err = well.Wait()
+			log.Warn("failed to open a connection with Slack", map[string]interface{}{
+				"trycount": i + 1,
+				"retry":    retry,
+			})
+		}
 		if err != nil && !well.IsSignaled(err) {
 			log.ErrorExit(err)
 		}
@@ -43,7 +72,13 @@ var extenderCmd = &cobra.Command{
 
 func init() {
 	fs := extenderCmd.Flags()
-	fs.StringVar(&extenderConfig.appToken, "app-token", "", "The Slack App token.")
-	fs.StringVar(&extenderConfig.botToken, "bot-token", "", "The Slack Bot token.")
+	fs.StringVar(&extenderConfig.appToken, appTokenFlagName, "", "The Slack App token.")
+	fs.StringVar(&extenderConfig.botToken, botTokenFlagName, "", "The Slack Bot token.")
+	fs.UintVar(&extenderConfig.numRetryConnect, retryFlagName, 0,
+		"How many times the extender retries to connect Slack.",
+	)
+	fs.BoolVarP(&extenderConfig.noExtend, noExtendFlagName, "d", false,
+		"The extender just writes messages to stdout when receiving message.",
+	)
 	rootCmd.AddCommand(extenderCmd)
 }

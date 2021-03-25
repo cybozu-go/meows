@@ -1,19 +1,12 @@
-package slack
+package agent
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
+	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/slack-go/slack"
 	"k8s.io/apimachinery/pkg/types"
-)
-
-const (
-	MsgJobNameTitle      = "Job"
-	MsgTimestampTitle    = "Timestamp"
-	MsgPodNameTitle      = "Pod"
-	MsgPodNamespaceTitle = "Namespace"
 )
 
 func makeJobResultMsg(
@@ -38,10 +31,10 @@ func makeJobResultMsg(
 				Title:      "GitHub Actions",
 				Text:       text,
 				Fields: []slack.AttachmentField{
-					{Title: MsgJobNameTitle, Value: jobName, Short: true},
-					{Title: MsgTimestampTitle, Value: timestamp.Format(time.RFC3339), Short: true},
-					{Title: MsgPodNamespaceTitle, Value: podNamespace, Short: true},
-					{Title: MsgPodNameTitle, Value: podName, Short: true},
+					{Title: constants.MsgJobNameTitle, Value: jobName, Short: true},
+					{Title: constants.MsgTimestampTitle, Value: timestamp.Format(time.RFC3339), Short: true},
+					{Title: constants.MsgPodNamespaceTitle, Value: podNamespace, Short: true},
+					{Title: constants.MsgPodNameTitle, Value: podName, Short: true},
 				},
 			},
 		},
@@ -54,12 +47,12 @@ func makeJobResultMsg(
 	msg.Blocks = &slack.Blocks{
 		BlockSet: []slack.Block{
 			slack.NewSectionBlock(
-				slack.NewTextBlockObject(slack.MarkdownType, "Failed: xxx", false, false),
+				slack.NewTextBlockObject(slack.MarkdownType, "Do you extend the lifetime of the instance?", false, false),
 				nil,
 				slack.NewAccessory(
 					slack.NewButtonBlockElement(
-						"id",
-						"instance_name",
+						constants.SlackButtonActionID,
+						podName,
 						slack.NewTextBlockObject(
 							slack.PlainTextType,
 							"Extend",
@@ -87,16 +80,18 @@ func extractNameFromJobResultMsg(body *slack.InteractionCallback) (*types.Namesp
 	a := body.Message.Attachments[0]
 	for _, v := range a.Fields {
 		switch v.Title {
-		case MsgPodNameTitle:
-		case MsgPodNamespaceTitle:
+		case constants.MsgPodNameTitle:
+			name = v.Value
+		case constants.MsgPodNamespaceTitle:
+			namespace = v.Value
 		}
 	}
 
 	if len(name) == 0 {
-		return nil, errors.New(MsgPodNameTitle + " should not be empty")
+		return nil, fmt.Errorf(`the field "%s" should not be empty`, constants.MsgPodNameTitle)
 	}
 	if len(namespace) == 0 {
-		return nil, errors.New(MsgPodNamespaceTitle + " should not be empty")
+		return nil, fmt.Errorf(`the field "%s" should not be empty`, constants.MsgPodNamespaceTitle)
 	}
 
 	return &types.NamespacedName{Name: name, Namespace: namespace}, nil

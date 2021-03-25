@@ -79,6 +79,9 @@ generate:
 .PHONY: build
 build: generate ## Build manager binary.
 	go build -o bin/github-actions-controller ./cmd/controller
+
+.PHONY: build-agent
+build-agent:
 	go build -o bin/slack-agent ./cmd/slack-agent
 
 .PHONY: run

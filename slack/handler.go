@@ -1,3 +1,0 @@
-package slack
-
-func Handle()
