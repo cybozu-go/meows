@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/log"
@@ -18,14 +19,6 @@ const (
 	retryFlagName    = "retry"
 	noExtendFlagName = "no-extend"
 )
-
-var extenderConfig struct {
-	appToken        string
-	botToken        string
-	numRetryConnect uint
-
-	noExtend bool
-}
 
 var extenderCmd = &cobra.Command{
 	Use:   "extender",
@@ -72,13 +65,18 @@ var extenderCmd = &cobra.Command{
 
 func init() {
 	fs := extenderCmd.Flags()
-	fs.StringVar(&extenderConfig.appToken, appTokenFlagName, "", "The Slack App token.")
-	fs.StringVar(&extenderConfig.botToken, botTokenFlagName, "", "The Slack Bot token.")
-	fs.UintVar(&extenderConfig.numRetryConnect, retryFlagName, 0,
-		"How many times the extender retries to connect Slack.",
-	)
-	fs.BoolVarP(&extenderConfig.noExtend, noExtendFlagName, "d", false,
+	fs.String(appTokenFlagName, "", "The Slack App token.")
+	fs.String(botTokenFlagName, "", "The Slack Bot token.")
+	fs.Uint(retryFlagName, 0, "How many times the extender retries to connect Slack.")
+	fs.BoolP(noExtendFlagName, "d", false,
 		"The extender just writes messages to stdout when receiving message.",
 	)
 	rootCmd.AddCommand(extenderCmd)
+	if err := viper.BindPFlags(fs); err != nil {
+		panic(err)
+	}
+
+	viper.SetEnvPrefix("slack")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
 }

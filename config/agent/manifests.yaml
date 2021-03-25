@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: slack-agent
+  namespace: system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: slack-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: slack-agent
+subjects:
+- kind: ServiceAccount
+  name: slack-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: slack-agent
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-agent
+  namespace: system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: slack-agent
+  template:
+    metadata:
+      labels:
+        app: slack-agent
+    spec:
+      containers:
+      - name: notifier
+        image: slack-agent:latest
+        args:
+          - notifier
+        envFrom:
+          - secretRef:
+              name: slack-app-secret
+        ports:
+          - name: notifier
+            containerPort: 8080
+            protocol: TCP
+      - name: extender
+        image: slack-agent:latest
+        args:
+          - extender
+        envFrom:
+          - secretRef:
+              name: slack-app-secret
+      serviceAccountName: slack-agent
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slack-agent
+  namespace: system
+  labels:
+    app: slack-agent
+spec:
+  ports:
+    - name: notifier
+      port: 80
+      targetPort: notifier
+  selector:
+    app: slack-agent

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/log"
@@ -18,13 +19,6 @@ const (
 	echoBackFlagName   = "echo-back"
 )
 
-var notifierConfig struct {
-	listenAddr string
-	webhookURL string
-
-	doEchoBack bool
-}
-
 var notifierCmd = &cobra.Command{
 	Use:   "notifier",
 	Short: "notifier starts Slack agent to send job results to Slack",
@@ -34,7 +28,6 @@ var notifierCmd = &cobra.Command{
 		if len(url) == 0 {
 			log.ErrorExit(errors.New(`"webhook-url" should not be empty`))
 		}
-
 		f := slack.PostWebhook
 		if viper.GetBool(echoBackFlagName) {
 			f = func(
@@ -64,10 +57,17 @@ var notifierCmd = &cobra.Command{
 
 func init() {
 	fs := notifierCmd.Flags()
-	fs.StringVar(&notifierConfig.listenAddr, listenAddrFlagName, ":8080", "The address the notifier endpoint binds to")
-	fs.StringVarP(&notifierConfig.webhookURL, webhookURLFlagName, "o", "", "The Slack Webhook URL to notify messages to")
-	fs.BoolVar(&notifierConfig.doEchoBack, echoBackFlagName, false,
+	fs.String(listenAddrFlagName, ":8080", "The address the notifier endpoint binds to")
+	fs.StringP(webhookURLFlagName, "o", "", "The Slack Webhook URL to notify messages to")
+	fs.Bool(echoBackFlagName, false,
 		"This is for development. The notifier annotates a Pod with a deletion time using the extender's WebSocket message handler.",
 	)
 	rootCmd.AddCommand(notifierCmd)
+	if err := viper.BindPFlags(fs); err != nil {
+		panic(err)
+	}
+
+	viper.SetEnvPrefix("slack")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
 }

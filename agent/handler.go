@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
+	"github.com/cybozu-go/log"
 	"github.com/slack-go/slack"
 )
 
@@ -14,6 +16,10 @@ import (
 func InteractiveEventHandler(cb *slack.InteractionCallback) error {
 	n, err := extractNameFromJobResultMsg(cb)
 	if err != nil {
+		log.Error("failed to extract namespace and name from message", map[string]interface{}{
+			log.FnError: err,
+			"cb":        cb.Message.Attachments,
+		})
 		return err
 	}
 
@@ -25,13 +31,22 @@ func InteractiveEventHandler(cb *slack.InteractionCallback) error {
 		"-n",
 		n.Namespace,
 		n.Name,
-		constants.PodDeletionTimeKey,
+		fmt.Sprintf(
+			"%s=%s",
+			constants.PodDeletionTimeKey,
+			time.Now().UTC().Format(time.RFC3339),
+		),
 		"--overwrite",
 	)
 	command.Stdout = os.Stdout
 	command.Stderr = &stderr
 	err = command.Run()
 	if err != nil {
+		log.Error("failed to annotate pod", map[string]interface{}{
+			log.FnError: err,
+			"name":      n.Name,
+			"namespace": n.Namespace,
+		})
 		return fmt.Errorf(
 			"failed to annotate %s in %s with %s: err=%#v, stderr=%s",
 			n.Name,

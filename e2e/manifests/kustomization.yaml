@@ -5,3 +5,4 @@ bases:
 patchesStrategicMerge:
 - manager.yaml
 - runner.yaml
+- agent.yaml

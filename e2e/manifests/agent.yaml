@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-agent
+  namespace: actions-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: notifier
+        imagePullPolicy: Never
+      - name: extender
+        imagePullPolicy: Never

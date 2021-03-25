@@ -29,6 +29,7 @@ SHELL = /bin/bash
 # Image URL to use all building/pushing image targets
 CONTROLLER_IMG ?= controller:latest
 RUNNER_IMG ?= runner:latest
+AGENT_IMG ?= slack-agent:latest
 
 # kind envs
 KIND_CLUSTER_NAME ?= e2e-actions
@@ -37,6 +38,10 @@ KIND_CONFIG := $(E2E_DIR)/kind.yaml
 GITHUB_APP_ID ?=
 GITHUB_APP_INSTALLATION_ID ?=
 GITHUB_APP_PRIVATE_KEY_PATH ?=
+
+SLACK_WEBHOOK_URL ?=
+SLACK_APP_TOKEN ?=
+SLACK_BOT_TOKEN ?=
 
 CRD_OPTIONS ?=
 
@@ -89,7 +94,7 @@ run: manifests generate ## Run a controller from your host.
 	go run ./cmd/controller
 
 .PHONY: images
-images: controller-image runner-image ## Build both container and runner docker images.
+images: controller-image runner-image agent-image ## Build both container and runner docker images.
 
 .PHONY: controller-image
 controller-image:
@@ -98,6 +103,10 @@ controller-image:
 .PHONY: runner-image
 runner-image:
 	docker build -f Dockerfile.runner -t ${RUNNER_IMG} .
+
+.PHONY: agent-image
+agent-image:
+	docker build -f Dockerfile.agent -t ${AGENT_IMG} .
 
 ##@ Test
 
@@ -137,6 +146,18 @@ prepare: ## Prepare for e2e test.
 	  echo "GITHUB_APP_PRIVATE_KEY_PATH must be set" 1>&2; \
 	  exit 1; \
 	fi
+	if [ -z "$${SLACK_APP_TOKEN}" ]; then \
+	  echo "SLACK_APP_TOKEN must be set" 1>&2; \
+	  exit 1; \
+	fi
+	if [ -z "$${SLACK_BOT_TOKEN}" ]; then \
+	  echo "SLACK_BOT_TOKEN must be set" 1>&2; \
+	  exit 1; \
+	fi
+	if [ -z "$${SLACK_WEBHOOK_URL}" ]; then \
+	  echo "SLACK_WEBHOOK_URL must be set" 1>&2; \
+	  exit 1; \
+	fi
 	$(MAKE) start-kind
 	$(MAKE) load
 	$(KUBECTL) create ns actions-system
@@ -146,6 +167,11 @@ prepare: ## Prepare for e2e test.
 		--from-literal=app-id=$(GITHUB_APP_ID) \
 		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
 		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
+	$(KUBECTL) create secret generic slack-app-secret \
+		-n actions-system \
+		--from-literal=SLACK_WEBHOOK_URL=$(SLACK_WEBHOOK_URL) \
+		--from-literal=SLACK_APP_TOKEN=$(SLACK_APP_TOKEN) \
+		--from-literal=SLACK_BOT_TOKEN=$(SLACK_BOT_TOKEN)
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
 	$(KUBECTL) wait pods -n cert-manager -l app=cert-manager --for=condition=Ready --timeout=1m
 	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=1m
@@ -168,7 +194,7 @@ stop-kind: ## Stop kind cluster
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
 
 .PHONY: load
-load: load-controller-image load-runner-image ## Load docker images onto k8s cluster.
+load: load-controller-image load-runner-image load-agent-image ## Load docker images onto k8s cluster.
 
 .PHONY: load-controller-image
 load-controller-image:
@@ -177,6 +203,10 @@ load-controller-image:
 .PHONY: load-runner-image
 load-runner-image:
 	$(KIND) load docker-image $(RUNNER_IMG) --name $(KIND_CLUSTER_NAME)
+
+.PHONY: load-agent-image
+load-agent-image:
+	$(KIND) load docker-image $(AGENT_IMG) --name $(KIND_CLUSTER_NAME)
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
