@@ -24,15 +24,15 @@ var extenderCmd = &cobra.Command{
 	Use:   "extender",
 	Short: "extender starts Slack agent to receive interactive messages from Slack",
 	Long:  `notifier starts Slack agent to receive interactive messages from Slack`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		appToken := viper.GetString(appTokenFlagName)
 		if len(appToken) == 0 {
-			return fmt.Errorf(`"%s" should not be empty`, appTokenFlagName)
+			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, appTokenFlagName))
 		}
 
 		botToken := viper.GetString(botTokenFlagName)
 		if len(botToken) == 0 {
-			return fmt.Errorf(`"%s" should not be empty`, botTokenFlagName)
+			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, botTokenFlagName))
 		}
 
 		f := agent.InteractiveEventHandler
@@ -61,7 +61,9 @@ var extenderCmd = &cobra.Command{
 				"retry":    retry,
 			})
 		}
-		return err
+		if err != nil && !well.IsSignaled(err) {
+			log.ErrorExit(err)
+		}
 	},
 }
 
