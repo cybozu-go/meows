@@ -43,18 +43,12 @@ func (s *Notifier) Start(_ context.Context) error {
 
 func (s *Notifier) prepareRouter() http.Handler {
 	router := gin.Default()
-	router.POST("/slack/success", s.postSlackSuccess)
-	router.POST("/slack/fail", s.postSlackFail)
+	router.POST(postResultPath, s.postResult)
 	return router
 }
 
-func (s *Notifier) postSlack(c *gin.Context, isSucceeded bool) {
-	var p struct {
-		JobName      string `json:"job_name"`
-		PodNamespace string `json:"pod_namespace"`
-		PodName      string `json:"pod_name"`
-	}
-
+func (s *Notifier) postResult(c *gin.Context) {
+	p := new(postResultPayload)
 	if err := c.ShouldBindJSON(&p); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -66,7 +60,7 @@ func (s *Notifier) postSlack(c *gin.Context, isSucceeded bool) {
 			p.JobName,
 			p.PodNamespace,
 			p.PodName,
-			isSucceeded,
+			p.IsFailed,
 			time.Now(),
 		),
 	); err != nil {
@@ -74,12 +68,4 @@ func (s *Notifier) postSlack(c *gin.Context, isSucceeded bool) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
-}
-
-func (s *Notifier) postSlackSuccess(c *gin.Context) {
-	s.postSlack(c, true)
-}
-
-func (s *Notifier) postSlackFail(c *gin.Context) {
-	s.postSlack(c, false)
 }

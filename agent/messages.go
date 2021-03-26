@@ -13,12 +13,12 @@ func makeJobResultMsg(
 	jobName string,
 	podNamespace string,
 	podName string,
-	isSucceeded bool,
+	isFailed bool,
 	timestamp time.Time,
 ) *slack.WebhookMessage {
 	text := "CI Failed"
 	color := "danger"
-	if isSucceeded {
+	if !isFailed {
 		text = "CI Succeeded"
 		color = "good"
 	}
@@ -40,7 +40,7 @@ func makeJobResultMsg(
 		},
 	}
 
-	if isSucceeded {
+	if !isFailed {
 		return msg
 	}
 
