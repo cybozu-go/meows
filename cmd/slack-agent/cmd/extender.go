@@ -49,8 +49,12 @@ var extenderCmd = &cobra.Command{
 		retry := viper.GetUint("retry")
 		for i := uint(0); i < retry+1; i++ {
 			env := well.NewEnvironment(context.Background())
-			env.Go(s.ListenInteractiveEvents)
-			env.Go(s.Run)
+			env.Go(func(_ context.Context) error {
+				return s.ListenInteractiveEvents()
+			})
+			env.Go(func(_ context.Context) error {
+				return s.Run()
+			})
 			err = well.Wait()
 			log.Warn("failed to open a connection with Slack", map[string]interface{}{
 				"trycount": i + 1,

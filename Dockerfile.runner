@@ -1,3 +1,9 @@
+FROM quay.io/cybozu/golang:1.16-focal as builder
+
+WORKDIR /workspace
+COPY . .
+RUN make build-agent
+
 FROM quay.io/cybozu/ubuntu:20.04
 
 ARG RUNNER_VERSION=2.277.1
@@ -37,6 +43,7 @@ USER 10000
 COPY scripts/entrypoint.sh /usr/local/bin/
 COPY scripts/job-failed /usr/local/bin/
 COPY scripts/RunnerService.js ${RUNNER_ASSETS_DIR}/bin/
+COPY --from=builder /workspace/bin/slack-agent /usr/local/bin
 
 ENTRYPOINT ["/usr/local/bin/dumb-init", "--"]
 CMD ["/usr/local/bin/entrypoint.sh"]

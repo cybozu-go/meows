@@ -25,16 +25,13 @@ func InteractiveEventHandler(cb *slack.InteractionCallback) error {
 
 	var stderr bytes.Buffer
 	command := exec.Command(
-		"kubectl",
-		"annotate",
-		"pods",
-		"-n",
-		n.Namespace,
-		n.Name,
+		"kubectl", "annotate", "pods",
+		"-n", n.Namespace, n.Name,
 		fmt.Sprintf(
 			"%s=%s",
 			constants.PodDeletionTimeKey,
-			time.Now().UTC().Format(time.RFC3339),
+			// added duration is now fixed, but can be configurable later.
+			time.Now().Add(20*time.Minute).UTC().Format(time.RFC3339),
 		),
 		"--overwrite",
 	)

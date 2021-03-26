@@ -4,6 +4,7 @@ metadata:
   name: testpod
 spec:
   containers:
-    - name: ubuntu
-      image: quay.io/cybozu/ubuntu:20.04
+    - name: sample
+      image: slack-agent:latest
+      imagePullPolicy: Never
       command: ["sleep", "infinity"]

@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -38,13 +37,13 @@ func NewSocketModeClient(
 }
 
 // Run makes a connectionh with Slack over WebSocket.
-func (s *SocketModeClient) Run(_ context.Context) error {
+func (s *SocketModeClient) Run() error {
 	return s.client.Run()
 }
 
 // ListenInteractiveEvents listens to events from interactive components and
 // runs the event handler.
-func (s *SocketModeClient) ListenInteractiveEvents(_ context.Context) error {
+func (s *SocketModeClient) ListenInteractiveEvents() error {
 	for envelope := range s.client.Events {
 		if envelope.Type != socketmode.EventTypeInteractive {
 			continue
