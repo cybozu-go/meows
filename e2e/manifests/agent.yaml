@@ -9,5 +9,7 @@ spec:
       containers:
       - name: notifier
         imagePullPolicy: Never
+        args:
+          - --echo-back
       - name: extender
         imagePullPolicy: Never

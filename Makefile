@@ -168,7 +168,6 @@ prepare: ## Prepare for e2e test.
 		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
 		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
 	$(KUBECTL) create secret generic slack-app-secret \
-		-n actions-system \
 		--from-literal=SLACK_WEBHOOK_URL=$(SLACK_WEBHOOK_URL) \
 		--from-literal=SLACK_APP_TOKEN=$(SLACK_APP_TOKEN) \
 		--from-literal=SLACK_BOT_TOKEN=$(SLACK_BOT_TOKEN)
