@@ -81,5 +81,6 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = Describe("github-actions-controller", func() {
-	Context("E2E", testE2E)
+	Context("Runner", testRunner)
+	Context("Slack Agent", testAgent)
 })

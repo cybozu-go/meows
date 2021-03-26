@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func testE2E() {
+func testRunner() {
 	ctx := context.Background()
 
 	It("should deploy manager successfully and have it deploy deployment", func() {
