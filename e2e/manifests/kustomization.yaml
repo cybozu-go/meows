@@ -1,6 +1,7 @@
 bases:
 - ../../config/default
-- ../../config/samples/actions_v1alpha1_runnerpool.yaml
+- ../../config/samples/
+- ../../config/agent/
 
 patchesStrategicMerge:
 - manager.yaml

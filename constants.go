@@ -5,14 +5,20 @@ const (
 	// RunnerContainerName is a container name which runs GitHub Actions runner.
 	RunnerContainerName = "runner"
 
-	// RunnerNameEnvName is a env field key for RUNNER_NAME.
-	RunnerNameEnvName = "RUNNER_NAME"
+	// PodNameEnvName is a env field key for POD_NAME.
+	PodNameEnvName = "POD_NAME"
+
+	// PodNamespaceEnvName is a env field key for POD_NAME.
+	PodNamespaceEnvName = "POD_NAMESPACE"
 
 	// RunnerOrgEnvName is a env field key for RUNNER_ORG.
 	RunnerOrgEnvName = "RUNNER_ORG"
 
 	// RunnerRepoEnvName is a env field key for RUNNER_REPO.
 	RunnerRepoEnvName = "RUNNER_REPO"
+
+	// SlackAgentEnvName is a env field key for SLACK_AGENT_URL.
+	SlackAgentEnvName = "SLACK_AGENT_URL"
 
 	// RunnerTokenEnvName is a env field key for RUNNER_TOKEN.
 	RunnerTokenEnvName = "RUNNER_TOKEN"

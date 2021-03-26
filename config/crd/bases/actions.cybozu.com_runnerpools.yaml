@@ -91,6 +91,9 @@ spec:
                       are ANDed.
                     type: object
                 type: object
+              slackAgentURL:
+                description: SlackAgentURL is a URL of Slack agent.
+                type: string
               strategy:
                 description: The deployment strategy to use to replace existing pods
                   with new ones.

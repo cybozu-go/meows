@@ -194,14 +194,27 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 		envMap[v.Name] = struct{}{}
 	}
 
-	if _, ok := envMap[constants.RunnerNameEnvName]; !ok {
+	if _, ok := envMap[constants.PodNameEnvName]; !ok {
 		container.Env = append(
 			container.Env,
 			corev1.EnvVar{
-				Name: constants.RunnerNameEnvName,
+				Name: constants.PodNameEnvName,
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{
 						FieldPath: "metadata.name",
+					},
+				},
+			},
+		)
+	}
+	if _, ok := envMap[constants.PodNamespaceEnvName]; !ok {
+		container.Env = append(
+			container.Env,
+			corev1.EnvVar{
+				Name: constants.PodNamespaceEnvName,
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "metadata.namespace",
 					},
 				},
 			},
@@ -221,7 +234,16 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 			container.Env,
 			corev1.EnvVar{
 				Name:  constants.RunnerRepoEnvName,
-				Value: rp.Spec.RepositoryName,
+				Value: rp2.Spec.RepositoryName,
+			},
+		)
+	}
+	if _, ok := envMap[constants.SlackAgentEnvName]; !ok && rp2.Spec.SlackAgentURL != nil {
+		container.Env = append(
+			container.Env,
+			corev1.EnvVar{
+				Name:  constants.SlackAgentEnvName,
+				Value: *rp2.Spec.SlackAgentURL,
 			},
 		)
 	}

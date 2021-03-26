@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: slack-agent
-  namespace: actions-system
 spec:
   template:
     spec:
@@ -10,6 +9,7 @@ spec:
       - name: notifier
         imagePullPolicy: Never
         args:
+          - notifier
           - --echo-back
       - name: extender
         imagePullPolicy: Never
