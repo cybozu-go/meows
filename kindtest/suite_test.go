@@ -1,4 +1,4 @@
-package e2e
+package kindtest
 
 import (
 	"fmt"
@@ -37,15 +37,14 @@ var (
 	)
 )
 
-func TestE2e(t *testing.T) {
-	if os.Getenv("E2ETEST") == "" {
-		t.Skip("Run under e2e/")
-
+func TestOnKind(t *testing.T) {
+	if os.Getenv("KINDTEST") == "" {
+		t.Skip("Skip running kindtest/")
 	}
 	RegisterFailHandler(Fail)
 	SetDefaultEventuallyTimeout(5 * time.Minute)
 	SetDefaultEventuallyPollingInterval(1 * time.Second)
-	RunSpecs(t, "E2E Suite")
+	RunSpecs(t, "KindTest Suite")
 }
 
 var _ = BeforeSuite(func() {

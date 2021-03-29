@@ -10,7 +10,7 @@ CERT_MANAGER_VERSION := 1.2.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 BIN_DIR := $(PROJECT_DIR)/bin
 ENVTEST_ASSETS_DIR := $(PROJECT_DIR)/testbin
-E2E_DIR := $(PROJECT_DIR)/e2e
+KINDTEST_DIR := $(PROJECT_DIR)/kindtest
 
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
 KUSTOMIZE := $(BIN_DIR)/kustomize
@@ -32,8 +32,8 @@ RUNNER_IMG ?= runner:latest
 AGENT_IMG ?= slack-agent:latest
 
 # kind envs
-KIND_CLUSTER_NAME ?= e2e-actions
-KIND_CONFIG := $(E2E_DIR)/kind.yaml
+KIND_CLUSTER_NAME ?= kindtest-actions
+KIND_CONFIG := $(KINDTEST_DIR)/kind.yaml
 
 GITHUB_APP_ID ?=
 GITHUB_APP_INSTALLATION_ID ?=
@@ -137,7 +137,7 @@ test: ## Run unit tests.
 	}
 
 .PHONY: prepare
-prepare: ## Prepare for e2e test.
+prepare: ## Prepare for kind test.
 	if [ -z "$${GITHUB_APP_ID}" ]; then \
 	  echo "GITHUB_APP_ID must be set" 1>&2; \
 	  exit 1; \
@@ -180,11 +180,11 @@ prepare: ## Prepare for e2e test.
 	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=1m
 	$(KUBECTL) wait pods -n cert-manager -l app=webhook --for=condition=Ready --timeout=1m
 
-.PHONY: e2e
-e2e: ## Run e2e test.
+.PHONY: kindtest
+kindtest: ## Run test on kind.
 	$(MAKE) install
-	$(KUSTOMIZE) build --load_restrictor='none' $(E2E_DIR)/manifests | $(KUBECTL) apply -f -
-	env E2ETEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v $(E2E_DIR)
+	$(KUSTOMIZE) build --load_restrictor='none' $(KINDTEST_DIR)/manifests | $(KUBECTL) apply -f -
+	env KINDTEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v $(KINDTEST_DIR)
 
 ##@ Deployment
 
