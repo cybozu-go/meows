@@ -8,7 +8,6 @@ import (
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
-	"github.com/slack-go/slack"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -35,17 +34,8 @@ var extenderCmd = &cobra.Command{
 			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, botTokenFlagName))
 		}
 
-		f := agent.InteractiveEventHandler
-		if viper.GetBool(noExtendFlagName) {
-			f = func(cb *slack.InteractionCallback) (interface{}, error) {
-				fmt.Println(cb.Message.Text)
-				return nil, nil
-			}
-		}
-
-		s := agent.NewSocketModeClient(appToken, botToken, f)
-
 		var err error
+		s := agent.NewSocketModeClient(appToken, botToken)
 		retry := viper.GetUint("retry")
 		for i := uint(0); i < retry+1; i++ {
 			env := well.NewEnvironment(context.Background())

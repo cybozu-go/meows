@@ -30,20 +30,7 @@ var notifierCmd = &cobra.Command{
 		}
 		f := slack.PostWebhook
 		if viper.GetBool(echoBackFlagName) {
-			f = func(
-				webhookURL string,
-				msg *slack.WebhookMessage,
-			) error {
-				cb := slack.InteractionCallback{
-					Message: slack.Message{
-						Msg: slack.Msg{
-							Attachments: msg.Attachments,
-						},
-					},
-				}
-				_, err := agent.InteractiveEventHandler(&cb)
-				return err
-			}
+			_ = url
 		}
 
 		env := well.NewEnvironment(context.Background())
