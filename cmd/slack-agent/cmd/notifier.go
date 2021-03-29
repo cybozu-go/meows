@@ -25,14 +25,14 @@ var notifierCmd = &cobra.Command{
 	Long:  `notifier starts Slack agent to send job results to Slack`,
 	Run: func(cmd *cobra.Command, args []string) {
 		url := viper.GetString(webhookURLFlagName)
-		if len(url) == 0 {
+		if !isDevelopment && len(url) == 0 {
 			log.ErrorExit(errors.New(`"webhook-url" should not be empty`))
 		}
 
 		f := slack.PostWebhook
 		if isDevelopment {
 			f = func(url string, msg *slack.WebhookMessage) error {
-				fmt.Printf("development: skip sending message to %s", url)
+				fmt.Printf("development: skip sending message of which text is %q", msg.Text)
 				return nil
 			}
 		}

@@ -10,6 +10,7 @@ spec:
         imagePullPolicy: Never
         args:
           - notifier
-          - --echo-back
-      - name: extender
+          - --development
+      - $patch: delete
+        name: extender
         imagePullPolicy: Never

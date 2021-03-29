@@ -2,7 +2,7 @@ FROM quay.io/cybozu/golang:1.16-focal as builder
 
 WORKDIR /workspace
 COPY . .
-RUN make build-agent
+RUN make build-agent build-annotator
 
 FROM quay.io/cybozu/ubuntu:20.04
 
@@ -12,6 +12,7 @@ RUN curl -L https://dl.k8s.io/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kub
   && chmod +x /usr/local/bin/kubectl
 
 COPY --from=builder /workspace/bin/slack-agent /usr/local/bin
+COPY --from=builder /workspace/bin/deltime-annotate /usr/local/bin
 
 USER 10000:10000
 ENTRYPOINT ["slack-agent"]

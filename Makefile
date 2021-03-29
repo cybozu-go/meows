@@ -89,6 +89,10 @@ build: generate ## Build manager binary.
 build-agent:
 	go build -o bin/slack-agent ./cmd/slack-agent
 
+.PHONY: build-annotator
+build-annotator:
+	go build -o bin/deltime-annotate ./cmd/deltime-annotate
+
 .PHONY: run
 run: manifests generate ## Run a controller from your host.
 	go run ./cmd/controller

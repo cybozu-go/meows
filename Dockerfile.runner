@@ -2,7 +2,7 @@ FROM quay.io/cybozu/golang:1.16-focal as builder
 
 WORKDIR /workspace
 COPY . .
-RUN make build-agent
+RUN make build-agent build-annotator
 
 FROM quay.io/cybozu/ubuntu:20.04
 
@@ -44,7 +44,9 @@ COPY scripts/entrypoint.sh /usr/local/bin/
 COPY scripts/job-failed /usr/local/bin/
 COPY scripts/job-started /usr/local/bin/
 COPY scripts/RunnerService.js ${RUNNER_ASSETS_DIR}/bin/
+
 COPY --from=builder /workspace/bin/slack-agent /usr/local/bin
+COPY --from=builder /workspace/bin/deltime-annotate /usr/local/bin
 
 ENTRYPOINT ["/usr/local/bin/dumb-init", "--"]
 CMD ["/usr/local/bin/entrypoint.sh"]

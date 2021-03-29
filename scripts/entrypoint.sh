@@ -48,7 +48,7 @@ if [ -f /tmp/failed ]; then
   fi
 
   echo "Annotate pods with the time ${EXTEND_DURATION} later"
-  kubectl annotate pods ${POD_NAME} --overwrite actions.cybozu.com/deletedAt=$(date -Iseconds -u -d "${EXTEND_DURATION}")
+  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME} -a ${EXTEND_DURATION}
 else
   if [ -n "${SLACK_AGENT_URL}" ]; then
     echo "Send an notification to slack that CI failed"
@@ -57,10 +57,11 @@ else
       --branch ${BRANCH_NAME} \
       --repository ${REPOSITORY_NAME} \
       --run-id ${RUN_ID} \
-      --notifier-address ${SLACK_AGENT_URL} \
+      --notifier-address ${SLACK_AGENT_URL}
   fi
+
   echo "Annotate pods with current time"
-  kubectl annotate pods ${POD_NAME} --overwrite actions.cybozu.com/deletedAt=$(date -Iseconds -u)
+  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME}
 fi
 sleep infinity
 
