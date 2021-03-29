@@ -1,27 +1,26 @@
 package agent
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 )
 
 // SocketModeClient is a client for Slack socket mode.
 type SocketModeClient struct {
-	client *socketmode.Client
+	client   *socketmode.Client
+	annotate func(string, string, time.Time) error
 }
 
 // NewSocketModeClient creates SocketModeClient.
 func NewSocketModeClient(
 	appToken string,
 	botToken string,
+	annotate func(string, string, time.Time) error,
 ) *SocketModeClient {
 	return &SocketModeClient{
 		client: socketmode.New(
@@ -34,6 +33,7 @@ func NewSocketModeClient(
 			socketmode.OptionDebug(true),
 			socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 		),
+		annotate: annotate,
 	}
 }
 
@@ -69,30 +69,9 @@ func (s *SocketModeClient) ListenInteractiveEvents() error {
 			return err
 		}
 
-		var stderr bytes.Buffer
-		command := exec.Command(
-			"kubectl", "annotate", "pods",
-			"-n", namespace, name,
-			fmt.Sprintf(
-				"%s=%s",
-				constants.PodDeletionTimeKey,
-				// added duration is now fixed, but can be configurable later.
-				time.Now().Add(20*time.Minute).UTC().Format(time.RFC3339),
-			),
-			"--overwrite",
-		)
-		command.Stdout = os.Stdout
-		command.Stderr = &stderr
-		err = command.Run()
+		err = s.annotate(name, namespace, time.Now())
 		if err != nil {
-			return fmt.Errorf(
-				"failed to annotate %s in %s with %s: err=%#v, stderr=%s",
-				name,
-				namespace,
-				constants.PodDeletionTimeKey,
-				err,
-				stderr.String(),
-			)
+			return err
 		}
 
 		payload, err := s.makeExtendCallbackPayload(name, namespace), nil

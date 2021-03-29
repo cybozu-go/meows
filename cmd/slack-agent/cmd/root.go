@@ -7,8 +7,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "Slack agent for GitHub Actions self-hosted runner",
+var isDevelopment bool
+
+var rootCmd = &cobra.Command{Use: "Slack agent for GitHub Actions self-hosted runner",
 	Short: "Slack agent notifies CI results via Webhook and accepts requests for extending Pods' lifecycles",
 	Long:  `Slack agent notifies CI results via Webhook and accepts requests for extending Pods' lifecycles`,
 }
@@ -20,4 +21,9 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func init() {
+
+	rootCmd.PersistentFlags().BoolVarP(&isDevelopment, "development", "d", false, "Development mode.")
 }

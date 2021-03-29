@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/log"
@@ -16,7 +17,6 @@ const (
 	appTokenFlagName = "app-token"
 	botTokenFlagName = "bot-token"
 	retryFlagName    = "retry"
-	noExtendFlagName = "no-extend"
 )
 
 var extenderCmd = &cobra.Command{
@@ -34,8 +34,16 @@ var extenderCmd = &cobra.Command{
 			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, botTokenFlagName))
 		}
 
+		a := agent.AnnotateDeletionTime
+		if isDevelopment {
+			a = func(name string, namespace string, t time.Time) error {
+				fmt.Printf("development: annotated %s to %s in %s", t.UTC().Format(time.RFC3339), name, namespace)
+				return nil
+			}
+		}
+
 		var err error
-		s := agent.NewSocketModeClient(appToken, botToken)
+		s := agent.NewSocketModeClient(appToken, botToken, a)
 		retry := viper.GetUint("retry")
 		for i := uint(0); i < retry+1; i++ {
 			env := well.NewEnvironment(context.Background())
@@ -62,9 +70,6 @@ func init() {
 	fs.String(appTokenFlagName, "", "The Slack App token.")
 	fs.String(botTokenFlagName, "", "The Slack Bot token.")
 	fs.Uint(retryFlagName, 0, "How many times the extender retries to connect Slack.")
-	fs.BoolP(noExtendFlagName, "d", false,
-		"The extender just writes messages to stdout when receiving message.",
-	)
 	rootCmd.AddCommand(extenderCmd)
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
