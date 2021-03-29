@@ -36,8 +36,11 @@ Components
     on GitHub periodically.
   - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time
     limit periodically.
-- Slack agent: Server for notifying user whether jobs are failed or not and
-  accepting extending requests from outside of Kubernetes.
+- Slack agent
+  - Notifier: HTTP Server which accepts requests from Runner `Pod`s and notify user
+    whether jobs are failed or not via Slack Webhook.
+  - Extender: WebSocket client which watches Slack button events and extends the
+    lifetime of a `Pod`.
 
 Diagram: T.B.A
 
@@ -74,9 +77,9 @@ Architecture
 1. `Pod` sweeper periodically checks if there are `Pod`s annotated with the old
   timestamp, and if any, it deletes `Pod`s.
 
-### Runner's state management
+### How Runner's state is managed
 
-A runner `Pod` has the following state as a GitHub Actions job runner.
+A Runner `Pod` has the following state as a GitHub Actions job runner.
 
 - registered: `Pod` registered itself on GitHub Actions.
 - initialized: `Pod` finished the initialization.
@@ -95,6 +98,8 @@ running out of available runners.
 However, as mentioned above, GitHub API does not provide a way to connect the job
 status information with the self-hosted runner.  So, runner `Pod`s have to execute
 commands to tell the metrics exporter server that the state has changed.
+
+- Notifier
 
 ### Why is webhook needed ?
 
