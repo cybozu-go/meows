@@ -12,14 +12,14 @@ import (
 // SocketModeClient is a client for Slack socket mode.
 type SocketModeClient struct {
 	client  *socketmode.Client
-	handler func(*slack.InteractionCallback) error
+	handler func(*slack.InteractionCallback) (interface{}, error)
 }
 
 // NewSocketModeClient creates SocketModeClient.
 func NewSocketModeClient(
 	appToken string,
 	botToken string,
-	handler func(*slack.InteractionCallback) error,
+	handler func(*slack.InteractionCallback) (interface{}, error),
 ) *SocketModeClient {
 	return &SocketModeClient{
 		client: socketmode.New(
@@ -48,23 +48,27 @@ func (s *SocketModeClient) ListenInteractiveEvents() error {
 		if envelope.Type != socketmode.EventTypeInteractive {
 			continue
 		}
-
-		payload, ok := envelope.Data.(slack.InteractionCallback)
+		callback, ok := envelope.Data.(slack.InteractionCallback)
 		if !ok {
 			return fmt.Errorf(
 				"received data cannot be converted into slack.InteractionCallback: %#v",
 				envelope.Data,
 			)
 		}
-		if payload.Type != slack.InteractionTypeBlockActions {
+		if callback.Type != slack.InteractionTypeBlockActions {
 			continue
 		}
 
-		if err := s.handler(&payload); err != nil {
+		if envelope.Request == nil {
+			return fmt.Errorf("request should not be nil: %#v", envelope.Data)
+		}
+
+		payload, err := s.handler(&callback)
+		if err != nil {
 			return err
 		}
 
-		s.client.Ack(*envelope.Request)
+		s.client.Ack(*envelope.Request, payload)
 	}
 	return nil
 }

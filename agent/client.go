@@ -10,13 +10,6 @@ import (
 
 const postResultPath = "/result"
 
-type postResultPayload struct {
-	JobName      string `json:"job_name"`
-	PodNamespace string `json:"pod_namespace"`
-	PodName      string `json:"pod_name"`
-	IsFailed     bool   `json:"is_failed"`
-}
-
 // NotifierClient is a client for Slack agent notifier.
 type NotifierClient struct {
 	notifierURL *url.URL
@@ -33,17 +26,23 @@ func NewNotifierClient(addr string) (*NotifierClient, error) {
 
 // PostResult sends a POST request to notifier.
 func (c *NotifierClient) PostResult(
-	jobName string,
+	repositoryName string,
+	workflowName string,
+	branchName string,
+	runID uint,
 	podNamespace string,
 	podName string,
 	isFailed bool,
 ) error {
-	p := postResultPayload{
-		JobName:      jobName,
-		PodNamespace: podNamespace,
-		PodName:      podName,
-		IsFailed:     isFailed,
-	}
+	p := newPostResultPayload(
+		repositoryName,
+		workflowName,
+		branchName,
+		runID,
+		podNamespace,
+		podName,
+		isFailed,
+	)
 	b, err := json.Marshal(p)
 	if err != nil {
 		return err

@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/cybozu-go/well"
 	"github.com/gin-gonic/gin"
@@ -54,16 +53,7 @@ func (s *Notifier) postResult(c *gin.Context) {
 		return
 	}
 
-	if err := s.postWebhook(
-		s.webhookURL,
-		makeJobResultMsg(
-			p.JobName,
-			p.PodNamespace,
-			p.PodName,
-			p.IsFailed,
-			time.Now(),
-		),
-	); err != nil {
+	if err := s.postWebhook(s.webhookURL, p.makeWebhookMessage()); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

@@ -29,8 +29,7 @@ mkdir -p _work
 # TODO: run placemat
 
 ./bin/runsvc.sh
-
-echo ${GITHUB_REF}
+[ -f /tmp/github.env ] && . /tmp/github.env
 
 if [ -z "${EXTEND_DURATION}" ]; then
   EXTEND_DURATION="20m"
@@ -39,7 +38,13 @@ fi
 if [ -f /tmp/failed ]; then
   if [ -n "${SLACK_AGENT_URL}" ]; then
     echo "Send an notification to slack that CI failed"
-    slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} ${GITHUB_REF} -a ${SLACK_AGENT_URL} --failed
+    slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
+      --workflow ${WORKFLOW_NAME} \
+      --branch ${BRANCH_NAME} \
+      --repository ${REPOSITORY_NAME} \
+      --run-id ${RUN_ID} \
+      --notifier-address ${SLACK_AGENT_URL} \
+      --failed
   fi
 
   echo "Annotate pods with the time ${EXTEND_DURATION} later"
@@ -47,7 +52,12 @@ if [ -f /tmp/failed ]; then
 else
   if [ -n "${SLACK_AGENT_URL}" ]; then
     echo "Send an notification to slack that CI failed"
-    slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} ${GITHUB_REF} -a ${SLACK_AGENT_URL}
+    slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
+      --workflow ${WORKFLOW_NAME} \
+      --branch ${BRANCH_NAME} \
+      --repository ${REPOSITORY_NAME} \
+      --run-id ${RUN_ID} \
+      --notifier-address ${SLACK_AGENT_URL} \
   fi
   echo "Annotate pods with current time"
   kubectl annotate pods ${POD_NAME} --overwrite actions.cybozu.com/deletedAt=$(date -Iseconds -u)

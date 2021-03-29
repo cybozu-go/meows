@@ -41,7 +41,8 @@ var notifierCmd = &cobra.Command{
 						},
 					},
 				}
-				return agent.InteractiveEventHandler(&cb)
+				_, err := agent.InteractiveEventHandler(&cb)
+				return err
 			}
 		}
 

@@ -37,9 +37,9 @@ var extenderCmd = &cobra.Command{
 
 		f := agent.InteractiveEventHandler
 		if viper.GetBool(noExtendFlagName) {
-			f = func(cb *slack.InteractionCallback) error {
+			f = func(cb *slack.InteractionCallback) (interface{}, error) {
 				fmt.Println(cb.Message.Text)
-				return nil
+				return nil, nil
 			}
 		}
 
