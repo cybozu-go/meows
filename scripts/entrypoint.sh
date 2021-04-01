@@ -36,32 +36,34 @@ if [ -z "${EXTEND_DURATION}" ]; then
 fi
 
 if [ -f /tmp/failed ]; then
+  echo "Annotate pods with the time ${EXTEND_DURATION} later"
+  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME} -a ${EXTEND_DURATION}
+
   if [ -n "${SLACK_AGENT_URL}" ]; then
     echo "Send an notification to slack that CI failed"
     slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
       --workflow ${WORKFLOW_NAME} \
       --branch ${BRANCH_NAME} \
       --repository ${REPOSITORY_NAME} \
+      --organization ${ORGANIZATION_NAME} \
       --run-id ${RUN_ID} \
       --notifier-address ${SLACK_AGENT_URL} \
       --failed
   fi
-
-  echo "Annotate pods with the time ${EXTEND_DURATION} later"
-  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME} -a ${EXTEND_DURATION}
 else
+  echo "Annotate pods with current time"
+  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME}
+
   if [ -n "${SLACK_AGENT_URL}" ]; then
     echo "Send an notification to slack that CI failed"
     slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
       --workflow ${WORKFLOW_NAME} \
       --branch ${BRANCH_NAME} \
       --repository ${REPOSITORY_NAME} \
+      --organization ${ORGANIZATION_NAME} \
       --run-id ${RUN_ID} \
       --notifier-address ${SLACK_AGENT_URL}
   fi
-
-  echo "Annotate pods with current time"
-  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME}
 fi
 sleep infinity
 

@@ -2,29 +2,31 @@ package agent
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/slack-go/slack"
 )
 
 const (
 	pickerActionID    = "slack-agent-extend"
+	pickerActionValue = "slack-agent-extend"
 	podNameTitle      = "Pod"
 	podNamespaceTitle = "Namespace"
 )
 
 type postResultPayload struct {
-	RepositoryName string `json:"repository_name"`
-	WorkflowName   string `json:"workflow_name"`
-	BranchName     string `json:"branch_name"`
-	RunID          uint   `json:"run_id"`
-	PodNamespace   string `json:"pod_namespace"`
-	PodName        string `json:"pod_name"`
-	IsFailed       bool   `json:"is_failed"`
+	RepositoryName   string `json:"repository_name"`
+	OrganizationName string `json:"organization_name"`
+	WorkflowName     string `json:"workflow_name"`
+	BranchName       string `json:"branch_name"`
+	RunID            uint   `json:"run_id"`
+	PodNamespace     string `json:"pod_namespace"`
+	PodName          string `json:"pod_name"`
+	IsFailed         bool   `json:"is_failed"`
 }
 
 func newPostResultPayload(
 	repositoryName string,
+	organizationName string,
 	workflowName string,
 	branchName string,
 	runID uint,
@@ -33,13 +35,14 @@ func newPostResultPayload(
 	isFailed bool,
 ) *postResultPayload {
 	return &postResultPayload{
-		RepositoryName: repositoryName,
-		WorkflowName:   workflowName,
-		BranchName:     branchName,
-		RunID:          runID,
-		PodNamespace:   podNamespace,
-		PodName:        podName,
-		IsFailed:       isFailed,
+		RepositoryName:   repositoryName,
+		OrganizationName: organizationName,
+		WorkflowName:     workflowName,
+		BranchName:       branchName,
+		RunID:            runID,
+		PodNamespace:     podNamespace,
+		PodName:          podName,
+		IsFailed:         isFailed,
 	}
 }
 

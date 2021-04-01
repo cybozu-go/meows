@@ -27,6 +27,7 @@ func NewNotifierClient(addr string) (*NotifierClient, error) {
 // PostResult sends a POST request to notifier.
 func (c *NotifierClient) PostResult(
 	repositoryName string,
+	organizationName string,
 	workflowName string,
 	branchName string,
 	runID uint,
@@ -36,6 +37,7 @@ func (c *NotifierClient) PostResult(
 ) error {
 	p := newPostResultPayload(
 		repositoryName,
+		organizationName,
 		workflowName,
 		branchName,
 		runID,
@@ -43,6 +45,7 @@ func (c *NotifierClient) PostResult(
 		podName,
 		isFailed,
 	)
+
 	b, err := json.Marshal(p)
 	if err != nil {
 		return err

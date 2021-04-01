@@ -7,13 +7,14 @@ import (
 )
 
 var clientConfig struct {
-	addr           string
-	workflowName   string
-	branchName     string
-	repositoryName string
-	runID          uint
-	namespace      string
-	isFailed       bool
+	addr             string
+	workflowName     string
+	branchName       string
+	repositoryName   string
+	organizationName string
+	runID            uint
+	namespace        string
+	isFailed         bool
 }
 
 var clientCmd = &cobra.Command{
@@ -29,6 +30,7 @@ var clientCmd = &cobra.Command{
 
 		if err := c.PostResult(
 			clientConfig.repositoryName,
+			clientConfig.organizationName,
 			clientConfig.workflowName,
 			clientConfig.branchName,
 			clientConfig.runID,
@@ -47,7 +49,8 @@ func init() {
 	fs.StringVarP(&clientConfig.namespace, "namespace", "n", "default", "Pod namespace.")
 	fs.StringVarP(&clientConfig.workflowName, "workflow", "w", "", "Workflow name.")
 	fs.StringVarP(&clientConfig.branchName, "branch", "b", "", "Branch name.")
-	fs.StringVarP(&clientConfig.repositoryName, "repository", "r", "", "Owner and repository name. (e.g. cybozu-go/github-actions-controller)")
+	fs.StringVarP(&clientConfig.organizationName, "organization", "o", "", "Organization name.")
+	fs.StringVarP(&clientConfig.repositoryName, "repository", "r", "", "Repository name.")
 	fs.UintVarP(&clientConfig.runID, "run-id", "i", 0, "Workflow run ID.")
 	fs.BoolVar(&clientConfig.isFailed, "failed", false, "Notify the job is failed if enabled.")
 	rootCmd.AddCommand(clientCmd)
