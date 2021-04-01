@@ -44,11 +44,13 @@ if [ -f /tmp/failed ]; then
     slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
       --workflow ${WORKFLOW_NAME} \
       --branch ${BRANCH_NAME} \
-      --repository ${REPOSITORY_NAME} \
-      --organization ${ORGANIZATION_NAME} \
+      --organization ${RUNNER_ORG} \
+      --repository ${RUNNER_REPO} \
       --run-id ${RUN_ID} \
       --notifier-address ${SLACK_AGENT_URL} \
       --failed
+  else
+    echo "Skip sending an notification to slack because SLACK_AGENT_URL is blank"
   fi
 else
   echo "Annotate pods with current time"
@@ -59,10 +61,12 @@ else
     slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
       --workflow ${WORKFLOW_NAME} \
       --branch ${BRANCH_NAME} \
-      --repository ${REPOSITORY_NAME} \
-      --organization ${ORGANIZATION_NAME} \
+      --organization ${RUNNER_ORG} \
+      --repository ${RUNNER_REPO} \
       --run-id ${RUN_ID} \
       --notifier-address ${SLACK_AGENT_URL}
+  else
+    echo "Skip sending an notification to slack because SLACK_AGENT_URL is blank"
   fi
 fi
 sleep infinity
