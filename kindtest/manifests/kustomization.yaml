@@ -2,7 +2,6 @@ bases:
 - ../../config/default
 - ../../config/samples/
 - ../../config/agent/
-- base/testpod.yaml
 
 patchesStrategicMerge:
 - overlays/manager.yaml

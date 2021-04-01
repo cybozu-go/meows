@@ -10,26 +10,21 @@ import (
 )
 
 func testAgent() {
-	const testPodName = "testpod"
-
 	It("should receive a request from Pod", func() {
 		By("getting a test Pod")
-		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "pod", "-n", runnerNS, testPodName)
-			if err != nil {
-				return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-			}
-			return nil
-		}).ShouldNot(HaveOccurred())
+		pods, err := fetchPods(runnerNS, runnerSelector)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(pods.Items).ShouldNot(HaveLen(0))
+		podName := pods.Items[0].GetName()
 
 		By("sending a request to Slack agent")
 		u := uuid.NewString()
 		stdout, stderr, err := kubectl(
 			"exec",
-			"-n", runnerNS, testPodName,
+			"-n", runnerNS, podName,
 			"--",
 			"slack-agent", "client",
-			"-n", runnerNS, testPodName,
+			"-n", runnerNS, podName,
 			"-a", "slack-agent",
 			"-w", u,
 		)
