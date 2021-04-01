@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	clog "github.com/cybozu-go/log"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 )
@@ -47,39 +48,52 @@ func (s *SocketModeClient) Run() error {
 func (s *SocketModeClient) ListenInteractiveEvents() error {
 	for envelope := range s.client.Events {
 		if envelope.Type != socketmode.EventTypeInteractive {
+			clog.Info("skipped event because type is not "+string(socketmode.EventTypeInteractive), map[string]interface{}{
+				"type": envelope.Type,
+				"data": envelope.Data,
+			})
 			continue
 		}
 		cb, ok := envelope.Data.(slack.InteractionCallback)
 		if !ok {
+			clog.Error("failed to convert type to "+string(socketmode.EventTypeInteractive), map[string]interface{}{
+				"data": envelope.Data,
+			})
 			return fmt.Errorf(
 				"received data cannot be converted into slack.InteractionCallback: %#v",
 				envelope.Data,
 			)
 		}
 		if cb.Type != slack.InteractionTypeBlockActions {
+			clog.Info("skipped event because data type is not "+string(slack.InteractionTypeBlockActions), map[string]interface{}{
+				"type": cb.Type,
+			})
 			continue
 		}
-
 		if envelope.Request == nil {
+			clog.Error("request should not be nil", map[string]interface{}{})
 			return fmt.Errorf("request should not be nil: %#v", envelope.Data)
 		}
 
-		name, namespace, err := s.extractNameFromJobResultMsg(&cb)
+		name, namespace, err := s.extractNameFromWebhookMsg(&cb)
 		if err != nil {
+			clog.Error("failed to extract name from webhook message", map[string]interface{}{
+				"cb": cb,
+			})
 			return err
 		}
 
-		err = s.annotate(name, namespace, time.Now())
+		// TODO: time.Now() is replaced after timepicker gets available.
+		err = s.annotate(name, namespace, time.Now().Add(30*time.Minute))
 		if err != nil {
+			clog.Error("failed to annotate deletion time", map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			})
 			return err
 		}
 
-		payload, err := s.makeExtendCallbackPayload(name, namespace), nil
-		if err != nil {
-			return err
-		}
-
-		s.client.Ack(*envelope.Request, payload)
+		s.client.Ack(*envelope.Request, s.makeExtendCallbackPayload(name, namespace))
 	}
 	return nil
 }
@@ -90,8 +104,7 @@ func (s *SocketModeClient) makeExtendCallbackPayload(
 ) []slack.Attachment {
 	return []slack.Attachment{
 		{
-			// "warning" is yellow
-			Color: "warning",
+			Color: "#daa038",
 			Text: fmt.Sprintf(
 				"%s in %s is extended successfully",
 				podName,
@@ -101,10 +114,10 @@ func (s *SocketModeClient) makeExtendCallbackPayload(
 	}
 }
 
-func (s *SocketModeClient) extractNameFromJobResultMsg(body *slack.InteractionCallback) (string, string, error) {
-	if len(body.Message.Attachments) != 1 {
+func (s *SocketModeClient) extractNameFromWebhookMsg(body *slack.InteractionCallback) (string, string, error) {
+	if len(body.Message.Attachments) != 2 {
 		return "", "", fmt.Errorf(
-			"length of attachments should be 1, but got %d: %#v",
+			"length of attachments should be 2, but got %d: %#v",
 			len(body.Message.Attachments),
 			body.Message.Attachments,
 		)

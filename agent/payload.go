@@ -47,11 +47,11 @@ func newPostResultPayload(
 }
 
 func (p *postResultPayload) makeWebhookMessage() *slack.WebhookMessage {
-	text := p.WorkflowName + " workflow has failed"
-	color := "danger"
-	if !p.IsFailed {
-		text = p.WorkflowName + " workflow has succeeded"
-		color = "good"
+	text := fmt.Sprintf("CI on %s/%s has succeded", p.OrganizationName, p.RepositoryName)
+	color := "#36a64f"
+	if p.IsFailed {
+		text = fmt.Sprintf("CI on %s/%s has failed", p.OrganizationName, p.RepositoryName)
+		color = "#d10c20"
 	}
 
 	msg := &slack.WebhookMessage{
@@ -59,38 +59,18 @@ func (p *postResultPayload) makeWebhookMessage() *slack.WebhookMessage {
 		Attachments: []slack.Attachment{
 			{
 				Color: color,
-				Title: "Title",
+				Title: p.WorkflowName,
 				TitleLink: fmt.Sprintf(
-					"https://github.com/%s/actions/runs/%d",
+					"https://github.com/%s/%s/actions/runs/%d",
+					p.OrganizationName,
 					p.RepositoryName,
 					p.RunID,
 				),
-				Blocks: slack.Blocks{
-					BlockSet: []slack.Block{
-						slack.NewSectionBlock(
-							slack.NewTextBlockObject(
-								slack.MarkdownType,
-								"Choose time to extend Pod by",
-								false,
-								false,
-							),
-							nil,
-							slack.NewAccessory(
-								&slack.TimePickerBlockElement{
-									Type:        slack.METTimepicker,
-									ActionID:    pickerActionID,
-									InitialTime: time.Now().Add(time.Hour).UTC().Format("03:04"),
-								},
-							),
-						),
-					},
+				Fields: []slack.AttachmentField{
+					{Title: "Branch", Value: p.BranchName, Short: false},
+					{Title: podNamespaceTitle, Value: p.PodNamespace, Short: true},
+					{Title: podNameTitle, Value: p.PodName, Short: true},
 				},
-				// Fields: []slack.AttachmentField{
-				// 	{Title: "Branch", Value: p.BranchName, Short: false},
-				// 	{Title: podNamespaceTitle, Value: p.PodNamespace, Short: true},
-				// 	{Title: podNameTitle, Value: p.PodName, Short: true},
-				// },
-				// Ts: json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
 			},
 		},
 	}
@@ -98,5 +78,35 @@ func (p *postResultPayload) makeWebhookMessage() *slack.WebhookMessage {
 		return msg
 	}
 
+	msg.Attachments = append(msg.Attachments,
+		slack.Attachment{
+			Color: color,
+			Blocks: slack.Blocks{
+				BlockSet: []slack.Block{
+					slack.NewActionBlock(
+						"timepicker-block",
+						// TODO: Uncomment this block after https://github.com/slack-go/slack/pull/918
+						// is released and change the way to parse messages in socket.go.
+						//
+						// &slack.TimePickerBlockElement{
+						// 	Type:        slack.METTimepicker,
+						// 	ActionID:    pickerActionID + "-ignored",
+						// 	InitialTime: time.Now().Add(30 * time.Minute).UTC().Format("03:04"),
+						// },
+						slack.NewButtonBlockElement(
+							pickerActionID,
+							pickerActionValue,
+							slack.NewTextBlockObject(
+								slack.PlainTextType,
+								"Extend",
+								false,
+								false,
+							),
+						),
+					),
+				},
+			},
+		},
+	)
 	return msg
 }
