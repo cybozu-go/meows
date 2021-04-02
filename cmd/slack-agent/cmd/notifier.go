@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
-	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
 	"github.com/slack-go/slack"
 	"github.com/spf13/cobra"
@@ -23,11 +22,13 @@ var notifierCmd = &cobra.Command{
 	Use:   "notifier",
 	Short: "notifier starts Slack agent to send job results to Slack",
 	Long:  `notifier starts Slack agent to send job results to Slack`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		url := viper.GetString(webhookURLFlagName)
 		if !isDevelopment && len(url) == 0 {
-			log.ErrorExit(errors.New(`"webhook-url" should not be empty`))
+			return errors.New(`"webhook-url" should not be empty`)
 		}
+
+		cmd.SilenceUsage = true
 
 		f := slack.PostWebhook
 		if isDevelopment {
@@ -40,10 +41,7 @@ var notifierCmd = &cobra.Command{
 		env := well.NewEnvironment(context.Background())
 		s := agent.NewNotifier(viper.GetString(listenAddrFlagName), url, f)
 		env.Go(s.Start)
-		err := well.Wait()
-		if err != nil && !well.IsSignaled(err) {
-			log.ErrorExit(err)
-		}
+		return well.Wait()
 	},
 }
 

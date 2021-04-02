@@ -2,6 +2,8 @@
 
 set -e
 
+trap "sleep 5; exit 1" TERM
+
 if [ -z "${POD_NAME}" ]; then
   echo "POD_NAME must be set" 1>&2
   exit 1

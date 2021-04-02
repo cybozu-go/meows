@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/cybozu-go/github-actions-controller/agent"
-	"github.com/cybozu-go/log"
 	"github.com/spf13/cobra"
 )
 
@@ -22,13 +21,15 @@ var clientCmd = &cobra.Command{
 	Short: "client sends requests to Slack agent notifier",
 	Long:  `client sends requests to Slack agent notifier`,
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		c, err := agent.NewNotifierClient(clientConfig.addr)
 		if err != nil {
-			log.ErrorExit(err)
+			return err
 		}
 
-		if err := c.PostResult(
+		return c.PostResult(
 			clientConfig.repositoryName,
 			clientConfig.organizationName,
 			clientConfig.workflowName,
@@ -37,9 +38,7 @@ var clientCmd = &cobra.Command{
 			clientConfig.namespace,
 			args[0],
 			clientConfig.isFailed,
-		); err != nil {
-			log.ErrorExit(err)
-		}
+		)
 	},
 }
 

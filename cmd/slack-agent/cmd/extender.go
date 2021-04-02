@@ -2,15 +2,18 @@ package cmd
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
-	"github.com/cybozu-go/log"
 	"github.com/cybozu-go/well"
+	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"k8s.io/klog"
 )
 
 const (
@@ -19,20 +22,30 @@ const (
 	retryFlagName    = "retry"
 )
 
+var zapOpts zap.Options
+
 var extenderCmd = &cobra.Command{
 	Use:   "extender",
 	Short: "extender starts Slack agent to receive interactive messages from Slack",
 	Long:  `notifier starts Slack agent to receive interactive messages from Slack`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appToken := viper.GetString(appTokenFlagName)
 		if len(appToken) == 0 {
-			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, appTokenFlagName))
+			return fmt.Errorf(`"%s" should not be empty`, appTokenFlagName)
 		}
 
 		botToken := viper.GetString(botTokenFlagName)
 		if len(botToken) == 0 {
-			log.ErrorExit(fmt.Errorf(`"%s" should not be empty`, botTokenFlagName))
+			return fmt.Errorf(`"%s" should not be empty`, botTokenFlagName)
 		}
+
+		cmd.SilenceUsage = true
+
+		zapLog, err := zap.NewDevelopment(zapOpts)
+		if err != nil {
+			return err
+		}
+		log := zapr.NewLogger(zapLog)
 
 		a := agent.AnnotateDeletionTime
 		if isDevelopment {
@@ -47,8 +60,7 @@ var extenderCmd = &cobra.Command{
 			}
 		}
 
-		var err error
-		s := agent.NewSocketModeClient(appToken, botToken, a)
+		s := agent.NewSocketModeClient(&log, appToken, botToken, a)
 		// retry every 1 minute if failed to open connection
 		// because rate limit for `connection.open` is so small.
 		// https://api.slack.com/methods/apps.connections.open
@@ -59,16 +71,14 @@ var extenderCmd = &cobra.Command{
 			env.Go(func(_ context.Context) error {
 				return s.Run()
 			})
-			err = well.Wait()
-			log.Warn("failed to open a connection with Slack", map[string]interface{}{
-				"trycount": i + 1,
-				"retry":    retry,
-			})
+			err := well.Wait()
+			if i == retry && err != nil {
+				return err
+			}
+			log.Info("retry opening a connection with Slack", "trycount", i+1, "retry", retry)
 			time.Sleep(time.Minute)
 		}
-		if err != nil && !well.IsSignaled(err) {
-			log.ErrorExit(err)
-		}
+		return nil
 	},
 }
 
@@ -81,6 +91,12 @@ func init() {
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
+
+	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(goflags)
+	zapOpts.BindFlags(goflags)
+
+	fs.AddGoFlagSet(goflags)
 
 	viper.SetEnvPrefix("slack")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
