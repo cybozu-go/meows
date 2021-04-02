@@ -2,6 +2,8 @@ package agent
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/slack-go/slack"
 )
@@ -9,8 +11,13 @@ import (
 const (
 	pickerActionID    = "slack-agent-extend"
 	pickerActionValue = "slack-agent-extend"
+
 	podNameTitle      = "Pod"
 	podNamespaceTitle = "Namespace"
+	branchTitle       = "Branch"
+
+	runLinkBase = "https://github.com/"
+	runLinkFmt  = "https://github.com/%s/%s/actions/runs/%d"
 )
 
 type postResultPayload struct {
@@ -46,6 +53,77 @@ func newPostResultPayload(
 	}
 }
 
+func newPostResultPayloadFromCB(body *slack.InteractionCallback) (*postResultPayload, error) {
+	var isFailed bool
+	switch len(body.Message.Attachments) {
+	case 1:
+		isFailed = false
+	case 2:
+		isFailed = true
+	default:
+		return nil, fmt.Errorf(
+			"length of attachments should be 1 or 2, but got %d: %#v",
+			len(body.Message.Attachments),
+			body.Message.Attachments,
+		)
+	}
+
+	a := body.Message.Attachments[0]
+	m := make(map[string]string)
+	for _, v := range a.Fields {
+		m[v.Title] = v.Value
+	}
+
+	podName, ok := m[podNameTitle]
+	if !ok {
+		return nil, fmt.Errorf(`the field "%s" should not be empty`, podNameTitle)
+	}
+
+	podNamespace, ok := m[podNamespaceTitle]
+	if !ok {
+		return nil, fmt.Errorf(`the field "%s" should not be empty`, podNamespaceTitle)
+	}
+
+	branchName, ok := m[branchTitle]
+	if !ok {
+		return nil, fmt.Errorf(`the field "%s" should not be empty`, branchTitle)
+	}
+
+	s := strings.Split(strings.TrimPrefix(a.TitleLink, runLinkBase), "/")
+	if len(s) != 5 {
+		return nil, fmt.Errorf("the title link should have %s fmt", runLinkFmt)
+	}
+	organizationName := s[0]
+	repositoryName := s[1]
+	runID, err := strconv.ParseUint(s[4], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return newPostResultPayload(
+		repositoryName,
+		organizationName,
+		a.Title,
+		branchName,
+		uint(runID),
+		podNamespace,
+		podName,
+		isFailed,
+	), nil
+}
+
+func (p *postResultPayload) makeExtendCallbackPayload() []slack.Attachment {
+	return []slack.Attachment{
+		{
+			Color: "#daa038",
+			Text: fmt.Sprintf(
+				"%s in %s is extended successfully",
+				p.PodName,
+				p.PodNamespace,
+			),
+		},
+	}
+}
+
 func (p *postResultPayload) makeWebhookMessage() *slack.WebhookMessage {
 	text := fmt.Sprintf("CI on %s/%s has succeded", p.OrganizationName, p.RepositoryName)
 	color := "#36a64f"
@@ -61,7 +139,7 @@ func (p *postResultPayload) makeWebhookMessage() *slack.WebhookMessage {
 				Color: color,
 				Title: p.WorkflowName,
 				TitleLink: fmt.Sprintf(
-					"https://github.com/%s/%s/actions/runs/%d",
+					runLinkFmt,
 					p.OrganizationName,
 					p.RepositoryName,
 					p.RunID,

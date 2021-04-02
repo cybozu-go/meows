@@ -75,71 +75,27 @@ func (s *SocketModeClient) ListenInteractiveEvents() error {
 			return fmt.Errorf("request should not be nil: %#v", envelope.Data)
 		}
 
-		name, namespace, err := s.extractNameFromWebhookMsg(&cb)
+		p, err := newPostResultPayloadFromCB(&cb)
 		if err != nil {
-			clog.Error("failed to extract name from webhook message", map[string]interface{}{
-				"cb": cb,
+			clog.Error("failed to get result from callback", map[string]interface{}{
+				clog.FnError: err,
+				"cb":         cb,
 			})
 			return err
 		}
 
 		// TODO: time.Now() is replaced after timepicker gets available.
-		err = s.annotate(name, namespace, time.Now().Add(30*time.Minute))
+		err = s.annotate(p.PodName, p.PodNamespace, time.Now().Add(30*time.Minute))
 		if err != nil {
 			clog.Error("failed to annotate deletion time", map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
+				clog.FnError: err,
+				"name":       p.PodName,
+				"namespace":  p.PodNamespace,
 			})
 			return err
 		}
 
-		s.client.Ack(*envelope.Request, s.makeExtendCallbackPayload(name, namespace))
+		s.client.Ack(*envelope.Request, p.makeExtendCallbackPayload())
 	}
 	return nil
-}
-
-func (s *SocketModeClient) makeExtendCallbackPayload(
-	podNamespace string,
-	podName string,
-) []slack.Attachment {
-	return []slack.Attachment{
-		{
-			Color: "#daa038",
-			Text: fmt.Sprintf(
-				"%s in %s is extended successfully",
-				podName,
-				podNamespace,
-			),
-		},
-	}
-}
-
-func (s *SocketModeClient) extractNameFromWebhookMsg(body *slack.InteractionCallback) (string, string, error) {
-	if len(body.Message.Attachments) != 2 {
-		return "", "", fmt.Errorf(
-			"length of attachments should be 2, but got %d: %#v",
-			len(body.Message.Attachments),
-			body.Message.Attachments,
-		)
-	}
-
-	var name, namespace string
-	a := body.Message.Attachments[0]
-	for _, v := range a.Fields {
-		switch v.Title {
-		case podNameTitle:
-			name = v.Value
-		case podNamespaceTitle:
-			namespace = v.Value
-		}
-	}
-
-	if len(name) == 0 {
-		return "", "", fmt.Errorf(`the field "%s" should not be empty`, podNameTitle)
-	}
-	if len(namespace) == 0 {
-		return "", "", fmt.Errorf(`the field "%s" should not be empty`, podNamespaceTitle)
-	}
-
-	return name, namespace, nil
 }
