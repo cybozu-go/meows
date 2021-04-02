@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"k8s.io/klog"
 )
 
 const (
@@ -21,8 +19,6 @@ const (
 	botTokenFlagName = "bot-token"
 	retryFlagName    = "retry"
 )
-
-var zapOpts zap.Options
 
 var extenderCmd = &cobra.Command{
 	Use:   "extender",
@@ -41,15 +37,15 @@ var extenderCmd = &cobra.Command{
 
 		cmd.SilenceUsage = true
 
-		zapLog, err := zap.NewDevelopment(zapOpts)
-		if err != nil {
-			return err
-		}
-		log := zapr.NewLogger(zapLog)
-
-		a := agent.AnnotateDeletionTime
+		var zapLog *zap.Logger
+		var annotator func(context.Context, string, string, time.Time) error
+		var err error
 		if isDevelopment {
-			a = func(_ context.Context, name string, namespace string, t time.Time) error {
+			zapLog, err = zap.NewDevelopment()
+			if err != nil {
+				return err
+			}
+			annotator = func(_ context.Context, name string, namespace string, t time.Time) error {
 				fmt.Printf(
 					"development: annotated %s to %s in %s",
 					t.UTC().Format(time.RFC3339),
@@ -58,9 +54,16 @@ var extenderCmd = &cobra.Command{
 				)
 				return nil
 			}
+		} else {
+			zapLog, err = zap.NewProduction()
+			if err != nil {
+				return err
+			}
+			annotator = agent.AnnotateDeletionTime
 		}
+		log := zapr.NewLogger(zapLog)
 
-		s := agent.NewSocketModeClient(&log, appToken, botToken, a)
+		s := agent.NewSocketModeClient(log, appToken, botToken, annotator)
 		// retry every 1 minute if failed to open connection
 		// because rate limit for `connection.open` is so small.
 		// https://api.slack.com/methods/apps.connections.open
@@ -91,12 +94,6 @@ func init() {
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
 	}
-
-	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
-	klog.InitFlags(goflags)
-	zapOpts.BindFlags(goflags)
-
-	fs.AddGoFlagSet(goflags)
 
 	viper.SetEnvPrefix("slack")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
