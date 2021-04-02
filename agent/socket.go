@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -14,14 +15,14 @@ import (
 // SocketModeClient is a client for Slack socket mode.
 type SocketModeClient struct {
 	client   *socketmode.Client
-	annotate func(string, string, time.Time) error
+	annotate func(context.Context, string, string, time.Time) error
 }
 
 // NewSocketModeClient creates SocketModeClient.
 func NewSocketModeClient(
 	appToken string,
 	botToken string,
-	annotate func(string, string, time.Time) error,
+	annotate func(context.Context, string, string, time.Time) error,
 ) *SocketModeClient {
 	return &SocketModeClient{
 		client: socketmode.New(
@@ -45,7 +46,7 @@ func (s *SocketModeClient) Run() error {
 
 // ListenInteractiveEvents listens to events from interactive components and
 // runs the event handler.
-func (s *SocketModeClient) ListenInteractiveEvents() error {
+func (s *SocketModeClient) ListenInteractiveEvents(ctx context.Context) error {
 	for envelope := range s.client.Events {
 		if envelope.Type != socketmode.EventTypeInteractive {
 			clog.Info("skipped event because type is not "+string(socketmode.EventTypeInteractive), map[string]interface{}{
@@ -85,7 +86,7 @@ func (s *SocketModeClient) ListenInteractiveEvents() error {
 		}
 
 		// TODO: time.Now() is replaced after timepicker gets available.
-		err = s.annotate(p.PodName, p.PodNamespace, time.Now().Add(30*time.Minute))
+		err = s.annotate(ctx, p.PodName, p.PodNamespace, time.Now().Add(30*time.Minute))
 		if err != nil {
 			clog.Error("failed to annotate deletion time", map[string]interface{}{
 				clog.FnError: err,

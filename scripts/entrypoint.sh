@@ -37,7 +37,7 @@ fi
 
 if [ -f /tmp/failed ]; then
   echo "Annotate pods with the time ${EXTEND_DURATION} later"
-  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME} -a ${EXTEND_DURATION}
+  deltime-annotate ${POD_NAME} -a ${EXTEND_DURATION}
 
   if [ -n "${SLACK_AGENT_URL}" ]; then
     echo "Send an notification to slack that CI failed"
@@ -54,7 +54,7 @@ if [ -f /tmp/failed ]; then
   fi
 else
   echo "Annotate pods with current time"
-  deltime-annotate -n ${POD_NAMESPACE} ${POD_NAME}
+  deltime-annotate ${POD_NAME}
 
   if [ -n "${SLACK_AGENT_URL}" ]; then
     echo "Send an notification to slack that CI failed"

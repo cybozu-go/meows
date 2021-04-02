@@ -36,8 +36,13 @@ var extenderCmd = &cobra.Command{
 
 		a := agent.AnnotateDeletionTime
 		if isDevelopment {
-			a = func(name string, namespace string, t time.Time) error {
-				fmt.Printf("development: annotated %s to %s in %s", t.UTC().Format(time.RFC3339), name, namespace)
+			a = func(_ context.Context, name string, namespace string, t time.Time) error {
+				fmt.Printf(
+					"development: annotated %s to %s in %s",
+					t.UTC().Format(time.RFC3339),
+					name,
+					namespace,
+				)
 				return nil
 			}
 		}
@@ -50,9 +55,7 @@ var extenderCmd = &cobra.Command{
 		retry := viper.GetUint("retry")
 		for i := uint(0); i < retry+1; i++ {
 			env := well.NewEnvironment(context.Background())
-			env.Go(func(_ context.Context) error {
-				return s.ListenInteractiveEvents()
-			})
+			env.Go(s.ListenInteractiveEvents)
 			env.Go(func(_ context.Context) error {
 				return s.Run()
 			})

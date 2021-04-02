@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -21,6 +22,7 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return agent.AnnotateDeletionTime(
+			context.Background(),
 			args[0],
 			config.namespace,
 			time.Now().UTC().Add(config.after),
