@@ -44,6 +44,9 @@ var extenderCmd = &cobra.Command{
 
 		var err error
 		s := agent.NewSocketModeClient(appToken, botToken, a)
+		// retry every 1 minute if failed to open connection
+		// because rate limit for `connection.open` is so small.
+		// https://api.slack.com/methods/apps.connections.open
 		retry := viper.GetUint("retry")
 		for i := uint(0); i < retry+1; i++ {
 			env := well.NewEnvironment(context.Background())
@@ -58,6 +61,7 @@ var extenderCmd = &cobra.Command{
 				"trycount": i + 1,
 				"retry":    retry,
 			})
+			time.Sleep(time.Minute)
 		}
 		if err != nil && !well.IsSignaled(err) {
 			log.ErrorExit(err)
