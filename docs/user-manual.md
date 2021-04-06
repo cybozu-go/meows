@@ -209,7 +209,7 @@ spec:
     spec:
       containers:
       - name: runner
-        image: quay.io/cybozu/actions-runner:latest
+        image: quay.io/cybozu/runner:latest
       serviceAccountName: runner
 ```
 
