@@ -35,6 +35,9 @@ AGENT_IMG ?= slack-agent:latest
 KIND_CLUSTER_NAME ?= kindtest-actions
 KIND_CONFIG := $(KINDTEST_DIR)/kind.yaml
 
+CONTROLLER_NAMESPACE ?= actions-system
+RUNNER_NAMESPACE ?= default
+
 GITHUB_APP_ID ?=
 GITHUB_APP_INSTALLATION_ID ?=
 GITHUB_APP_PRIVATE_KEY_PATH ?=
@@ -82,7 +85,10 @@ generate:
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: build
-build: generate ## Build manager binary.
+build: build-controller build-agent build-annotator## Build all binaries.
+
+.PHONY: build-controller
+build-controller: generate
 	go build -o bin/github-actions-controller ./cmd/controller
 
 .PHONY: build-agent
@@ -138,43 +144,33 @@ test: ## Run unit tests.
 
 .PHONY: prepare
 prepare: ## Prepare for kind test.
-	if [ -z "$${GITHUB_APP_ID}" ]; then \
-	  echo "GITHUB_APP_ID must be set" 1>&2; \
-	  exit 1; \
-	fi
-	if [ -z "$${GITHUB_APP_INSTALLATION_ID}" ]; then \
-	  echo "GITHUB_APP_INSTALLATION_ID must be set" 1>&2; \
-	  exit 1; \
-	fi
-	if [ -z "$${GITHUB_APP_PRIVATE_KEY_PATH}" ]; then \
-	  echo "GITHUB_APP_PRIVATE_KEY_PATH must be set" 1>&2; \
-	  exit 1; \
-	fi
-	if [ -z "$${SLACK_APP_TOKEN}" ]; then \
-	  echo "SLACK_APP_TOKEN must be set" 1>&2; \
-	  exit 1; \
-	fi
-	if [ -z "$${SLACK_BOT_TOKEN}" ]; then \
-	  echo "SLACK_BOT_TOKEN must be set" 1>&2; \
-	  exit 1; \
-	fi
-	if [ -z "$${SLACK_WEBHOOK_URL}" ]; then \
-	  echo "SLACK_WEBHOOK_URL must be set" 1>&2; \
-	  exit 1; \
-	fi
-	$(MAKE) start-kind
-	$(MAKE) load
-	$(KUBECTL) create ns actions-system
+	$(MAKE) github-secret
+	$(MAKE) slack-secret
+	$(MAKE) cert-manager
+	$(MAKE) install
 	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
+	$(KUSTOMIZE) build --load_restrictor='none' $(KINDTEST_DIR)/manifests | $(KUBECTL) apply -f -
+
+.PHONY: github-secret
+github-secret:
+	$(KUBECTL) get ns $(CONTROLLER_NAMESPACE) 2>&1 >/dev/null || $(KUBECTL) create ns $(CONTROLLER_NAMESPACE)
 	$(KUBECTL) create secret generic github-app-secret \
-		-n actions-system \
+		-n $(CONTROLLER_NAMESPACE) \
 		--from-literal=app-id=$(GITHUB_APP_ID) \
 		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
 		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
+
+.PHONY: slack-secret
+slack-secret:
+	$(KUBECTL) get ns $(RUNNER_NAMESPACE) 2>&1 >/dev/null || $(KUBECTL) create ns $(RUNNER_NAMESPACE)
 	$(KUBECTL) create secret generic slack-app-secret \
+		-n $(RUNNER_NAMESPACE) \
 		--from-literal=SLACK_WEBHOOK_URL=$(SLACK_WEBHOOK_URL) \
 		--from-literal=SLACK_APP_TOKEN=$(SLACK_APP_TOKEN) \
 		--from-literal=SLACK_BOT_TOKEN=$(SLACK_BOT_TOKEN)
+
+.PHONY: cert-manager
+cert-manager:
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
 	$(KUBECTL) wait pods -n cert-manager -l app=cert-manager --for=condition=Ready --timeout=1m
 	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=1m
@@ -182,11 +178,7 @@ prepare: ## Prepare for kind test.
 
 .PHONY: kindtest
 kindtest: ## Run test on kind.
-	$(MAKE) install
-	$(KUSTOMIZE) build --load_restrictor='none' $(KINDTEST_DIR)/manifests | $(KUBECTL) apply -f -
 	env KINDTEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v $(KINDTEST_DIR)
-
-##@ Deployment
 
 .PHONY: start-kind
 start-kind: ## Start kind cluster.
@@ -210,6 +202,8 @@ load-runner-image:
 .PHONY: load-agent-image
 load-agent-image:
 	$(KIND) load docker-image $(AGENT_IMG) --name $(KIND_CLUSTER_NAME)
+
+##@ Deployment
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.

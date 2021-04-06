@@ -3,7 +3,7 @@ FROM quay.io/cybozu/golang:1.16-focal as builder
 
 WORKDIR /workspace
 COPY . .
-RUN make build
+RUN make build-controller
 
 FROM quay.io/cybozu/ubuntu:20.04
 
