@@ -1,4 +1,4 @@
-package e2e
+package kindtest
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func testE2E() {
+func testRunner() {
 	ctx := context.Background()
 
 	It("should deploy manager successfully and have it deploy deployment", func() {
@@ -39,6 +39,7 @@ func testE2E() {
 		pods, err := fetchPods(runnerNS, runnerSelector)
 		Expect(err).ShouldNot(HaveOccurred())
 
+		// Set interval and limit considering rate limit.
 		Eventually(func() error {
 			return equalNumExistingRunners(ctx, pods, numRunners)
 		}, 2*time.Minute, 15*time.Second).ShouldNot(HaveOccurred())
@@ -62,6 +63,23 @@ func testE2E() {
 			}
 			return equalNumRecreatedPods(before, after, 1)
 		}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
+	})
+
+	It("should send a request to Slack agent", func() {
+		By("confirming that one of the slack-agent pod emitted a dummy message to stdout")
+		Eventually(func() error {
+			stdout, stderr, err := execAtLocal(
+				"sh", nil,
+				"-c", fmt.Sprintf(
+					"kubectl logs -n %s -l app=slack-agent -c notifier | grep -q %s",
+					runnerNS, "neco-test/github-actions-controller-ci",
+				),
+			)
+			if err != nil {
+				return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+			}
+			return nil
+		}).ShouldNot(HaveOccurred())
 	})
 
 	It("should run a failure job on a self-hosted runner Pod and delete the Pod after a while", func() {
@@ -93,16 +111,13 @@ func testE2E() {
 		now := time.Now().UTC()
 		fmt.Println("====== Current time is " + now.Format(time.RFC3339))
 
-		// NOTE:
-		// Runner env EXTEND_DURATION=30s
-		// controller flag --pod-sweep-interval=1s
-		By("confirming no Pod is recreated within 20 seconds after job finishes")
+		By("confirming the timestamp value is around 30 sec later from now")
 		t, err := time.Parse(time.RFC3339, shouldBeDeletedAt)
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(now.Add(20 * time.Second).Before(t)).To(BeTrue())
 		Expect(now.Add(30 * time.Second).After(t)).To(BeTrue())
 
-		By("confirming one Pod is recreated in 30 seconds after job finishes")
+		By("confirming one Pod is recreated")
 		Eventually(func() error {
 			after, err := fetchPods(runnerNS, runnerSelector)
 			if err != nil {
@@ -131,6 +146,7 @@ func testE2E() {
 		}).ShouldNot(HaveOccurred())
 
 		By("confirming runners are deleted via GitHub Actions API")
+		// Set interval and limit considering rate limit.
 		Eventually(func() error {
 			return equalNumExistingRunners(ctx, pods, 0)
 		}, 3*time.Minute, 30*time.Second).ShouldNot(HaveOccurred())

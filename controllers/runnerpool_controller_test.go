@@ -21,6 +21,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 	organizationName := "runnerpool-org"
 	repositoryName := "runnerpool-repo"
 	namespace := "runnerpool-ns"
+	slackAgentServiceName := "slack-agent"
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -122,7 +123,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 				Namespace: namespace,
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
-				RepositoryName: repositoryName,
+				RepositoryName:        repositoryName,
+				SlackAgentServiceName: &slackAgentServiceName,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"app": name,
@@ -174,12 +176,16 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(d.Labels[constants.RunnerRepoLabelKey]).To(Equal(repositoryName))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
-		Expect(c.Env).To(HaveLen(3))
-		Expect(c.Env[0].Name).To(Equal(constants.RunnerNameEnvName))
+		Expect(c.Env).To(HaveLen(5))
+		Expect(c.Env[0].Name).To(Equal(constants.PodNameEnvName))
 		Expect(c.Env[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))
-		Expect(c.Env[1].Name).To(Equal(constants.RunnerOrgEnvName))
-		Expect(c.Env[1].Value).To(Equal(organizationName))
-		Expect(c.Env[2].Name).To(Equal(constants.RunnerRepoEnvName))
-		Expect(c.Env[2].Value).To(Equal(repositoryName))
+		Expect(c.Env[1].Name).To(Equal(constants.PodNamespaceEnvName))
+		Expect(c.Env[1].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.namespace"))
+		Expect(c.Env[2].Name).To(Equal(constants.RunnerOrgEnvName))
+		Expect(c.Env[2].Value).To(Equal(organizationName))
+		Expect(c.Env[3].Name).To(Equal(constants.RunnerRepoEnvName))
+		Expect(c.Env[3].Value).To(Equal(repositoryName))
+		Expect(c.Env[4].Name).To(Equal(constants.SlackAgentEnvName))
+		Expect(c.Env[4].Value).To(Equal(slackAgentServiceName))
 	})
 })

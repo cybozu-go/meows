@@ -1,17 +1,24 @@
-package githubactionscontroller
+package constants
 
+// constants for GitHub actions controller
 const (
 	// RunnerContainerName is a container name which runs GitHub Actions runner.
 	RunnerContainerName = "runner"
 
-	// RunnerNameEnvName is a env field key for RUNNER_NAME.
-	RunnerNameEnvName = "RUNNER_NAME"
+	// PodNameEnvName is a env field key for POD_NAME.
+	PodNameEnvName = "POD_NAME"
+
+	// PodNamespaceEnvName is a env field key for POD_NAME.
+	PodNamespaceEnvName = "POD_NAMESPACE"
 
 	// RunnerOrgEnvName is a env field key for RUNNER_ORG.
 	RunnerOrgEnvName = "RUNNER_ORG"
 
 	// RunnerRepoEnvName is a env field key for RUNNER_REPO.
 	RunnerRepoEnvName = "RUNNER_REPO"
+
+	// SlackAgentEnvName is a env field key for SLACK_AGENT_SERVICE_NAME.
+	SlackAgentEnvName = "SLACK_AGENT_SERVICE_NAME"
 
 	// RunnerTokenEnvName is a env field key for RUNNER_TOKEN.
 	RunnerTokenEnvName = "RUNNER_TOKEN"
@@ -23,5 +30,5 @@ const (
 	RunnerRepoLabelKey = "actions.cybozu.com/repository"
 
 	// PodDeletionTimeKey is an annotation key to manage pod deletion time.
-	PodDeletionTimeKey = "actions.cybozu.com/deletedAt"
+	PodDeletionTimeKey = "actions.cybozu.com/deleted-at"
 )

@@ -20,6 +20,10 @@ type RunnerPoolSpec struct {
 	// runners.
 	RepositoryName string `json:"repositoryName"`
 
+	// SlackAgentServiceName is a Service name of Slack agent.
+	// +optional
+	SlackAgentServiceName *string `json:"slackAgentServiceName,omitempty"`
+
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// +optional

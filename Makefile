@@ -10,7 +10,7 @@ CERT_MANAGER_VERSION := 1.2.0
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 BIN_DIR := $(PROJECT_DIR)/bin
 ENVTEST_ASSETS_DIR := $(PROJECT_DIR)/testbin
-E2E_DIR := $(PROJECT_DIR)/e2e
+KINDTEST_DIR := $(PROJECT_DIR)/kindtest
 
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
 KUSTOMIZE := $(BIN_DIR)/kustomize
@@ -29,14 +29,22 @@ SHELL = /bin/bash
 # Image URL to use all building/pushing image targets
 CONTROLLER_IMG ?= controller:latest
 RUNNER_IMG ?= runner:latest
+AGENT_IMG ?= slack-agent:latest
 
 # kind envs
-KIND_CLUSTER_NAME ?= e2e-actions
-KIND_CONFIG := $(E2E_DIR)/kind.yaml
+KIND_CLUSTER_NAME ?= kindtest-actions
+KIND_CONFIG := $(KINDTEST_DIR)/kind.yaml
+
+CONTROLLER_NAMESPACE ?= actions-system
+RUNNER_NAMESPACE ?= default
 
 GITHUB_APP_ID ?=
 GITHUB_APP_INSTALLATION_ID ?=
 GITHUB_APP_PRIVATE_KEY_PATH ?=
+
+SLACK_WEBHOOK_URL ?=
+SLACK_APP_TOKEN ?=
+SLACK_BOT_TOKEN ?=
 
 CRD_OPTIONS ?=
 
@@ -77,15 +85,26 @@ generate:
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: build
-build: generate ## Build manager binary.
+build: build-controller build-agent build-annotator## Build all binaries.
+
+.PHONY: build-controller
+build-controller: generate
 	go build -o bin/github-actions-controller ./cmd/controller
+
+.PHONY: build-agent
+build-agent:
+	go build -o bin/slack-agent ./cmd/slack-agent
+
+.PHONY: build-annotator
+build-annotator:
+	go build -o bin/deltime-annotate ./cmd/deltime-annotate
 
 .PHONY: run
 run: manifests generate ## Run a controller from your host.
 	go run ./cmd/controller
 
 .PHONY: images
-images: controller-image runner-image ## Build both container and runner docker images.
+images: controller-image runner-image agent-image ## Build both container and runner docker images.
 
 .PHONY: controller-image
 controller-image:
@@ -94,6 +113,10 @@ controller-image:
 .PHONY: runner-image
 runner-image:
 	docker build -f Dockerfile.runner -t ${RUNNER_IMG} .
+
+.PHONY: agent-image
+agent-image:
+	docker build -f Dockerfile.agent -t ${AGENT_IMG} .
 
 ##@ Test
 
@@ -120,40 +143,42 @@ test: ## Run unit tests.
 	}
 
 .PHONY: prepare
-prepare: ## Prepare for e2e test.
-	if [ -z "$${GITHUB_APP_ID}" ]; then \
-	  echo "GITHUB_APP_ID must be set" 1>&2; \
-	  exit 1; \
-	fi
-	if [ -z "$${GITHUB_APP_INSTALLATION_ID}" ]; then \
-	  echo "GITHUB_APP_INSTALLATION_ID must be set" 1>&2; \
-	  exit 1; \
-	fi
-	if [ -z "$${GITHUB_APP_PRIVATE_KEY_PATH}" ]; then \
-	  echo "GITHUB_APP_PRIVATE_KEY_PATH must be set" 1>&2; \
-	  exit 1; \
-	fi
-	$(MAKE) start-kind
-	$(MAKE) load
-	$(KUBECTL) create ns actions-system
+prepare: ## Prepare for kind test.
+	$(MAKE) github-secret
+	$(MAKE) slack-secret
+	$(MAKE) cert-manager
+	$(MAKE) install
 	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
+	$(KUSTOMIZE) build --load_restrictor='none' $(KINDTEST_DIR)/manifests | $(KUBECTL) apply -f -
+
+.PHONY: github-secret
+github-secret:
+	$(KUBECTL) get ns $(CONTROLLER_NAMESPACE) 2>&1 >/dev/null || $(KUBECTL) create ns $(CONTROLLER_NAMESPACE)
 	$(KUBECTL) create secret generic github-app-secret \
-		-n actions-system \
+		-n $(CONTROLLER_NAMESPACE) \
 		--from-literal=app-id=$(GITHUB_APP_ID) \
 		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
 		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
+
+.PHONY: slack-secret
+slack-secret:
+	$(KUBECTL) get ns $(RUNNER_NAMESPACE) 2>&1 >/dev/null || $(KUBECTL) create ns $(RUNNER_NAMESPACE)
+	$(KUBECTL) create secret generic slack-app-secret \
+		-n $(RUNNER_NAMESPACE) \
+		--from-literal=SLACK_WEBHOOK_URL=$(SLACK_WEBHOOK_URL) \
+		--from-literal=SLACK_APP_TOKEN=$(SLACK_APP_TOKEN) \
+		--from-literal=SLACK_BOT_TOKEN=$(SLACK_BOT_TOKEN)
+
+.PHONY: cert-manager
+cert-manager:
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
 	$(KUBECTL) wait pods -n cert-manager -l app=cert-manager --for=condition=Ready --timeout=1m
 	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=1m
 	$(KUBECTL) wait pods -n cert-manager -l app=webhook --for=condition=Ready --timeout=1m
 
-.PHONY: e2e
-e2e: ## Run e2e test.
-	$(MAKE) install
-	$(KUSTOMIZE) build --load_restrictor='none' $(E2E_DIR)/manifests | $(KUBECTL) apply -f -
-	env E2ETEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v $(E2E_DIR)
-
-##@ Deployment
+.PHONY: kindtest
+kindtest: ## Run test on kind.
+	env KINDTEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v $(KINDTEST_DIR)
 
 .PHONY: start-kind
 start-kind: ## Start kind cluster.
@@ -164,7 +189,7 @@ stop-kind: ## Stop kind cluster
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
 
 .PHONY: load
-load: load-controller-image load-runner-image ## Load docker images onto k8s cluster.
+load: load-controller-image load-runner-image load-agent-image ## Load docker images onto k8s cluster.
 
 .PHONY: load-controller-image
 load-controller-image:
@@ -173,6 +198,12 @@ load-controller-image:
 .PHONY: load-runner-image
 load-runner-image:
 	$(KIND) load docker-image $(RUNNER_IMG) --name $(KIND_CLUSTER_NAME)
+
+.PHONY: load-agent-image
+load-agent-image:
+	$(KIND) load docker-image $(AGENT_IMG) --name $(KIND_CLUSTER_NAME)
+
+##@ Deployment
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.

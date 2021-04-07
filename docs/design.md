@@ -35,9 +35,12 @@ Components
   - Runner sweeper: A component to sweep registered information about runners
     on GitHub periodically.
   - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time
-    limit periodically.
-- Slack agent: Server for notifying user whether jobs are failed or not and
-  accepting extending requests from outside of Kubernetes.
+    annotation periodically.
+- Slack agent
+  - Notifier: HTTP Server which accepts requests from runner `Pod`s and notify user
+    whether jobs are failed or not via Slack Webhook.
+  - Extender: WebSocket client which watches Slack button events and extends the
+    lifetime of a `Pod` by annotating the `Pod` with the extended deletion time.
 
 Diagram: T.B.A
 
@@ -69,14 +72,15 @@ Architecture
       future time, for example 20 min later.
 1. The Slack agent notifies the result of the job on a Slack channel.
 1. Users can extend the failed runner if they want to by clicking a button on Slack.
-1. The Slack agent is running a WebSocket process to watch extending messages.
-  If it receives a message, it annotates the `Pod` manifest with the designated time.
+1. The Slack agent is running a WebSocket process to watch extending messages
+  from Slack. If it receives a message, it annotates the `Pod` manifest with the
+  designated time.
 1. `Pod` sweeper periodically checks if there are `Pod`s annotated with the old
   timestamp, and if any, it deletes `Pod`s.
 
-### Runner's state management
+### How Runner's state is managed
 
-A runner `Pod` has the following state as a GitHub Actions job runner.
+A Runner `Pod` has the following state as a GitHub Actions job runner.
 
 - registered: `Pod` registered itself on GitHub Actions.
 - initialized: `Pod` finished the initialization.
@@ -96,9 +100,12 @@ However, as mentioned above, GitHub API does not provide a way to connect the jo
 status information with the self-hosted runner.  So, runner `Pod`s have to execute
 commands to tell the metrics exporter server that the state has changed.
 
-### Why is webhook needed ?
+### How runner `Pod`s are deleted
 
-This is mainly because GitHub Actions registration token expires after 1 hour as written [here](https://docs.github.com/en/rest/reference/actions#create-a-registration-token-for-a-repository).
+### Why is webhook used
+
+This is mainly because GitHub Actions registration token expires after 1 hour as
+written [here](https://docs.github.com/en/rest/reference/actions#create-a-registration-token-for-a-repository).
 
 - If a token is given in the `env` field in a pod template of `Deployment`, `Pod`
   cannot register itself again when recreated.

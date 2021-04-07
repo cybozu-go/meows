@@ -3,11 +3,11 @@ FROM quay.io/cybozu/golang:1.16-focal as builder
 
 WORKDIR /workspace
 COPY . .
-RUN make build
+RUN make build-controller
 
 FROM quay.io/cybozu/ubuntu:20.04
-WORKDIR /
-COPY --from=builder /workspace/bin/github-actions-controller .
+
+COPY --from=builder /workspace/bin/github-actions-controller /usr/local/bin
 
 USER 10000:10000
-ENTRYPOINT ["/github-actions-controller"]
+ENTRYPOINT ["github-actions-controller"]

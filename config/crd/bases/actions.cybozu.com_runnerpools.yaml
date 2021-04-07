@@ -91,6 +91,9 @@ spec:
                       are ANDed.
                     type: object
                 type: object
+              slackAgentServiceName:
+                description: SlackAgentServiceName is a Service name of Slack agent.
+                type: string
               strategy:
                 description: The deployment strategy to use to replace existing pods
                   with new ones.

@@ -4,6 +4,7 @@ metadata:
   name: runnerpool-sample
 spec:
   repositoryName: repository-sample
+  slackAgentServiceName: slack-agent
   replicas: 3
   selector:
     matchLabels:
