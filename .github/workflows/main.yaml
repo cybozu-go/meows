@@ -24,7 +24,7 @@ jobs:
     env:
       GITHUB_APP_ID: ${{ secrets.APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
-      GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      GITHUB_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
       GITHUB_APP_PRIVATE_KEY_PATH: key.pem
       SLACK_APP_TOKEN: dummy
       SLACK_BOT_TOKEN: dummy
