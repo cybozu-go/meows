@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: runner
-        image: runner:latest
+        image: actions-runner:latest
       serviceAccountName: runner
 ---
 apiVersion: v1

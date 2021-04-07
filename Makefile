@@ -27,9 +27,9 @@ SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
 
 # Image URL to use all building/pushing image targets
-CONTROLLER_IMG ?= controller:latest
-RUNNER_IMG ?= runner:latest
-AGENT_IMG ?= slack-agent:latest
+CONTROLLER_IMG ?= actions-controller:latest
+RUNNER_IMG ?= actions-runner:latest
+AGENT_IMG ?= actions-slack-agent:latest
 
 # kind envs
 KIND_CLUSTER_NAME ?= kindtest-actions
