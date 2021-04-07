@@ -184,4 +184,5 @@ This button can be clicked multiple times if the `Pod` still exists.
 
 NOTE:  
 The time picker feature is still beta, and [`github.com/slack-go/slack`](https://github.com/slack-go/slack)
-cannot parse interactive messages which contains a time picker component.
+can parse interactive messages which contains a time picker component after [this](https://github.com/slack-go/slack/pull/918)
+change is released.
