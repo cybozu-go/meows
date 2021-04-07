@@ -93,7 +93,7 @@ way to do that.
 ```bash
 $ export GITHUB_APP_ID=<your GitHub App ID>
 $ export GITHUB_APP_INSTALLATION_ID=<your GitHub installation ID>
-$ export GITHUB_APP_PRIVATE_KEY_PATH=<path to your .pem file>
+$ export GITHUB_APP_PRIVATE_KEY=$(cat <path to your .pem file>)
 $ export SLACK_APP_TOKEN=dummy
 $ export SLACK_BOT_TOKEN=dummy
 $ export SLACK_WEBHOOK_URL=dummy
