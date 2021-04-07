@@ -40,7 +40,7 @@ RUNNER_NAMESPACE ?= default
 
 GITHUB_APP_ID ?=
 GITHUB_APP_INSTALLATION_ID ?=
-GITHUB_APP_PRIVATE_KEY ?=
+GITHUB_APP_PRIVATE_KEY_PATH ?=
 
 SLACK_WEBHOOK_URL ?=
 SLACK_APP_TOKEN ?=
@@ -158,7 +158,7 @@ github-secret:
 		-n $(CONTROLLER_NAMESPACE) \
 		--from-literal=app-id=$(GITHUB_APP_ID) \
 		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
-		--from-literal=app-private-key=$(GITHUB_APP_PRIVATE_KEY)
+		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
 
 .PHONY: slack-secret
 slack-secret:

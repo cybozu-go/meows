@@ -43,7 +43,7 @@ kubectl create secret generic github-app-secret \
   -n ${NAMESPACE} \
   --from-literal=app-id=${GITHUB_APP_ID} \
   --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
-  --from-literal=app-private-key=$(cat ${GITHUB_APP_PRIVATE_KEY})
+  --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
 ```
 
 In addition to this, the admission webhook requires a TLS certificate.

@@ -25,6 +25,7 @@ jobs:
       GITHUB_APP_ID: ${{ secrets.APP_ID }}
       GITHUB_APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
       GITHUB_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+      GITHUB_APP_PRIVATE_KEY_PATH: /tmp/key.pem
       SLACK_APP_TOKEN: dummy
       SLACK_BOT_TOKEN: dummy
       SLACK_WEBHOOK_URL: dummy
@@ -34,6 +35,7 @@ jobs:
         with:
           go-version: 1.16
       - run: |
+          echo ${GITHUB_APP_PRIVATE_KEY} > /tmp/key.pem
           make setup
           make images
           make start-kind
