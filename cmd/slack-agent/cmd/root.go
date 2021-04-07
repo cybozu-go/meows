@@ -10,7 +10,7 @@ import (
 var isDevelopment bool
 
 var rootCmd = &cobra.Command{
-	Use:   "Slack agent for GitHub Actions self-hosted runner",
+	Use:   "slack-agent",
 	Short: "Slack agent notifies CI results via Webhook and accepts requests for extending Pods' lifecycles",
 	Long:  `Slack agent notifies CI results via Webhook and accepts requests for extending Pods' lifecycles`,
 }

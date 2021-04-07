@@ -16,7 +16,7 @@ var config struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "Deletion time annotator",
+	Use:   "deltime-annotator PODNAME",
 	Short: "Annotate deletion time from inside Pods",
 	Long:  `Annotate deletion time from inside Pods`,
 	Args:  cobra.ExactArgs(1),

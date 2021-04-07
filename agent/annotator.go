@@ -2,12 +2,14 @@ package agent
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -29,15 +31,38 @@ func AnnotateDeletionTime(
 		return err
 	}
 
-	p := []byte(fmt.Sprintf(
-		`{ "metadata": { "annotations": { "%s": "%s" } } }`,
-		constants.PodDeletionTimeKey,
-		t.UTC().Format(time.RFC3339),
-	))
+	po, err := clientset.
+		CoreV1().
+		Pods(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	patched := po.DeepCopy()
+	if patched.Annotations == nil {
+		patched.Annotations = make(map[string]string)
+	}
+	patched.Annotations[constants.PodDeletionTimeKey] = t.UTC().Format(time.RFC3339)
+
+	before, err := json.Marshal(po)
+	if err != nil {
+		return err
+	}
+
+	after, err := json.Marshal(patched)
+	if err != nil {
+		return err
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(before, after, &corev1.Pod{})
+	if err != nil {
+		return err
+	}
 
 	_, err = clientset.
 		CoreV1().
 		Pods(namespace).
-		Patch(ctx, name, types.StrategicMergePatchType, p, metav1.PatchOptions{})
+		Patch(ctx, name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 	return err
 }

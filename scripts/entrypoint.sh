@@ -39,7 +39,7 @@ if [ -f /tmp/failed ]; then
   echo "Annotate pods with the time ${EXTEND_DURATION} later"
   deltime-annotate ${POD_NAME} -a ${EXTEND_DURATION}
 
-  if [ -n "${SLACK_AGENT_URL}" ]; then
+  if [ -n "${SLACK_AGENT_SERVICE_NAME}" ]; then
     echo "Send an notification to slack that CI failed"
     slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
       --workflow ${WORKFLOW_NAME} \
@@ -47,16 +47,16 @@ if [ -f /tmp/failed ]; then
       --organization ${RUNNER_ORG} \
       --repository ${RUNNER_REPO} \
       --run-id ${RUN_ID} \
-      --notifier-address ${SLACK_AGENT_URL} \
+      --notifier-address ${SLACK_AGENT_SERVICE_NAME} \
       --failed
   else
-    echo "Skip sending an notification to slack because SLACK_AGENT_URL is blank"
+    echo "Skip sending an notification to slack because SLACK_AGENT_SERVICE_NAME is blank"
   fi
 else
   echo "Annotate pods with current time"
   deltime-annotate ${POD_NAME}
 
-  if [ -n "${SLACK_AGENT_URL}" ]; then
+  if [ -n "${SLACK_AGENT_SERVICE_NAME}" ]; then
     echo "Send an notification to slack that CI failed"
     slack-agent client -n ${POD_NAMESPACE} ${POD_NAME} \
       --workflow ${WORKFLOW_NAME} \
@@ -64,9 +64,9 @@ else
       --organization ${RUNNER_ORG} \
       --repository ${RUNNER_REPO} \
       --run-id ${RUN_ID} \
-      --notifier-address ${SLACK_AGENT_URL}
+      --notifier-address ${SLACK_AGENT_SERVICE_NAME}
   else
-    echo "Skip sending an notification to slack because SLACK_AGENT_URL is blank"
+    echo "Skip sending an notification to slack because SLACK_AGENT_SERVICE_NAME is blank"
   fi
 fi
 sleep infinity

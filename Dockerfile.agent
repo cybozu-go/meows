@@ -2,7 +2,7 @@ FROM quay.io/cybozu/golang:1.16-focal as builder
 
 WORKDIR /workspace
 COPY . .
-RUN make build-agent build-annotator
+RUN make build-agent
 
 FROM quay.io/cybozu/ubuntu:20.04
 

@@ -17,7 +17,7 @@ var clientConfig struct {
 }
 
 var clientCmd = &cobra.Command{
-	Use:   "client",
+	Use:   "client PODNAME",
 	Short: "client sends requests to Slack agent notifier",
 	Long:  `client sends requests to Slack agent notifier`,
 	Args:  cobra.ExactArgs(1),

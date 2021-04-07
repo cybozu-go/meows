@@ -238,12 +238,12 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 			},
 		)
 	}
-	if _, ok := envMap[constants.SlackAgentEnvName]; !ok && rp2.Spec.SlackAgentURL != nil {
+	if _, ok := envMap[constants.SlackAgentEnvName]; !ok && rp2.Spec.SlackAgentServiceName != nil {
 		container.Env = append(
 			container.Env,
 			corev1.EnvVar{
 				Name:  constants.SlackAgentEnvName,
-				Value: *rp2.Spec.SlackAgentURL,
+				Value: *rp2.Spec.SlackAgentServiceName,
 			},
 		)
 	}

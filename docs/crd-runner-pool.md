@@ -15,14 +15,14 @@ GitHub Actions self-hosted runners.
 RunnerPoolSpec
 --------------
 
-| Field            | Type                   | Description                                              |
-|------------------|------------------------|----------------------------------------------------------|
-| `repositoryName` | string                 | Repository Name to register Pods as self-hosted runners. |
-| `slackAgentURL`  | string                 | URL of Slack agent.                                      |
-| `replicas`       | int32                  | Number of desired Pods.                                  |
-| `selector`       | [LabelSelector][]      | Label selector for pods.                                 |
-| `template`       | [PodTemplateSpec][]    | Pod manifest Template.                                   |
-| `strategy`       | [DeploymentStrategy][] | Strategy to replace existing Pods with new ones.         |
+| Field                   | Type                   | Description                                              |
+|-------------------------|------------------------|----------------------------------------------------------|
+| `repositoryName`        | string                 | Repository Name to register Pods as self-hosted runners. |
+| `slackAgentServiceName` | string                 | Service name of Slack agent.                             |
+| `replicas`              | int32                  | Number of desired Pods.                                  |
+| `selector`              | [LabelSelector][]      | Label selector for pods.                                 |
+| `template`              | [PodTemplateSpec][]    | Pod manifest Template.                                   |
+| `strategy`              | [DeploymentStrategy][] | Strategy to replace existing Pods with new ones.         |
 
 RunnerPoolStatus
 ----------------

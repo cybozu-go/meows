@@ -21,7 +21,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 	organizationName := "runnerpool-org"
 	repositoryName := "runnerpool-repo"
 	namespace := "runnerpool-ns"
-	slackAgentURL := "slack-agent-url"
+	slackAgentServiceName := "slack-agent"
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -123,8 +123,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 				Namespace: namespace,
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
-				RepositoryName: repositoryName,
-				SlackAgentURL:  &slackAgentURL,
+				RepositoryName:        repositoryName,
+				SlackAgentServiceName: &slackAgentServiceName,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"app": name,
@@ -186,6 +186,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(c.Env[3].Name).To(Equal(constants.RunnerRepoEnvName))
 		Expect(c.Env[3].Value).To(Equal(repositoryName))
 		Expect(c.Env[4].Name).To(Equal(constants.SlackAgentEnvName))
-		Expect(c.Env[4].Value).To(Equal(slackAgentURL))
+		Expect(c.Env[4].Value).To(Equal(slackAgentServiceName))
 	})
 })

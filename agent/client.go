@@ -12,6 +12,7 @@ const postResultPath = "/result"
 
 // NotifierClient is a client for Slack agent notifier.
 type NotifierClient struct {
+	// this could be *http.Client if needed, but keep it simple for now.
 	notifierURL *url.URL
 }
 
