@@ -141,6 +141,10 @@ You are responsible for:
   Kubernetes cluster, so a `Service` name is acceptable. If `slackAgentServiceName`
   is omitted, the `Pod`s do not send notifications to Slack.
 
+After running `Pod`s, you can check if the runners are actually registered to
+GitHub on the **Actions** page under each repository's **Settings**
+(e.g. https://github.com/cybozu-go/github-actions-controller/settings/actions).
+
 How to use self-hosted runners
 ------------------------------
 
