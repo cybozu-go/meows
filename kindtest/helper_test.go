@@ -139,7 +139,10 @@ func equalNumExistingRunners(
 
 	runnerMap := make(map[string]struct{})
 	for _, r := range runners.Runners {
-		if r == nil || r.Name == nil {
+		if r == nil || r.Name == nil || r.Status == nil {
+			continue
+		}
+		if *r.Status != "online" {
 			continue
 		}
 		runnerMap[*r.Name] = struct{}{}
