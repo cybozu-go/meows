@@ -26,15 +26,15 @@ jobs:
       - name: Tag images
         run: |
           TAG=${GITHUB_REF#refs/tags/v}
-          docker tag ${CONTROLLER_IMG} quay.io/cybozu/actions-controller:$TAG
-          docker tag ${RUNNER_IMG} quay.io/cybozu/actions-runner:$TAG
-          docker tag ${AGENT_IMG} quay.io/cybozu/actions-slack-agent:$TAG
+          docker tag ${CONTROLLER_IMG} ${CONTROLLER_IMG/latest/${TAG}}
+          docker tag ${RUNNER_IMG} ${RUNNER_IMG/latest/${TAG}}
+          docker tag ${AGENT_IMG} ${AGENT_IMG/latest/${TAG}}
       - name: Push versioned images
         run: |
           TAG=${GITHUB_REF#refs/tags/v}
-          docker push quay.io/cybozu/actions-controller:$TAG
-          docker push quay.io/cybozu/actions-runner:$TAG
-          docker push quay.io/cybozu/actions-slack-agent:$TAG
+          docker push ${CONTROLLER_IMG/latest/${TAG}}
+          docker push ${RUNNER_IMG/latest/${TAG}}
+          docker push ${AGENT_IMG/latest/${TAG}}
       - name: Push the latest images
         run: |
           docker push ${CONTROLLER_IMG}
