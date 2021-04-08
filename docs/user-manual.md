@@ -190,3 +190,21 @@ NOTE:
 The time picker feature is still beta, and [`github.com/slack-go/slack`](https://github.com/slack-go/slack)
 can parse interactive messages which contains a time picker component after [this](https://github.com/slack-go/slack/pull/918)
 change is released.
+
+How to recreate Pod when update
+-------------------------------
+
+Runners download new runners when a new release is out, but we would still face a
+situation that we have to update the runner `Pod` image.
+
+Here are some small technique to decrease the downtime in your CI.
+
+- Restart all the `Pod`s at the same time by setting update strategy `Recreate`.
+- Dare use `:latest` image and let the `Pod`s upgrade by themeself after a job
+  is scheduled and executed.
+  The official document says that the `:latest` tag should be avoided in production
+  because it's harder to track which version is running, but self-hosted runners
+  do not run in production and the runners upgrade itself in the first place.
+
+You are still forced to kill `Pod`s to update them, but hopefully these help you
+decrease such opportunities.

@@ -71,9 +71,11 @@ The following steps are needed to register a runner on GitHub Actions.
 1. Execute [`run.sh`](https://github.com/actions/runner/blob/main/src/Misc/layoutroot/run.sh) or [`runsvc.sh`](https://github.com/actions/runner/blob/main/src/Misc/layoutbin/runsvc.sh)
   to start the long polling for GitHub Actions API.
 
-`run.sh` and `runsvc.sh` execute the same command in the end, but `runsvc.sh`
-is preferable because it handles some errors and then restarts the main command
-automatically.
+`run.sh` and `runsvc.sh` execute the same binary to start a long polling in the
+end, but `runsvc.sh` is preferable because it handles some errors and then
+restarts the main command automatically.
+They upgrade the the binary by themselves when a new release is out. This help
+us avoid unnecessary `Pod` recreation.
 
 #### `runsvc.sh` should be executed right after `config.sh`
 
@@ -123,6 +125,18 @@ and might change unexpectedly.
   runner. If one runner dies `offline` holding a unprocessed job and another
   runner is created with the same name, the new runner starts the job once it
   gets `online`.
+
+### Runners can have multiple custom labels
+
+The [custom label](https://docs.github.com/en/actions/hosting-your-own-runners/using-labels-with-self-hosted-runners)
+is a label to route jobs to specific types of runners. Users usually use
+self-hosted runners by setting `self-hosted` to `runs-on` in a workflow
+definition. If custom labels are given, users are allowed to set one of the
+custom lebel value to `runs-on`. This is useful when you want to use multiple
+types of runners, for example, `highmem`and `highcpu`.
+
+This feature seems to be advanced, and we might not need to use it in the early
+stage of the development. I keep this in this document for future use.
 
 ### How self-hosted runners are created and runs jobs
 
