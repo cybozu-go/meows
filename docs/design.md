@@ -79,8 +79,8 @@ us avoid unnecessary `Pod` recreation.
 
 #### `runsvc.sh` should be executed right after `config.sh`
 
-We are allowed to execute `runsvc.sh` within about 30 seconds after executing
-`config.sh`.  After that, `runsvc.sh` fails to open a connection with GitHub Actions
+We should execute `runsvc.sh` within about 30 seconds after executing `config.sh`.
+After that, `runsvc.sh` fails to open a connection with GitHub Actions
 API.  Note that this behavior is not clearly written in the official documentation
 and might change unexpectedly.
 
@@ -174,7 +174,8 @@ stage of the development. I keep this in this document for future use.
 A Runner `Pod` has the following state as a GitHub Actions job runner.
 
 - registered: `Pod` registered itself on GitHub Actions.
-- initialized: `Pod` finished the initialization.
+- initialized: `Pod` finished an initialization, for example, booting a couple
+  of VMs needed in a job before the job is assigned.
 - listening: `Pod` starts listening with Long Polling.
 - assigned: `Pod` is assigned a job and starts running it.
 - debug: The job has finished with failure and Users can enter `Pod` to debug.
@@ -212,4 +213,17 @@ repository and we need to make another component responsible for registering tok
   However, if `Pod`s are recreated in some reasons, it cannot register itself again.
 - Persistent volumes can store the resitration information, but stateful workloads
   are generally more diffcult to manage than stateless workloads.
+
+Update:  
+Originally, `runsvc.sh` is thought to be able to run in 1 hour or more after
+`config.sh` is done, but it turns out that we should execute `runsvc.sh` withi
+about 30 seconds after executing `config.sh`. This means that `config.sh` which
+registers a runner on GitHub has to run after the initialization step.
+So, an initialiation step might be time-consuming, but it's limited to finishing
+a job in 1 hour in the current design.
+
+This might be improved by taking the way that the controller updates a `Secret`
+periodically. Otherwise, we have to create a server responsible for getting
+registration tokens and have runners make a request for the server to get a
+token right after the initialiation is done.
 
