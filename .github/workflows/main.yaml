@@ -6,7 +6,7 @@ on:
       - 'main'
 jobs:
   build:
-    name: Build image
+    name: Build
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -18,4 +18,27 @@ jobs:
           make lint
           make test
           make build
+  kindtest:
+    name: Run test on kind
+    runs-on: ubuntu-20.04
+    env:
+      GITHUB_APP_ID: ${{ secrets.APP_ID }}
+      GITHUB_APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
+      GITHUB_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+      GITHUB_APP_PRIVATE_KEY_PATH: /tmp/key.pem
+      SLACK_APP_TOKEN: dummy
+      SLACK_BOT_TOKEN: dummy
+      SLACK_WEBHOOK_URL: dummy
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - run: |
+          echo "${GITHUB_APP_PRIVATE_KEY}" > /tmp/key.pem
+          make setup
           make images
+          make start-kind
+          make load
+          make prepare
+          make kindtest

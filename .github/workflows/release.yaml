@@ -1,0 +1,61 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  image:
+    name: Push images to quay.io
+    runs-on: ubuntu-20.04
+    env:
+      CONTROLLER_IMG: quay.io/cybozu/actions-controller:latest
+      RUNNER_IMG: quay.io/cybozu/actions-runner:latest
+      AGENT_IMG: quay.io/cybozu/actions-slack-agent:latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      - name: Build images
+        run: |
+          make setup
+          make images
+      - name: Log in quay.io
+        run: |
+          echo ${{ secrets.QUAY_PASSWORD }} | docker login -u ${{ secrets.QUAY_USER }} --password-stdin quay.io
+      - name: Tag images
+        run: |
+          TAG=${GITHUB_REF#refs/tags/v}
+          docker tag ${CONTROLLER_IMG} ${CONTROLLER_IMG/latest/${TAG}}
+          docker tag ${RUNNER_IMG} ${RUNNER_IMG/latest/${TAG}}
+          docker tag ${AGENT_IMG} ${AGENT_IMG/latest/${TAG}}
+      - name: Push versioned images
+        run: |
+          TAG=${GITHUB_REF#refs/tags/v}
+          docker push ${CONTROLLER_IMG/latest/${TAG}}
+          docker push ${RUNNER_IMG/latest/${TAG}}
+          docker push ${AGENT_IMG/latest/${TAG}}
+      - name: Push the latest images
+        run: |
+          docker push ${CONTROLLER_IMG}
+          docker push ${RUNNER_IMG}
+          docker push ${AGENT_IMG}
+
+  release:
+    name: Release on GitHub
+    needs: image
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            See [CHANGELOG.md](./CHANGELOG.md) for details.
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
