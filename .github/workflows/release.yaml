@@ -8,7 +8,7 @@ jobs:
     name: Push images to quay.io
     runs-on: ubuntu-20.04
     env:
-      CONTROLLER_IMG: quay.io/cybozu/actions-controller:latest
+      CONTROLLER_IMG: quay.io/cybozu/actions-runner-controller:latest
       RUNNER_IMG: quay.io/cybozu/actions-runner:latest
       AGENT_IMG: quay.io/cybozu/actions-slack-agent:latest
     steps:
