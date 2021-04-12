@@ -52,7 +52,7 @@ Components
   - Extender: WebSocket client which watches Slack button events and extends the
     lifetime of a `Pod` by annotating the `Pod` with the extended deletion time.
 
-Diagram: T.B.A
+![Diagram](./images/architecture.png)
 
 Architecture
 ------------
