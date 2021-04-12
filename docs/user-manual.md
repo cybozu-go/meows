@@ -115,7 +115,7 @@ spec:
     spec:
       containers:
       - name: runner
-        image: quay.io/cybozu/runner:latest
+        image: quay.io/cybozu/actions-runner:latest
       serviceAccountName: runner
 ```
 
@@ -185,4 +185,3 @@ This button can be clicked multiple times if the `Pod` still exists.
 NOTE:  
 The time picker feature is still beta, and [`github.com/slack-go/slack`](https://github.com/slack-go/slack)
 cannot parse interactive messages which contains a time picker component.
-
