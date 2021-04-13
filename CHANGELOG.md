@@ -5,8 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-### Added
-### Changed
-### Removed
+## [0.1.0] - 2021-04-13
 
-[Unreleased]: https://github.com/cybozu-go/neco-template/compare/4b825dc642cb6eb9a060e54bf8d69288fbee4904...HEAD
+### Added
+
+- Implement github-actions-controller at minimal (#1)
+
+[Unreleased]: https://github.com/cybozu-go/github-actions-controller/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/cybozu-go/github-actions-controller/compare/0a217cb1de9225c7eba5469ae8b286548a854333...v0.1.0
