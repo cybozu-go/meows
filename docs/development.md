@@ -74,7 +74,6 @@ $ go run ./cmd/slack-agent/ client \
 After sending a failure message with `notifier`, run a `extender` server:
 
 ```bash
-## notifier server
 $ export SLACK_APP_TOKEN=<your Slack App Token>
 $ export SLACK_BOT_TOKEN=<your Slack Bot Token>
 $ export SLACK_WEBHOOK_URL=<your Slack Webhook URL>
@@ -88,7 +87,10 @@ How to run GitHub Actions controller for development
 ----------------------------------------------------
 
 If you need to run the controller on your local environment, this is the easiest
-way to do that.
+way to do that. You can reuse the token for `github.com/neco-test/github-actions-controller-ci`,
+which is prepared for CI, but please be careful that your local environment steals
+the job that is expected to run on a node created in CI and might cause a failure
+on CI.
 
 ```bash
 $ export GITHUB_APP_ID=<your GitHub App ID>

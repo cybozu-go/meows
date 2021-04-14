@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
       - name: notifier
-        image: slack-agent:latest
+        image: actions-slack-agent:latest
         args:
           - notifier
         envFrom:
@@ -57,7 +57,7 @@ spec:
             containerPort: 8080
             protocol: TCP
       - name: extender
-        image: slack-agent:latest
+        image: actions-slack-agent:latest
         args:
           - extender
         envFrom:

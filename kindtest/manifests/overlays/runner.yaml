@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
       - name: runner
-        image: runner:latest
+        image: actions-runner:latest
         imagePullPolicy: Never
         env:
           - name: EXTEND_DURATION

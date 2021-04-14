@@ -24,7 +24,7 @@ spec:
         - "--app-id=$(GITHUB_APP_ID)"
         - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
         - "--app-private-key-path=/etc/github/app.pem"
-        image: controller:latest
+        image: actions-controller:latest
         name: manager
         env:
           - name: "GITHUB_APP_ID"
