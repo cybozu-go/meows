@@ -53,7 +53,7 @@ func (s *Notifier) postResult(c *gin.Context) {
 		return
 	}
 
-	if err := s.postWebhook(s.webhookURL, p.makeWebhookMessage()); err != nil {
+	if err := s.postWebhook(s.webhookURL, p.makeCIResultWebhookMsg()); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

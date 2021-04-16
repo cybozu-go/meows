@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slack-go/slack"
 )
@@ -111,20 +112,19 @@ func newPostResultPayloadFromCB(body *slack.InteractionCallback) (*postResultPay
 	), nil
 }
 
-func (p *postResultPayload) makeExtendCallbackPayload() []slack.Attachment {
-	return []slack.Attachment{
-		{
-			Color: "#daa038",
-			Text: fmt.Sprintf(
-				"%s in %s is extended successfully",
-				p.PodName,
-				p.PodNamespace,
-			),
-		},
-	}
+func (p *postResultPayload) makeExtendResultMsgOption(t time.Time) slack.MsgOption {
+	return slack.MsgOptionText(
+		fmt.Sprintf(
+			"%s in %s is extended successfully by %s",
+			p.PodName,
+			p.PodNamespace,
+			t.Format(time.RFC3339),
+		),
+		false,
+	)
 }
 
-func (p *postResultPayload) makeWebhookMessage() *slack.WebhookMessage {
+func (p *postResultPayload) makeCIResultWebhookMsg() *slack.WebhookMessage {
 	text := fmt.Sprintf("CI on %s/%s has succeded", p.OrganizationName, p.RepositoryName)
 	color := "#36a64f"
 	if p.IsFailed {
