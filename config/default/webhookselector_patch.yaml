@@ -10,3 +10,16 @@ webhooks:
       operator: In
       values:
       - "true"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- name: runnerpool-hook.actions.cybozu.com
+  namespaceSelector:
+    matchExpressions:
+    - key: actions.cybozu.com/runnerpool-validate
+      operator: In
+      values:
+      - "true"

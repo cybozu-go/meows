@@ -186,6 +186,7 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 			break
 		}
 	}
+
 	if container == nil {
 		return fmt.Errorf("container with name %s should exist in the manifest", constants.RunnerContainerName)
 	}

@@ -27,3 +27,34 @@ webhooks:
     resources:
     - pods
   sideEffects: None
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1alpha1
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /runnerpool/validate
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: runnerpool-hook.actions.cybozu.com
+  rules:
+  - apiGroups:
+    - actions.cybozu.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - runnerpools
+  sideEffects: None

@@ -77,9 +77,15 @@ func run() error {
 	wh := mgr.GetWebhookServer()
 	wh.Register("/pod/mutate", hooks.NewPodMutator(
 		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-pod-mutater"),
+		ctrl.Log.WithName("actions-token-pod-mutator"),
 		dec,
 		githubClient,
+	))
+	wh.Register("/runnerpool/validate", hooks.NewRunnerPoolValidator(
+		mgr.GetClient(),
+		ctrl.Log.WithName("actions-token-runnerpools-validater"),
+		dec,
+		config.repositoryNames,
 	))
 
 	reconciler := controllers.NewRunnerPoolReconciler(

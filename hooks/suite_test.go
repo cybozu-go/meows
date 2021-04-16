@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/cybozu-go/github-actions-controller/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -71,6 +72,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	err = admissionv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
+	err = actionsv1alpha1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
 
@@ -91,16 +94,22 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	dec, err := admission.NewDecoder(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	wh := mgr.GetWebhookServer()
 	wh.Register("/pod/mutate", NewPodMutator(
 		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-pod-mutater"),
+		ctrl.Log.WithName("actions-token-pod-mutator"),
 		dec,
 		github.NewFakeClient(organizationName),
 	))
-	Expect(err).NotTo(HaveOccurred())
 
-	//+kubebuilder:scaffold:webhook
+	wh.Register("/runnerpool/validate", NewRunnerPoolValidator(
+		mgr.GetClient(),
+		ctrl.Log.WithName("actions-runnerpool-validator"),
+		dec,
+		[]string{"test-repository1", "test-repository2"},
+	))
 
 	go func() {
 		err = mgr.Start(ctx)
