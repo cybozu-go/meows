@@ -8,36 +8,6 @@ import (
 )
 
 var _ = Describe("validate RunnerPool webhook with ", func() {
-	It("should deny runnerpool with invalid repository name", func() {
-		name := "runnerpool-0"
-		rp := RunnerPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: "default",
-			},
-			Spec: RunnerPoolSpec{
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": name,
-					},
-				},
-				RepositoryName: "invalid-repository",
-				Template: PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "runner",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-			},
-		}
-		err := k8sClient.Create(ctx, &rp)
-		Expect(err).To(HaveOccurred())
-	})
-
 	It("should deny runnerpool with invalid container name", func() {
 		name := "runnerpool-1"
 		rp := RunnerPool{

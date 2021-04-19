@@ -112,6 +112,68 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 			return k8sClient.Get(ctx, nsn, d)
 		}, 5*time.Second).ShouldNot(Succeed())
+
+		By("deleting the created RunnerPool")
+		rp = &actionsv1alpha1.RunnerPool{}
+		err = k8sClient.Get(ctx, nsn, rp)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Delete(ctx, rp)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("deploying RunnerPool resource with an invalid repository name")
+		rp = &actionsv1alpha1.RunnerPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: actionsv1alpha1.RunnerPoolSpec{
+				RepositoryName: "bad-runnerpool-repo",
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": name,
+					},
+				},
+				Template: actionsv1alpha1.PodTemplateSpec{
+					ObjectMeta: actionsv1alpha1.ObjectMeta{
+						Labels: map[string]string{
+							"app": name,
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  constants.RunnerContainerName,
+								Image: "sample:latest",
+							},
+						},
+					},
+				},
+			},
+		}
+		err = k8sClient.Create(ctx, rp)
+		Expect(err).To(Succeed())
+
+		By("getting the created Deployment")
+		d = new(appsv1.Deployment)
+		nsn = types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		}
+		Eventually(func() error {
+			rp := new(actionsv1alpha1.RunnerPool)
+			if err := k8sClient.Get(ctx, nsn, rp); err != nil {
+				return err
+			}
+
+			return k8sClient.Get(ctx, nsn, d)
+		}, 5*time.Second).ShouldNot(Succeed())
+
+		By("deleting the created RunnerPool")
+		rp = &actionsv1alpha1.RunnerPool{}
+		err = k8sClient.Get(ctx, nsn, rp)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Delete(ctx, rp)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	It("should create Deployment", func() {
