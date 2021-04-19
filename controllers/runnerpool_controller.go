@@ -19,8 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
-
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
 	client.Client
@@ -66,7 +64,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	if rp.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
+		if !controllerutil.ContainsFinalizer(rp, constants.RunnerPoolFinalizer) {
 			err := r.addFinalizer(ctx, rp)
 			if err != nil {
 				log.Error(err, "failed to add finalizer")
@@ -78,7 +76,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{Requeue: true}, nil
 		}
 	} else {
-		if controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
+		if controllerutil.ContainsFinalizer(rp, constants.RunnerPoolFinalizer) {
 			err := r.cleanUpOwnedResources(ctx, req.NamespacedName)
 			if err != nil {
 				log.Error(err, "failed to clean up deployment")
@@ -129,14 +127,14 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *RunnerPoolReconciler) addFinalizer(ctx context.Context, rp *actionsv1alpha1.RunnerPool) error {
 	rp2 := rp.DeepCopy()
-	controllerutil.AddFinalizer(rp2, runnerPoolFinalizer)
+	controllerutil.AddFinalizer(rp2, constants.RunnerPoolFinalizer)
 	patch := client.MergeFrom(rp)
 	return r.Patch(ctx, rp2, patch)
 }
 
 func (r *RunnerPoolReconciler) removeFinalizer(ctx context.Context, rp *actionsv1alpha1.RunnerPool) error {
 	rp2 := rp.DeepCopy()
-	controllerutil.RemoveFinalizer(rp2, runnerPoolFinalizer)
+	controllerutil.RemoveFinalizer(rp2, constants.RunnerPoolFinalizer)
 	patch := client.MergeFrom(rp)
 	return r.Patch(ctx, rp2, patch)
 }

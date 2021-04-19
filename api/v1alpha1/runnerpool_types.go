@@ -4,9 +4,14 @@
 package v1alpha1
 
 import (
+	"fmt"
+
+	constants "github.com/cybozu-go/github-actions-controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // NOTE: Some lines of the code are proudly copied from Kubernetes project.
@@ -91,6 +96,49 @@ type RunnerPoolList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RunnerPool `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&RunnerPool{}, &RunnerPoolList{})
+}
+
+func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
+	var allErrs field.ErrorList
+	var container *v1.Container
+	for _, c := range s.Template.Spec.Containers {
+		if c.Name == constants.RunnerContainerName {
+			container = &c
+			break
+		}
+	}
+	if container == nil {
+		allErrs = append(allErrs, field.Required(&field.Path{}, fmt.Sprintf("container %s is missing", constants.RunnerContainerName)))
+		return allErrs
+	}
+
+	reservedEnvNames := []string{
+		constants.PodNameEnvName,
+		constants.PodNamespaceEnvName,
+		constants.RunnerOrgEnvName,
+		constants.RunnerRepoEnvName,
+	}
+
+	for _, e := range container.Env {
+		for _, re := range reservedEnvNames {
+			if e.Name == re {
+				allErrs = append(allErrs, field.Required(&field.Path{}, fmt.Sprintf("container %s has the reserved environment variable, %v", constants.RunnerContainerName, re)))
+			}
+		}
+	}
+	return allErrs
+}
+
+func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
+	return nil
+}
+
+func (s *RunnerPoolSpec) validateDelete() field.ErrorList {
+	return nil
 }
 
 func init() {

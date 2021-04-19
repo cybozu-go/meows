@@ -1,4 +1,4 @@
-package hooks
+package v1alpha1
 
 import (
 	"context"
@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -24,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -53,10 +50,10 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: false,
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join("..", "config", "webhook")},
+			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
 		},
 	}
 
@@ -68,11 +65,13 @@ var _ = BeforeSuite(func() {
 	scheme := runtime.NewScheme()
 	err = clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
+
 	err = admissionv1beta1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = admissionv1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = actionsv1alpha1.AddToScheme(scheme)
+
+	err = AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
@@ -93,16 +92,11 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	dec, err := admission.NewDecoder(scheme)
+	err = (&RunnerPool{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	wh := mgr.GetWebhookServer()
-	wh.Register("/pod/mutate", NewPodMutator(
-		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-pod-mutator"),
-		dec,
-		github.NewFakeClient(organizationName),
-	))
+	//+kubebuilder:scaffold:webhook
+
 	go func() {
 		err = mgr.Start(ctx)
 		if err != nil {
@@ -121,7 +115,6 @@ var _ = BeforeSuite(func() {
 		conn.Close()
 		return nil
 	}).Should(Succeed())
-
 }, 60)
 
 var _ = AfterSuite(func() {

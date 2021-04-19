@@ -31,4 +31,6 @@ const (
 
 	// PodDeletionTimeKey is an annotation key to manage pod deletion time.
 	PodDeletionTimeKey = "actions.cybozu.com/deleted-at"
+
+	RunnerPoolFinalizer = "actions.cybozu.com/runnerpool"
 )

@@ -81,12 +81,6 @@ func run() error {
 		dec,
 		githubClient,
 	))
-	wh.Register("/runnerpool/validate", hooks.NewRunnerPoolValidator(
-		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-runnerpools-validater"),
-		dec,
-		config.repositoryNames,
-	))
 
 	reconciler := controllers.NewRunnerPoolReconciler(
 		mgr.GetClient(),

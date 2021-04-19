@@ -43,7 +43,7 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /runnerpool/validate
+      path: validate-actions-cybozu-com-v1alpha1-runnerpool
   failurePolicy: Fail
   matchPolicy: Equivalent
   name: runnerpool-hook.actions.cybozu.com
