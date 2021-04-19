@@ -64,15 +64,22 @@ to watch button events.
 Here's a procedure for how to configure the Slack App.
 
 1. Go to [this](https://api.slack.com/apps) page.
-1. Click the `Create New App` button and fill the application name field and choose
-   which workspace to develop it on.
+1. Click the **Create New App** button and fill the application name field and choose
+   a Slack workspace.
 1. Go to **Socket Mode** from the sidebar and enable socket mode.
-1. Then, a window comes up. Create App-Level Token and keep the generated App
-   Token.
-1. Go to **OAuth & Permissions** from the sidebar and keep **Bot User OAuth Token**.
-1. Go to **Incoming Webhooks** from the sidebar and click **Add New Webhook to Workspace**.
-   Choose the channel you want to use and keep the generated URL.
+   Create App-Level Token on the windows coming up and keep the generated App Token.
+1. Go to **OAuth & Permissions** from the sidebar.
+   - Add the `chat:write` permission under **Scopes**.
+   - Click **Reinstall to Workspace** and reinstall the bot in your desired channel.
+   - Keep **Bot User OAuth Token**.
+1. Go to **Incoming Webhooks** from the sidebar.
+   - Click **Add New Webhook to Workspace** and  choose your desired channel.
+   - Keep the generated URL.
 1. Go to **Beta features** from the sidebar and enable time picker element.
+1. Open your Slack desktop app and go to your desired channel.
+   - Click the `i` button on the top right corner.
+   - Click **more** and then **Add apps**.
+   - Add the created Slack App to the channel.
 
 How to deploy Slack agent
 -------------------------
