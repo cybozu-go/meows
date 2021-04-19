@@ -46,50 +46,47 @@ func NewPodMutator(
 
 // Handle implements admission.Handler interface.
 func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	namespacedName := types.NamespacedName{
+	log := m.log.WithValues("name", types.NamespacedName{
 		Name:      req.Name,
 		Namespace: req.Namespace,
-	}
-	m.log.Info("start mutating pod", "name", namespacedName)
+	})
+	log.Info("start mutating pod")
 
 	pod := &corev1.Pod{}
 	err := m.decoder.Decode(req, pod)
 	if err != nil {
-		m.log.Error(err, "failed to decode pod", "name", namespacedName)
+		log.Error(err, "failed to decode pod")
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	org, ok := pod.Labels[constants.RunnerOrgLabelKey]
 	if !ok {
-		m.log.Info(
+		log.Info(
 			fmt.Sprintf(
 				"skipped because pod does not have %s label",
 				constants.RunnerOrgLabelKey,
 			),
-			"name", namespacedName,
 		)
 		return admission.Allowed("non-target")
 	}
 	targetOrg := m.githubClient.GetOrganizationName()
 	if org != targetOrg {
-		m.log.Info(
+		log.Info(
 			fmt.Sprintf(
 				"skipped because pod organizationName is not %s",
 				targetOrg,
 			),
-			"name", namespacedName,
 		)
 		return admission.Allowed("non-target")
 	}
 
 	repo, ok := pod.Labels[constants.RunnerRepoLabelKey]
 	if !ok {
-		m.log.Info(
+		log.Info(
 			fmt.Sprintf(
 				"skipped because pod does not have %s label",
 				constants.RunnerRepoLabelKey,
 			),
-			"name", namespacedName,
 		)
 		return admission.Allowed("non-target")
 	}
@@ -104,13 +101,13 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 	}
 	if container == nil {
 		err := fmt.Errorf("pod should have a container named %s", constants.RunnerContainerName)
-		m.log.Error(err, "unable to find target container", "name", namespacedName)
+		log.Error(err, "unable to find target container")
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	token, err := m.githubClient.CreateRegistrationToken(ctx, repo)
 	if err != nil {
-		m.log.Error(err, "failed to create actions registration token", "repository", repo)
+		log.Error(err, "failed to create actions registration token", "repository", repo)
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
@@ -126,7 +123,7 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 	})
 	marshaledPod, err := json.Marshal(pod)
 	if err != nil {
-		m.log.Error(err, "failed to serialize pod manifest", "name", namespacedName)
+		log.Error(err, "failed to serialize pod manifest")
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
