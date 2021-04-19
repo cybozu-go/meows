@@ -149,7 +149,6 @@ prepare: ## Prepare for kind test.
 	$(MAKE) cert-manager
 	$(MAKE) install
 	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
-	$(KUBECTL) label ns default actions.cybozu.com/runnerpool-validate=true
 	$(KUSTOMIZE) build --load_restrictor='none' $(KINDTEST_DIR)/manifests | $(KUBECTL) apply -f -
 
 .PHONY: github-secret

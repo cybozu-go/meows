@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
@@ -164,11 +163,9 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Eventually(func() error {
 			rp := new(actionsv1alpha1.RunnerPool)
 			if err := k8sClient.Get(ctx, nsn, rp); err != nil {
-				fmt.Println("got runnerpool")
 				return err
 			}
 
-			fmt.Println("got deployment")
 			return k8sClient.Get(ctx, nsn, d)
 		}, 5*time.Second).ShouldNot(Succeed())
 
