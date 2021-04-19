@@ -9,7 +9,6 @@ import (
 	constants "github.com/cybozu-go/github-actions-controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -104,7 +103,7 @@ func init() {
 
 func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
 	var allErrs field.ErrorList
-	var container *v1.Container
+	var container *corev1.Container
 	for _, c := range s.Template.Spec.Containers {
 		if c.Name == constants.RunnerContainerName {
 			container = &c
@@ -134,10 +133,6 @@ func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
 }
 
 func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
-	return nil
-}
-
-func (s *RunnerPoolSpec) validateDelete() field.ErrorList {
 	return nil
 }
 

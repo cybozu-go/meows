@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
@@ -19,7 +20,7 @@ import (
 var _ = Describe("RunnerPool reconciler", func() {
 	ctx := context.Background()
 	organizationName := "runnerpool-org"
-	repositoryName := "runnerpool-repo"
+	repositoryNames := []string{"runnerpool-repo-1", "runnerpool-repo-2"}
 	namespace := "runnerpool-ns"
 	slackAgentServiceName := "slack-agent"
 
@@ -35,6 +36,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("RunnerPool"),
 			mgr.GetScheme(),
+			repositoryNames,
 			organizationName,
 		)
 		err = r.SetupWithManager(mgr)
@@ -72,7 +74,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				Namespace: namespace,
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
-				RepositoryName: repositoryName,
+				RepositoryName: repositoryNames[0],
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"app": name,
@@ -162,9 +164,11 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Eventually(func() error {
 			rp := new(actionsv1alpha1.RunnerPool)
 			if err := k8sClient.Get(ctx, nsn, rp); err != nil {
+				fmt.Println("got runnerpool")
 				return err
 			}
 
+			fmt.Println("got deployment")
 			return k8sClient.Get(ctx, nsn, d)
 		}, 5*time.Second).ShouldNot(Succeed())
 
@@ -185,7 +189,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				Namespace: namespace,
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
-				RepositoryName:        repositoryName,
+				RepositoryName:        repositoryNames[0],
 				SlackAgentServiceName: &slackAgentServiceName,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
@@ -235,7 +239,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		}, 5*time.Second).Should(Succeed())
 
 		Expect(d.Labels[constants.RunnerOrgLabelKey]).To(Equal(organizationName))
-		Expect(d.Labels[constants.RunnerRepoLabelKey]).To(Equal(repositoryName))
+		Expect(d.Labels[constants.RunnerRepoLabelKey]).To(Equal(repositoryNames[0]))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
 		Expect(c.Env).To(HaveLen(5))
@@ -246,7 +250,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(c.Env[2].Name).To(Equal(constants.RunnerOrgEnvName))
 		Expect(c.Env[2].Value).To(Equal(organizationName))
 		Expect(c.Env[3].Name).To(Equal(constants.RunnerRepoEnvName))
-		Expect(c.Env[3].Value).To(Equal(repositoryName))
+		Expect(c.Env[3].Value).To(Equal(repositoryNames[0]))
 		Expect(c.Env[4].Name).To(Equal(constants.SlackAgentEnvName))
 		Expect(c.Env[4].Value).To(Equal(slackAgentServiceName))
 	})

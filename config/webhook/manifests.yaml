@@ -7,6 +7,28 @@ metadata:
   name: mutating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
+  - v1alpha1
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: mutate-actions-cybozu-com-v1alpha1-runnerpool
+  failurePolicy: Fail
+  matchPolicy: Equivalent
+  name: runnerpool-hook.actions.cybozu.com
+  rules:
+  - apiGroups:
+    - actions.cybozu.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    resources:
+    - runnerpools
+  sideEffects: None
+- admissionReviewVersions:
   - v1
   - v1beta1
   clientConfig:

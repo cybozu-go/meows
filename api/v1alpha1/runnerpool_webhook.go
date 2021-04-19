@@ -1,10 +1,12 @@
 package v1alpha1
 
 import (
+	constants "github.com/cybozu-go/github-actions-controller"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
@@ -12,6 +14,15 @@ func (r *RunnerPool) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
+}
+
+// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups=actions.cybozu.com,resources=runnerpools,verbs=create,versions=v1alpha1,name=runnerpool-hook.actions.cybozu.com,path=mutate-actions-cybozu-com-v1alpha1-runnerpool,mutating=true,sideEffects=none,admissionReviewVersions={v1alpha1,v1,v1beta1}
+
+var _ webhook.Defaulter = &RunnerPool{}
+
+// Default implements webhook.Defaulter so a webhook will be registered for the type
+func (r *RunnerPool) Default() {
+	controllerutil.AddFinalizer(r, constants.RunnerPoolFinalizer)
 }
 
 // +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups=actions.cybozu.com,resources=runnerpools,verbs=create;update,versions=v1alpha1,name=runnerpool-hook.actions.cybozu.com,path=validate-actions-cybozu-com-v1alpha1-runnerpool,mutating=false,sideEffects=none,admissionReviewVersions={v1alpha1,v1,v1beta1}
