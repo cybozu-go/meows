@@ -68,7 +68,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	if !rp.ObjectMeta.DeletionTimestamp.IsZero() {
+	if rp.ObjectMeta.DeletionTimestamp != nil {
 		if controllerutil.ContainsFinalizer(rp, constants.RunnerPoolFinalizer) {
 			err := r.cleanUpOwnedResources(ctx, req.NamespacedName)
 			if err != nil {

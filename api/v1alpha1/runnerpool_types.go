@@ -18,6 +18,13 @@ import (
 // https://github.com/kubernetes/api/tree/master/core/v1
 // https://github.com/kubernetes/api/tree/master/apps/v1
 
+var reservedEnvNames = map[string]bool{
+	constants.PodNameEnvName:      false,
+	constants.PodNamespaceEnvName: false,
+	constants.RunnerOrgEnvName:    false,
+	constants.RunnerRepoEnvName:   false,
+}
+
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
 	// RepositoryName describes repository name to register Pods as self-hosted
@@ -104,36 +111,33 @@ func init() {
 func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
 	var allErrs field.ErrorList
 	var container *corev1.Container
-	for _, c := range s.Template.Spec.Containers {
+	p := field.NewPath("spec")
+
+	runnerIndex := -1
+	for i, c := range s.Template.Spec.Containers {
 		if c.Name == constants.RunnerContainerName {
 			container = &c
+			runnerIndex = i
 			break
 		}
 	}
+
+	pp := p.Child("template").Child("spec").Child("containers")
 	if container == nil {
-		allErrs = append(allErrs, field.Required(&field.Path{}, fmt.Sprintf("container %s is missing", constants.RunnerContainerName)))
+		allErrs = append(allErrs, field.Required(pp, fmt.Sprintf("%v container is required", constants.RunnerContainerName)))
 		return allErrs
 	}
 
-	reservedEnvNames := []string{
-		constants.PodNameEnvName,
-		constants.PodNamespaceEnvName,
-		constants.RunnerOrgEnvName,
-		constants.RunnerRepoEnvName,
-	}
-
 	for _, e := range container.Env {
-		for _, re := range reservedEnvNames {
-			if e.Name == re {
-				allErrs = append(allErrs, field.Required(&field.Path{}, fmt.Sprintf("container %s has the reserved environment variable, %v", constants.RunnerContainerName, re)))
-			}
+		if _, ok := reservedEnvNames[e.Name]; ok {
+			allErrs = append(allErrs, field.Forbidden(pp.Index(runnerIndex).Child("env"), fmt.Sprintf("using the reserved environment variable %v in %v is forbidden", e.Name, constants.RunnerContainerName)))
 		}
 	}
 	return allErrs
 }
 
 func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
-	return nil
+	return s.validateCreate()
 }
 
 func init() {
