@@ -100,6 +100,12 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 							{
 								Name:  "runner",
 								Image: "sample:latest",
+								Env: []corev1.EnvVar{
+									{
+										Name:  "TEAT_ENV",
+										Value: "test_env",
+									},
+								},
 							},
 						},
 					},

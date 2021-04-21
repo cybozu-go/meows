@@ -19,10 +19,10 @@ import (
 // https://github.com/kubernetes/api/tree/master/apps/v1
 
 var reservedEnvNames = map[string]bool{
-	constants.PodNameEnvName:      false,
-	constants.PodNamespaceEnvName: false,
-	constants.RunnerOrgEnvName:    false,
-	constants.RunnerRepoEnvName:   false,
+	constants.PodNameEnvName:      true,
+	constants.PodNamespaceEnvName: true,
+	constants.RunnerOrgEnvName:    true,
+	constants.RunnerRepoEnvName:   true,
 }
 
 // RunnerPoolSpec defines the desired state of RunnerPool
@@ -124,13 +124,13 @@ func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
 
 	pp := p.Child("template").Child("spec").Child("containers")
 	if container == nil {
-		allErrs = append(allErrs, field.Required(pp, fmt.Sprintf("%v container is required", constants.RunnerContainerName)))
+		allErrs = append(allErrs, field.Required(pp, fmt.Sprintf("%s container is required", constants.RunnerContainerName)))
 		return allErrs
 	}
 
-	for _, e := range container.Env {
-		if _, ok := reservedEnvNames[e.Name]; ok {
-			allErrs = append(allErrs, field.Forbidden(pp.Index(runnerIndex).Child("env"), fmt.Sprintf("using the reserved environment variable %v in %v is forbidden", e.Name, constants.RunnerContainerName)))
+	for i, e := range container.Env {
+		if reservedEnvNames[e.Name] {
+			allErrs = append(allErrs, field.Forbidden(pp.Index(runnerIndex).Child("env").Index(i), fmt.Sprintf("using the reserved environment variable %s in %s is forbidden", e.Name, constants.RunnerContainerName)))
 		}
 	}
 	return allErrs
