@@ -155,7 +155,7 @@ func equalNumExistingRunners(
 		}
 	}
 
-	if len(found) != numExisting {
+	if len(found) != numExisting || len(runnerMap) != numExisting {
 		return fmt.Errorf(
 			"%d runners should exist: pods %#v runners %#v",
 			numExisting,

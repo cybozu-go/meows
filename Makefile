@@ -3,6 +3,7 @@ CURL := curl -sSLf
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_GEN_VERSION := 0.4.1
 KUSTOMIZE_VERSION := 3.8.7
+STERN_VERSION = 1.13.1
 K8S_VERSION := 1.19.7
 KIND_VERSION := 0.10.0
 CERT_MANAGER_VERSION := 1.2.0
@@ -68,6 +69,9 @@ setup: ## Setup necessary tools.
 	$(CURL) https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BIN_DIR)
 	$(CURL) -o $(BIN_DIR)/kind https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64 && chmod a+x $(BIN_DIR)/kind
 	$(CURL) -o $(BIN_DIR)/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
+	$(CURL) -sLf https://github.com/stern/stern/releases/download/v$(STERN_VERSION)/stern_$(STERN_VERSION)_linux_amd64.tar.gz | tar -xz stern_$(STERN_VERSION)_linux_amd64/
+	mv stern_$(STERN_VERSION)_linux_amd64/stern $(BIN_DIR)/
+	rm -r stern_$(STERN_VERSION)_linux_amd64/
 
 .PHONY: clean
 clean: ## Clean files>

@@ -40,5 +40,10 @@ jobs:
           make images
           make start-kind
           make load
+      - run: |
+          stern . > kind.log &
+      - run: |
           make prepare
           make kindtest
+      - if: ${{ always() }}
+        run: cat kind.log
