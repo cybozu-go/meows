@@ -19,7 +19,7 @@ import (
 var _ = Describe("RunnerPool reconciler", func() {
 	ctx := context.Background()
 	organizationName := "runnerpool-org"
-	repositoryName := "runnerpool-repo"
+	repositoryNames := []string{"runnerpool-repo-1", "runnerpool-repo-2"}
 	namespace := "runnerpool-ns"
 	slackAgentServiceName := "slack-agent"
 
@@ -35,6 +35,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			mgr.GetClient(),
 			ctrl.Log.WithName("controllers").WithName("RunnerPool"),
 			mgr.GetScheme(),
+			repositoryNames,
 			organizationName,
 		)
 		err = r.SetupWithManager(mgr)
@@ -72,7 +73,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				Namespace: namespace,
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
-				RepositoryName: repositoryName,
+				RepositoryName: repositoryNames[0],
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"app": name,
@@ -112,6 +113,68 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 			return k8sClient.Get(ctx, nsn, d)
 		}, 5*time.Second).ShouldNot(Succeed())
+
+		By("deleting the created RunnerPool")
+		rp = &actionsv1alpha1.RunnerPool{}
+		err = k8sClient.Get(ctx, nsn, rp)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Delete(ctx, rp)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("deploying RunnerPool resource with an invalid repository name")
+		rp = &actionsv1alpha1.RunnerPool{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: actionsv1alpha1.RunnerPoolSpec{
+				RepositoryName: "bad-runnerpool-repo",
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": name,
+					},
+				},
+				Template: actionsv1alpha1.PodTemplateSpec{
+					ObjectMeta: actionsv1alpha1.ObjectMeta{
+						Labels: map[string]string{
+							"app": name,
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  constants.RunnerContainerName,
+								Image: "sample:latest",
+							},
+						},
+					},
+				},
+			},
+		}
+		err = k8sClient.Create(ctx, rp)
+		Expect(err).To(Succeed())
+
+		By("getting the created Deployment")
+		d = new(appsv1.Deployment)
+		nsn = types.NamespacedName{
+			Name:      name,
+			Namespace: namespace,
+		}
+		Eventually(func() error {
+			rp := new(actionsv1alpha1.RunnerPool)
+			if err := k8sClient.Get(ctx, nsn, rp); err != nil {
+				return err
+			}
+
+			return k8sClient.Get(ctx, nsn, d)
+		}, 5*time.Second).ShouldNot(Succeed())
+
+		By("deleting the created RunnerPool")
+		rp = &actionsv1alpha1.RunnerPool{}
+		err = k8sClient.Get(ctx, nsn, rp)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Delete(ctx, rp)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	It("should create Deployment", func() {
@@ -123,7 +186,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				Namespace: namespace,
 			},
 			Spec: actionsv1alpha1.RunnerPoolSpec{
-				RepositoryName:        repositoryName,
+				RepositoryName:        repositoryNames[0],
 				SlackAgentServiceName: &slackAgentServiceName,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
@@ -173,7 +236,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		}, 5*time.Second).Should(Succeed())
 
 		Expect(d.Labels[constants.RunnerOrgLabelKey]).To(Equal(organizationName))
-		Expect(d.Labels[constants.RunnerRepoLabelKey]).To(Equal(repositoryName))
+		Expect(d.Labels[constants.RunnerRepoLabelKey]).To(Equal(repositoryNames[0]))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
 		Expect(c.Env).To(HaveLen(5))
@@ -184,7 +247,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(c.Env[2].Name).To(Equal(constants.RunnerOrgEnvName))
 		Expect(c.Env[2].Value).To(Equal(organizationName))
 		Expect(c.Env[3].Name).To(Equal(constants.RunnerRepoEnvName))
-		Expect(c.Env[3].Value).To(Equal(repositoryName))
+		Expect(c.Env[3].Value).To(Equal(repositoryNames[0]))
 		Expect(c.Env[4].Name).To(Equal(constants.SlackAgentEnvName))
 		Expect(c.Env[4].Value).To(Equal(slackAgentServiceName))
 	})

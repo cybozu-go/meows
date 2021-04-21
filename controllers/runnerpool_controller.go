@@ -19,14 +19,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const runnerPoolFinalizer = "actions.cybozu.com/runnerpool"
-
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
+	repositoryNames  []string
 	organizationName string
 }
 
@@ -35,12 +34,16 @@ func NewRunnerPoolReconciler(
 	client client.Client,
 	log logr.Logger,
 	scheme *runtime.Scheme,
+
+	repositoryNames []string,
 	organizationName string,
 ) *RunnerPoolReconciler {
 	return &RunnerPoolReconciler{
-		Client:           client,
-		Log:              log,
-		Scheme:           scheme,
+		Client: client,
+		Log:    log,
+		Scheme: scheme,
+
+		repositoryNames:  repositoryNames,
 		organizationName: organizationName,
 	}
 }
@@ -65,20 +68,8 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	if rp.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
-			err := r.addFinalizer(ctx, rp)
-			if err != nil {
-				log.Error(err, "failed to add finalizer")
-				return ctrl.Result{}, err
-			}
-			// Result does not change even if not requeued here.
-			// This just breaks down one reconciliation loop into small steps for simplicity.
-			log.Info("added finalizer")
-			return ctrl.Result{Requeue: true}, nil
-		}
-	} else {
-		if controllerutil.ContainsFinalizer(rp, runnerPoolFinalizer) {
+	if rp.ObjectMeta.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(rp, constants.RunnerPoolFinalizer) {
 			err := r.cleanUpOwnedResources(ctx, req.NamespacedName)
 			if err != nil {
 				log.Error(err, "failed to clean up deployment")
@@ -93,6 +84,17 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			log.Info("removed finalizer")
 		}
 		return ctrl.Result{}, nil
+	}
+
+	found := false
+	for _, n := range r.repositoryNames {
+		if n == rp.Spec.RepositoryName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ctrl.Result{}, fmt.Errorf("found the invalid repository name %v. Valid repository names are %v", rp.Spec.RepositoryName, r.repositoryNames)
 	}
 
 	d := &appsv1.Deployment{
@@ -127,16 +129,9 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *RunnerPoolReconciler) addFinalizer(ctx context.Context, rp *actionsv1alpha1.RunnerPool) error {
-	rp2 := rp.DeepCopy()
-	controllerutil.AddFinalizer(rp2, runnerPoolFinalizer)
-	patch := client.MergeFrom(rp)
-	return r.Patch(ctx, rp2, patch)
-}
-
 func (r *RunnerPoolReconciler) removeFinalizer(ctx context.Context, rp *actionsv1alpha1.RunnerPool) error {
 	rp2 := rp.DeepCopy()
-	controllerutil.RemoveFinalizer(rp2, runnerPoolFinalizer)
+	controllerutil.RemoveFinalizer(rp2, constants.RunnerPoolFinalizer)
 	patch := client.MergeFrom(rp)
 	return r.Patch(ctx, rp2, patch)
 }
@@ -186,6 +181,7 @@ func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha
 			break
 		}
 	}
+
 	if container == nil {
 		return fmt.Errorf("container with name %s should exist in the manifest", constants.RunnerContainerName)
 	}

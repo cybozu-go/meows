@@ -4,15 +4,26 @@
 package v1alpha1
 
 import (
+	"fmt"
+
+	constants "github.com/cybozu-go/github-actions-controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // NOTE: Some lines of the code are proudly copied from Kubernetes project.
 // https://github.com/kubernetes/apimachinery/tree/master/pkg/apis/meta/v1
 // https://github.com/kubernetes/api/tree/master/core/v1
 // https://github.com/kubernetes/api/tree/master/apps/v1
+
+var reservedEnvNames = map[string]bool{
+	constants.PodNameEnvName:      true,
+	constants.PodNamespaceEnvName: true,
+	constants.RunnerOrgEnvName:    true,
+	constants.RunnerRepoEnvName:   true,
+}
 
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
@@ -91,6 +102,42 @@ type RunnerPoolList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RunnerPool `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&RunnerPool{}, &RunnerPoolList{})
+}
+
+func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
+	var allErrs field.ErrorList
+	var container *corev1.Container
+	p := field.NewPath("spec")
+
+	runnerIndex := -1
+	for i, c := range s.Template.Spec.Containers {
+		if c.Name == constants.RunnerContainerName {
+			container = &c
+			runnerIndex = i
+			break
+		}
+	}
+
+	pp := p.Child("template").Child("spec").Child("containers")
+	if container == nil {
+		allErrs = append(allErrs, field.Required(pp, fmt.Sprintf("%s container is required", constants.RunnerContainerName)))
+		return allErrs
+	}
+
+	for i, e := range container.Env {
+		if reservedEnvNames[e.Name] {
+			allErrs = append(allErrs, field.Forbidden(pp.Index(runnerIndex).Child("env").Index(i), fmt.Sprintf("using the reserved environment variable %s in %s is forbidden", e.Name, constants.RunnerContainerName)))
+		}
+	}
+	return allErrs
+}
+
+func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
+	return s.validateCreate()
 }
 
 func init() {

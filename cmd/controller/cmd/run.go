@@ -77,7 +77,7 @@ func run() error {
 	wh := mgr.GetWebhookServer()
 	wh.Register("/pod/mutate", hooks.NewPodMutator(
 		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-pod-mutater"),
+		ctrl.Log.WithName("actions-token-pod-mutator"),
 		dec,
 		githubClient,
 	))
@@ -86,6 +86,7 @@ func run() error {
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("RunnerPool"),
 		mgr.GetScheme(),
+		config.repositoryNames,
 		config.organizationName,
 	)
 	if err = reconciler.SetupWithManager(mgr); err != nil {
