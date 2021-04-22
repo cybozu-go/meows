@@ -94,6 +94,11 @@ func run() error {
 		return err
 	}
 
+	if err = (&actionsv1alpha1.RunnerPool{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "RunnerPool")
+		return err
+	}
+
 	runnerSweeper := controllers.NewRunnerSweeper(
 		mgr.GetClient(),
 		ctrl.Log.WithName("runner-sweeper"),

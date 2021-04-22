@@ -54,7 +54,6 @@ func (r *PodSweeper) Start(ctx context.Context) error {
 			err := r.run(ctx)
 			if err != nil {
 				r.log.Error(err, "failed to run a sweeping loop")
-				return err
 			}
 		}
 	}
