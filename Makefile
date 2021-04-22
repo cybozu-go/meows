@@ -2,52 +2,26 @@ CURL := curl -sSLf
 
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_GEN_VERSION := 0.4.1
-KUSTOMIZE_VERSION := 3.8.7
-STERN_VERSION = 1.13.1
 K8S_VERSION := 1.19.7
-KIND_VERSION := 0.10.0
-CERT_MANAGER_VERSION := 1.2.0
 
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-BIN_DIR := $(PROJECT_DIR)/bin
-ENVTEST_ASSETS_DIR := $(PROJECT_DIR)/testbin
+PROJECT_DIR := $(CURDIR)
+TMP_DIR := $(PROJECT_DIR)/tmp
+BIN_DIR := $(TMP_DIR)/bin
+ENVTEST_ASSETS_DIR := $(TMP_DIR)/envtest
 KINDTEST_DIR := $(PROJECT_DIR)/kindtest
 
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
-KUSTOMIZE := $(BIN_DIR)/kustomize
 NILERR := $(BIN_DIR)/nilerr
 STATICCHECK := $(BIN_DIR)/staticcheck
-GINKGO := $(BIN_DIR)/ginkgo
-KIND := $(BIN_DIR)/kind
-KUBECTL := $(BIN_DIR)/kubectl
-KUSTOMIZE := $(BIN_DIR)/kustomize
-export KUBECTL
+
+CRD_OPTIONS ?=
+
+IMAGE_PREFIX :=
+IMAGE_TAG := latest
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
-
-# Image URL to use all building/pushing image targets
-CONTROLLER_IMG ?= actions-controller:latest
-RUNNER_IMG ?= actions-runner:latest
-AGENT_IMG ?= actions-slack-agent:latest
-
-# kind envs
-KIND_CLUSTER_NAME ?= kindtest-actions
-KIND_CONFIG := $(KINDTEST_DIR)/kind.yaml
-
-CONTROLLER_NAMESPACE ?= actions-system
-RUNNER_NAMESPACE ?= default
-
-GITHUB_APP_ID ?=
-GITHUB_APP_INSTALLATION_ID ?=
-GITHUB_APP_PRIVATE_KEY_PATH ?=
-
-SLACK_WEBHOOK_URL ?=
-SLACK_APP_TOKEN ?=
-SLACK_BOT_TOKEN ?=
-
-CRD_OPTIONS ?=
 
 .PHONY: all
 all: help
@@ -59,24 +33,17 @@ help: ## Display this help.
 
 .PHONY: setup
 setup: ## Setup necessary tools.
-	mkdir -p $(ENVTEST_ASSETS_DIR)
-	$(CURL) -o $(ENVTEST_ASSETS_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
-	mkdir -p $(BIN_DIR)
+	$(MAKE) -C kindtest setup
+	mkdir -p $(BIN_DIR) $(ENVTEST_ASSETS_DIR)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_GEN_VERSION)
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
 	GOBIN=$(BIN_DIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
-	GOBIN=$(BIN_DIR) go install github.com/onsi/ginkgo/ginkgo@latest
-	$(CURL) https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BIN_DIR)
-	$(CURL) -o $(BIN_DIR)/kind https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64 && chmod a+x $(BIN_DIR)/kind
-	$(CURL) -o $(BIN_DIR)/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
-	$(CURL) -sLf https://github.com/stern/stern/releases/download/v$(STERN_VERSION)/stern_$(STERN_VERSION)_linux_amd64.tar.gz | tar -xz stern_$(STERN_VERSION)_linux_amd64/
-	mv stern_$(STERN_VERSION)_linux_amd64/stern $(BIN_DIR)/
-	rm -r stern_$(STERN_VERSION)_linux_amd64/
+	$(CURL) -o $(BIN_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
+	source $(BIN_DIR)/setup-envtest.sh && fetch_envtest_tools $(ENVTEST_ASSETS_DIR)
 
 .PHONY: clean
-clean: ## Clean files>
-	rm -f bin/*
-	rm -rf testbin/*
+clean: ## Clean files
+	rm -rf $(TMP_DIR)/*
 
 ##@ Build
 
@@ -89,38 +56,27 @@ generate:
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: build
-build: build-controller build-agent build-annotator## Build all binaries.
+build: generate ## Build all binaries.
+	go build -o $(BIN_DIR)/github-actions-controller ./cmd/controller
+	go build -o $(BIN_DIR)/ ./cmd/slack-agent
+	go build -o $(BIN_DIR)/ ./cmd/slack-agent-client
+	go build -o $(BIN_DIR)/ ./cmd/deltime-annotate
+	go build -o $(BIN_DIR)/ ./cmd/job-started
 
-.PHONY: build-controller
-build-controller: generate
-	go build -o bin/github-actions-controller ./cmd/controller
+.PHONY: image
+image: ## Build container images.
+	docker build -t actions-controller:devel -f Dockerfile.controller  .
+	docker build -t actions-runner:devel -f Dockerfile.runner .
 
-.PHONY: build-agent
-build-agent:
-	go build -o bin/slack-agent ./cmd/slack-agent
+.PHONY: tag
+tag: ## Tag container images.
+	docker tag actions-controller:devel $(IMAGE_PREFIX)actions-controller:$(IMAGE_TAG)
+	docker tag actions-runner:devel $(IMAGE_PREFIX)actions-runner:$(IMAGE_TAG)
 
-.PHONY: build-annotator
-build-annotator:
-	go build -o bin/deltime-annotate ./cmd/deltime-annotate
-
-.PHONY: run
-run: manifests generate ## Run a controller from your host.
-	go run ./cmd/controller
-
-.PHONY: images
-images: controller-image runner-image agent-image ## Build both container and runner docker images.
-
-.PHONY: controller-image
-controller-image:
-	docker build -t ${CONTROLLER_IMG} .
-
-.PHONY: runner-image
-runner-image:
-	docker build -f Dockerfile.runner -t ${RUNNER_IMG} .
-
-.PHONY: agent-image
-agent-image:
-	docker build -f Dockerfile.agent -t ${AGENT_IMG} .
+.PHONY: push
+push: ## Push container images.
+	docker push $(IMAGE_PREFIX)actions-controller:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX)actions-runner:$(IMAGE_TAG)
 
 ##@ Test
 
@@ -139,104 +95,6 @@ check-generate: ## Generate manifests and code, and check if diff exists.
 
 .PHONY: test
 test: ## Run unit tests.
-	{ \
-	source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh && \
-	fetch_envtest_tools $(notdir $(ENVTEST_ASSETS_DIR)) && \
-	setup_envtest_env $(ENVTEST_ASSETS_DIR) && \
-	go test -v -count=1 ./... -coverprofile cover.out ; \
-	}
-
-.PHONY: prepare
-prepare: ## Prepare for kind test.
-	$(MAKE) github-secret
-	$(MAKE) slack-secret
-	$(MAKE) cert-manager
-	$(MAKE) install
-	$(KUBECTL) label ns default actions.cybozu.com/pod-mutate=true
-	$(KUBECTL) label ns default actions.cybozu.com/runnerpool-validate=true
-	$(KUSTOMIZE) build --load_restrictor='none' $(KINDTEST_DIR)/manifests | $(KUBECTL) apply -f -
-
-.PHONY: github-secret
-github-secret:
-	$(KUBECTL) get ns $(CONTROLLER_NAMESPACE) 2>&1 >/dev/null || $(KUBECTL) create ns $(CONTROLLER_NAMESPACE)
-	$(KUBECTL) create secret generic github-app-secret \
-		-n $(CONTROLLER_NAMESPACE) \
-		--from-literal=app-id=$(GITHUB_APP_ID) \
-		--from-literal=app-installation-id=$(GITHUB_APP_INSTALLATION_ID) \
-		--from-file=app-private-key=$(GITHUB_APP_PRIVATE_KEY_PATH)
-
-.PHONY: slack-secret
-slack-secret:
-	$(KUBECTL) get ns $(RUNNER_NAMESPACE) 2>&1 >/dev/null || $(KUBECTL) create ns $(RUNNER_NAMESPACE)
-	$(KUBECTL) create secret generic slack-app-secret \
-		-n $(RUNNER_NAMESPACE) \
-		--from-literal=SLACK_WEBHOOK_URL=$(SLACK_WEBHOOK_URL) \
-		--from-literal=SLACK_APP_TOKEN=$(SLACK_APP_TOKEN) \
-		--from-literal=SLACK_BOT_TOKEN=$(SLACK_BOT_TOKEN)
-
-.PHONY: cert-manager
-cert-manager:
-	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
-	$(KUBECTL) wait pods -n cert-manager -l app=cert-manager --for=condition=Ready --timeout=1m
-	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=1m
-	$(KUBECTL) wait pods -n cert-manager -l app=webhook --for=condition=Ready --timeout=1m
-
-.PHONY: kindtest
-kindtest: ## Run test on kind.
-	env KINDTEST=1 BIN_DIR=$(BIN_DIR) $(GINKGO) --failFast -v $(KINDTEST_DIR)
-
-.PHONY: start-kind
-start-kind: ## Start kind cluster.
-	$(KIND) create cluster --image kindest/node:v$(K8S_VERSION) --name $(KIND_CLUSTER_NAME) --config $(KIND_CONFIG)
-
-.PHONY: stop-kind
-stop-kind: ## Stop kind cluster
-	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
-
-.PHONY: load
-load: load-controller-image load-runner-image load-agent-image ## Load docker images onto k8s cluster.
-
-.PHONY: load-controller-image
-load-controller-image:
-	$(KIND) load docker-image $(CONTROLLER_IMG) --name $(KIND_CLUSTER_NAME)
-
-.PHONY: load-runner-image
-load-runner-image:
-	$(KIND) load docker-image $(RUNNER_IMG) --name $(KIND_CLUSTER_NAME)
-
-.PHONY: load-agent-image
-load-agent-image:
-	$(KIND) load docker-image $(AGENT_IMG) --name $(KIND_CLUSTER_NAME)
-
-##@ Deployment
-
-.PHONY: install
-install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
-
-.PHONY: uninstall
-uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete -f -
-
-.PHONY: deploy
-deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
-
-.PHONY: undeploy
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete -f -
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
+	source $(BIN_DIR)/setup-envtest.sh \
+		&& setup_envtest_env $(ENVTEST_ASSETS_DIR) \
+		&& go test -v -count=1 ./... -coverprofile $(TMP_DIR)/cover.out

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/go-github/v33/github"
+	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -24,6 +25,22 @@ func kubectlWithInput(input []byte, args ...string) ([]byte, []byte, error) {
 	return execAtLocal(filepath.Join(binDir, "kubectl"), input, args...)
 }
 
+func kubectlSafe(args ...string) []byte {
+	stdout, stderr, err := kubectl(args...)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+	return stdout
+}
+
+func kubectlSafeWithInput(input []byte, args ...string) []byte {
+	stdout, stderr, err := kubectlWithInput(input, args...)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+	return stdout
+}
+
+func kustomizeBuild(dir string) ([]byte, []byte, error) {
+	return execAtLocal(filepath.Join(binDir, "kustomize"), nil, "build", dir)
+}
+
 func execAtLocal(cmd string, input []byte, args ...string) ([]byte, []byte, error) {
 	var stdout, stderr bytes.Buffer
 	command := exec.Command(cmd, args...)
@@ -36,6 +53,19 @@ func execAtLocal(cmd string, input []byte, args ...string) ([]byte, []byte, erro
 
 	err := command.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
+}
+
+func createNamespace(ns string) {
+	stdout, stderr, err := kubectl("create", "namespace", ns)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+
+	EventuallyWithOffset(1, func() error {
+		stdout, stderr, err := kubectl("get", "sa", "default", "-n", ns)
+		if err != nil {
+			return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		}
+		return nil
+	}).Should(Succeed())
 }
 
 func getPodNames(pods *corev1.PodList) []string {
@@ -90,6 +120,34 @@ func isDeploymentReady(name, namespace string, replicas int) error {
 	return nil
 }
 
+func getRecretedPods(before, after *corev1.PodList) ([]string, []string) {
+	delPodNames := make([]string, 0)
+	addPodNames := make([]string, 0)
+
+	beforeMap := make(map[string]struct{})
+	for _, v := range before.Items {
+		beforeMap[v.Name] = struct{}{}
+	}
+
+	afterMap := make(map[string]struct{})
+	for _, v := range after.Items {
+		afterMap[v.Name] = struct{}{}
+	}
+
+	for _, v := range before.Items {
+		if _, ok := afterMap[v.Name]; !ok {
+			delPodNames = append(delPodNames, v.Name)
+		}
+	}
+
+	for _, v := range after.Items {
+		if _, ok := beforeMap[v.Name]; !ok {
+			addPodNames = append(addPodNames, v.Name)
+		}
+	}
+	return delPodNames, addPodNames
+}
+
 func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) error {
 	if len(before.Items) != len(after.Items) {
 		return fmt.Errorf(
@@ -98,17 +156,8 @@ func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) erro
 			getPodNames(after),
 		)
 	}
-	beforeMap := make(map[string]struct{})
-	for _, v := range before.Items {
-		beforeMap[v.Name] = struct{}{}
-	}
-	cntNotFound := 0
-	for _, v := range after.Items {
-		if _, ok := beforeMap[v.Name]; !ok {
-			cntNotFound++
-		}
-	}
-	if cntNotFound != numRecreated {
+	delPodNames, addPodNames := getRecretedPods(before, after)
+	if len(delPodNames) != numRecreated || len(addPodNames) != numRecreated {
 		return fmt.Errorf(
 			"%d pod should be recreated: before %#v after %#v",
 			numRecreated,
@@ -120,12 +169,11 @@ func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) erro
 }
 
 func equalNumExistingRunners(
-	ctx context.Context,
 	pods *corev1.PodList,
 	numExisting int,
 ) error {
 	runners, res, err := githubClient.Actions.ListRunners(
-		ctx,
+		context.Background(),
 		orgName,
 		repoName,
 		&github.ListOptions{Page: 0, PerPage: 100},
@@ -166,9 +214,9 @@ func equalNumExistingRunners(
 	return nil
 }
 
-func triggerWorkflowDispatch(ctx context.Context, workflowName string) error {
+func triggerWorkflowDispatch(workflowName string) error {
 	res, err := githubClient.Actions.CreateWorkflowDispatchEventByFileName(
-		ctx,
+		context.Background(),
 		orgName,
 		repoName,
 		workflowName,

@@ -6,9 +6,9 @@ require (
 	github.com/bradleyfalzon/ghinstallation v1.1.1
 	github.com/cybozu-go/log v1.6.0 // indirect
 	github.com/cybozu-go/well v1.10.0
-	github.com/gin-gonic/gin v1.6.3
 	github.com/go-logr/logr v0.3.0
 	github.com/go-logr/zapr v0.2.0
+	github.com/google/go-cmp v0.5.2
 	github.com/google/go-github/v33 v33.0.0
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0

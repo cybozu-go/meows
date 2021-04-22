@@ -4,32 +4,38 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/google/go-github/v33/github"
-	"github.com/kelseyhightower/envconfig"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 const (
-	systemNS   = "actions-system"
-	runnerNS   = "default"
-	poolName   = "runnerpool-sample"
-	numRunners = 3
-
-	orgName  = "neco-test"
-	repoName = "github-actions-controller-ci"
+	controllerNS = "actions-system"
+	runnerNS     = "test-runner"
+	poolName     = "runnerpool-sample"
+	numRunners   = 3
+	orgName      = "neco-test"
+	repoName     = "github-actions-controller-ci"
 )
 
 var (
-	binDir string
+	binDir                  = os.Getenv("BIN_DIR")
+	githubAppID             = os.Getenv("GITHUB_APP_ID")
+	githubAppInstallationID = os.Getenv("GITHUB_APP_INSTALLATION_ID")
+	githubAppPrivateKeyPath = os.Getenv("GITHUB_APP_PRIVATE_KEY_PATH")
+	slackChannel            = os.Getenv("SLACK_CHANNEL")
+	slackAppToken           = os.Getenv("SLACK_APP_TOKEN")
+	slackBotToken           = os.Getenv("SLACK_BOT_TOKEN")
+)
 
-	githubClient *github.Client
-
+var (
+	githubClient   *github.Client
 	runnerSelector = fmt.Sprintf(
 		"%s=%s,%s=%s",
 		constants.RunnerOrgLabelKey, orgName,
@@ -48,37 +54,32 @@ func TestOnKind(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	By("Getting the directory path which contains some binaries")
-	binDir = os.Getenv("BIN_DIR")
+	By("checking env variables")
 	Expect(binDir).ShouldNot(BeEmpty())
 	fmt.Println("This test uses the binaries under " + binDir)
 
+	Expect(githubAppID).ShouldNot(BeEmpty())
+	Expect(githubAppInstallationID).ShouldNot(BeEmpty())
+	Expect(githubAppPrivateKeyPath).ShouldNot(BeEmpty())
+	Expect(slackChannel).ShouldNot(BeEmpty())
+	Expect(slackAppToken).ShouldNot(BeEmpty())
+	Expect(slackBotToken).ShouldNot(BeEmpty())
+
 	By("initializing github client")
-	var e struct {
-		AppID             int64  `split_words:"true"`
-		AppInstallationID int64  `split_words:"true"`
-		AppPrivateKeyPath string `split_words:"true"`
-	}
-	err := envconfig.Process("github", &e)
+	appID, err := strconv.ParseInt(githubAppID, 10, 64)
 	Expect(err).ShouldNot(HaveOccurred())
-	Expect(e.AppID).ShouldNot(BeZero())
-	Expect(e.AppInstallationID).ShouldNot(BeZero())
-	Expect(e.AppPrivateKeyPath).ShouldNot(BeEmpty())
+	Expect(appID).ShouldNot(BeZero())
 
-	rt, err := ghinstallation.NewKeyFromFile(
-		http.DefaultTransport,
-		e.AppID,
-		e.AppInstallationID,
-		e.AppPrivateKeyPath,
-	)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	appInstallID, err := strconv.ParseInt(githubAppInstallationID, 10, 64)
+	Expect(err).ShouldNot(HaveOccurred())
+	Expect(appInstallID).ShouldNot(BeZero())
 
+	rt, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, appID, appInstallID, githubAppPrivateKeyPath)
+	Expect(err).ShouldNot(HaveOccurred())
 	githubClient = github.NewClient(&http.Client{Transport: rt})
 })
 
 var _ = Describe("github-actions-controller", func() {
-	Context("Runner", testRunner)
+	Context("bootstrap", testBootstrap)
+	Context("runner", testRunner)
 })

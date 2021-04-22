@@ -9,6 +9,7 @@ spec:
     spec:
       containers:
       - name: manager
+        image: actions-controller:kindtest
         imagePullPolicy: Never
         args:
         - "--organization-name=neco-test"

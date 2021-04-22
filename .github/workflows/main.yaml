@@ -8,45 +8,36 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-20.04
+    env:
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
           go-version: 1.16
-      - run: |
-          make setup
-          make lint
-          make test
-          make build
+      - run: make setup
+      - run: make lint
+      - run: make check-generate
+      - run: make test
+      - run: make build
+      - run: make image
   kindtest:
     name: Run test on kind
     runs-on: ubuntu-20.04
-    env:
-      GITHUB_APP_ID: ${{ secrets.APP_ID }}
-      GITHUB_APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
-      GITHUB_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-      GITHUB_APP_PRIVATE_KEY_PATH: /tmp/key.pem
-      SLACK_APP_TOKEN: dummy
-      SLACK_BOT_TOKEN: dummy
-      SLACK_WEBHOOK_URL: dummy
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
           go-version: 1.16
-      - run: |
-          echo "${GITHUB_APP_PRIVATE_KEY}" > /tmp/key.pem
-          make setup
-          make images
-          make start-kind
-          make load
-      - run: |
-          ./bin/stern . --all-namespaces > kind.log &
-      - run: |
-          make prepare
-          make kindtest
-      - if: ${{ always() }}
+      - name: Create secret files
         run: |
-          if [[ -f kind.log ]]; then
-            cat kind.log
-          fi
+          echo '${{ secrets.APP_PRIVATE_KEY }}' > .secret.private-key.pem
+          echo 'export GITHUB_APP_ID=${{ secrets.APP_ID }}'                           > .secret.env.sh
+          echo 'export GITHUB_APP_INSTALLATION_ID=${{ secrets.APP_INSTALLATION_ID }}' >> .secret.env.sh
+          echo 'export SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}'                    >> .secret.env.sh
+          echo 'export SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}'                >> .secret.env.sh
+          echo 'export SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}'                >> .secret.env.sh
+      - run: make setup
+      - run: make -C kindtest start
+      - run: make -C kindtest test

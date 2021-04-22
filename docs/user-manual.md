@@ -9,7 +9,7 @@ to/from a GitHub Actions runner and the controller requires to have a GitHub App
 secret.
 
 Please create a GitHub App first on the GitHub page following [the official documentation](https://docs.github.com/en/developers/apps/creating-a-github-app).
-Here are the minimal changes from the default setting on the regitration page:
+Here are the minimal changes from the default setting on the registration page:
 
 - Fill **GitHub Apps Name**
 - Fill **Homepage URL**
@@ -35,15 +35,19 @@ How to deploy GitHub Actions controller
 ---------------------------------------
 
 You should deploy the controller `Deployment` with a `Secret` resource which
-contains the GitHub App private key you created.  The command below creates the
+contains the GitHub App private key you created. The command below creates the
 `Secret` resource.
 
 ```bash
-kubectl create secret generic github-app-secret \
-  -n ${NAMESPACE} \
-  --from-literal=app-id=${GITHUB_APP_ID} \
-  --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
-  --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
+$ GITHUB_APP_ID=<your GitHub App ID>
+$ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
+$ GITHUB_APP_PRIVATE_KEY_PATH=<Path of a GitHub App private key file>
+
+$ kubectl create secret generic github-app-secret \
+    -n actions-system \
+    --from-literal=app-id=${GITHUB_APP_ID} \
+    --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
+    --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
 ```
 
 In addition to this, the admission webhook requires a TLS certificate.
@@ -58,24 +62,24 @@ How to create Slack App
 
 Slack agent notifies users whether CI succeeds or not and receives messages to
 extend a `Pod` lifetime.
-So, users have to get a Webhook URL to send messages to and run a WebSocket client
+So, users have to prepare a Slack App to send messages to and run a WebSocket client
 to watch button events.
 
 Here's a procedure for how to configure the Slack App.
 
 1. Go to [this](https://api.slack.com/apps) page.
-1. Click the **Create New App** button and fill the application name field and choose
-   a Slack workspace.
-1. Go to **Socket Mode** from the sidebar and enable socket mode.
-   Create App-Level Token on the windows coming up and keep the generated App Token.
+1. Click the **Create New App** button.
+   - Choose **From scratch**.
+   - Fill the application name field and choose a Slack workspace.
+1. Go to **Socket Mode** from the sidebar.
+   - Enable **Enable Socket Mode**.
+   - Create App-Level Token on the windows coming up and keep the generated App Token.
 1. Go to **OAuth & Permissions** from the sidebar.
-   - Add the `chat:write` permission under **Scopes**.
-   - Click **Reinstall to Workspace** and reinstall the bot in your desired channel.
+   - Add the `chat:write` permission under **Bot Token Scopes**.
+   - Click **Install(Reinstall) to Workspace** and (re)install the bot in your desired channel.
    - Keep **Bot User OAuth Token**.
-1. Go to **Incoming Webhooks** from the sidebar.
-   - Click **Add New Webhook to Workspace** and  choose your desired channel.
-   - Keep the generated URL.
-1. Go to **Beta features** from the sidebar and enable time picker element.
+1. Go to **Beta features** from the sidebar.
+   - Enable **Time picker element**.
 1. Open your Slack desktop app and go to your desired channel.
    - Click the `i` button on the top right corner.
    - Click **more** and then **Add apps**.
@@ -89,11 +93,16 @@ contains the Slack App tokens you created. The command below creates the `Secret
 resource.
 
 ```bash
-kubectl create secret generic slack-app-secret \
-  -n ${NAMESPACE} \
-  --from-literal=SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL} \
-  --from-literal=SLACK_APP_TOKEN=${SLACK_APP_TOKEN} \
-  --from-literal=SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+$ RUNNER_NAMESPACE=<Runner Namespace>
+$ SLACK_CHANNEL=#<your Slack Channel>
+$ SLACK_APP_TOKEN=<your Slack App Token>
+$ SLACK_BOT_TOKEN=<your Slack Bot Token>
+
+$ kubectl create secret generic slack-app-secret \
+    -n ${RUNNER_NAMESPACE} \
+    --from-literal=SLACK_CHANNEL=${SLACK_CHANNEL} \
+    --from-literal=SLACK_APP_TOKEN=${SLACK_APP_TOKEN} \
+    --from-literal=SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
 ```
 
 Please refer to the manifest `config/agent/manifests.yaml` for detail.
@@ -155,14 +164,17 @@ GitHub on the **Actions** page under each repository's **Settings**
 How to use self-hosted runners
 ------------------------------
 
-There are some small scripts provided under `scripts/`.
+GitHub Actions controller provides the following commands, you have to execute these commands in your workflow.
 
 - `job-started`
-- `job-failed`
+    - Notify a runner pod that a workflow has been started.
+      You need to call this command at the start of the workflow.
 
-You should include these script in GitHub Actions workflows you execute on
-self-hosted runners.
-Here is an example for how to define a workflow.
+- `job-success`, `job-cancelled`, `job-failure`
+    - Notify a runner pod that the result of a workflow.
+      You need to call these commands at the end of the workflow with [Job status check functions](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-status-check-functions).
+
+Here is an example of a workflow definition.
 
 ```yaml
 name: Main
@@ -178,11 +190,17 @@ jobs:
     runs-on: self-hosted
     steps:
       - run: job-started
+
       - run: ...
       - run: ...
       - run: ...
+
+      - if: success()
+        run: job-success
+      - if: cancelled()
+        run: job-cancelled
       - if: failure()
-        run: job-failed
+        run: job-failure
 ```
 
 How to extend GitHub Actions jobs
@@ -192,11 +210,6 @@ How to extend GitHub Actions jobs
 
 Choose the time in UTC you want to extend the `Pod` by and click `Extend`.
 This button can be clicked multiple times if the `Pod` still exists.
-
-NOTE:  
-The time picker feature is still beta, and [`github.com/slack-go/slack`](https://github.com/slack-go/slack)
-can parse interactive messages which contains a time picker component after [this](https://github.com/slack-go/slack/pull/918)
-change is released.
 
 How to recreate Pod when update
 -------------------------------

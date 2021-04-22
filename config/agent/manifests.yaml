@@ -45,10 +45,10 @@ spec:
         app: slack-agent
     spec:
       containers:
-      - name: notifier
-        image: actions-slack-agent:latest
-        args:
-          - notifier
+      - name: agent
+        image: actions-controller:latest
+        command:
+          - "slack-agent"
         envFrom:
           - secretRef:
               name: slack-app-secret
@@ -56,13 +56,6 @@ spec:
           - name: notifier
             containerPort: 8080
             protocol: TCP
-      - name: extender
-        image: actions-slack-agent:latest
-        args:
-          - extender
-        envFrom:
-          - secretRef:
-              name: slack-app-secret
       serviceAccountName: slack-agent
 ---
 apiVersion: v1

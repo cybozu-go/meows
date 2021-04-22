@@ -20,64 +20,89 @@ What kindtest covers is:
 - Runner `Pod`s are registered to GitHub Actions on [`github.com/neco-test/github-actions-controller-ci`](https://github.com/neco-test/github-actions-controller-ci).
 - GitHub Actions workflows run on the `Pod`s.
 - Runner `Pod`s send messages to Slack agent.
+- Slack agent `notifier` sends messages to Slack.
 - The controller can delete runner `Pod`s with deletion time annotations.
 - The controller can delete runner registrations of unexisting `Pod`s from GitHub
   Actions.
 
-Note that the GitHub App needs an **Actions Write** permission in addition to
-[this](./user-manual.md#how-to-create-github-app) to trigger workflow dispatch events.
-
 What kindtest does not cover is:
 
-- Slack agent `notifier` sends messages to Slack.
-  - In kindtest, `notifier` does receive requests from runner `Pod`s, but it does
-    not send messages to Slack.
-- Slack agent `extender` runs WebSocket and extends a runner `Pod`'s lifetime.
+- Slack agent extends a runner `Pod`'s lifetime.
 
 So, you might need to test the Slack agent behavior manually if you make a change
 on Slack agent.
 
-### Test `notifier` manually
+In order to run the kindtest, you need to create GitHub App and Slack App.
+Please follow [user manual](./user-manual.md) to prepare.
 
-First, create Slack App following [user manual](./user-manual.md#how-to-create-slack-app).
+You can run the kind test as following.
+
+1. Create secret files for kindtest.
+    ```bash
+    $ vi .secret.private-key.pem
+    # Save your GitHub App private key in this file.
+
+    $ vi .secret.env.sh
+    # Save env variables as following.
+    #
+    # export GITHUB_APP_ID=<your GitHub App ID>
+    # export GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
+    # export SLACK_CHANNEL=#<your Slack Channel>
+    # export SLACK_APP_TOKEN=<your Slack App Token>
+    # export SLACK_BOT_TOKEN=<your Slack Bot Token>
+    ```
+
+2. Install tools.
+    ````bash
+    $ make setup
+    ```
+
+3. Run kind test.
+    ```bash
+    # Start kind cluster.
+    $ make -C kindtest start
+
+    # Run test on kind.
+    $ make -C kindtest test
+
+    # Stop kind cluster.
+    $ make -C kindtest stop
+    ```
+
+### Run slack agent manually
 
 Then, run a server with the following commands:
 
 ```bash
-## notifier server
-$ export SLACK_WEBHOOK_URL=<your Slack Webhook URL>
-$ go run ./cmd/slack-agent/ notifier
+# Run server process
+$ export SLACK_CHANNEL=#<your Slack Channel>
+$ export SLACK_APP_TOKEN=<your Slack App Token>
+$ export SLACK_BOT_TOKEN=<your Slack Bot Token>
+$ go run ./cmd/slack-agent -d
 ```
 
 You can test both the failure and success messages by actually sending them:
 
 ```bash
-## notifier client
-# failure
-$ go run ./cmd/slack-agent/ client \
-    -n sample-ns sample-pod \
-    -w Build -i 123 \
-    -o cybozu-go -r github-actions-controller \
-    -b sample-branch \
-    --failed
+# client
+$ cat <<EOF > /tmp/github.env
+{
+  "actor": "user",
+  "git_ref": "branch-name",
+  "job_id": "job",
+  "pull_request_number": 123,
+  "repository": "owner/repo",
+  "run_id": 999999,
+  "run_number": 987,
+  "workflow_name": "Work flow"
+}
+EOF
 
 # success
-$ go run ./cmd/slack-agent/ client \
-    -n sample-ns sample-pod \
-    -w Build -i 123 \
-    -o cybozu-go -r github-actions-controller \
-    -b sample-branch
-```
+$ go run ./cmd/slack-agent-client pod success
 
-### Test `extender` manually
-
-After sending a failure message with `notifier`, run a `extender` server:
-
-```bash
-$ export SLACK_APP_TOKEN=<your Slack App Token>
-$ export SLACK_BOT_TOKEN=<your Slack Bot Token>
-$ export SLACK_WEBHOOK_URL=<your Slack Webhook URL>
-$ go run ./cmd/slack-agent/ extender -d
+# failure
+$ go run ./cmd/slack-agent-client pod failure --extend
 ```
 
 Then, click the button on the Slack message, and check if a receiving log appears
@@ -93,14 +118,10 @@ the job that is expected to run on a node created in CI and might cause a failur
 on CI.
 
 ```bash
-$ export GITHUB_APP_ID=<your GitHub App ID>
-$ export GITHUB_APP_INSTALLATION_ID=<your GitHub installation ID>
-$ export GITHUB_APP_PRIVATE_KEY_PATH=<path to your .pem file>
-$ export SLACK_APP_TOKEN=dummy
-$ export SLACK_BOT_TOKEN=dummy
-$ export SLACK_WEBHOOK_URL=dummy
+# Create secret files for kindtest.
+$ vi .secret.private-key.pem
+$ vi .secret.env.sh
 
-$ make start-kind
-$ make images load
-$ make prepare
+$ make -C kindtest start
+$ make -C kindtest bootstrap
 ```

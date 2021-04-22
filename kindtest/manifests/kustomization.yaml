@@ -1,9 +1,0 @@
-bases:
-- ../../config/default
-- ../../config/samples/
-- ../../config/agent/
-
-patchesStrategicMerge:
-- overlays/manager.yaml
-- overlays/runner.yaml
-- overlays/agent.yaml

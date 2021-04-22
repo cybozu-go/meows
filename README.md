@@ -16,7 +16,7 @@ Features
 --------
 
 - Self-hosted runner pool
-  - Run a time-consuming initialization script before a job starts
+  - Run a time-consuming startup script before a job starts
 - Notification
   - Users can notice that a job succeeds or not with notification
 - Workflow failure investigation
@@ -33,6 +33,5 @@ Docker images
 Docker images are available on [Quay.io](https://quay.io/repository/cybozu)
 - [Controller](https://quay.io/repository/cybozu/actions-controller)
 - [Runner](https://quay.io/repository/cybozu/actions-runner)
-- [Slack agent](https://quay.io/repository/cybozu/actions-slack-agent)
 
 [releases]: https://github.com/cybozu-go/github-actions-controller/releases
