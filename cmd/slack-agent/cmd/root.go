@@ -25,6 +25,5 @@ func Execute() {
 }
 
 func init() {
-
 	rootCmd.PersistentFlags().BoolVarP(&isDevelopment, "development", "d", false, "Development mode.")
 }

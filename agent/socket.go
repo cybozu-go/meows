@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -46,71 +47,86 @@ func NewSocketModeClient(
 }
 
 // Run makes a connectionh with Slack over WebSocket.
-func (s *SocketModeClient) Run() error {
-	return s.smClient.Run()
+func (s *SocketModeClient) Run(ctx context.Context) error {
+	return s.smClient.RunContext(ctx)
 }
 
 // ListenInteractiveEvents listens to events from interactive components and
 // runs the event handler.
 func (s *SocketModeClient) ListenInteractiveEvents(ctx context.Context) error {
-	for envelope := range s.smClient.Events {
-		if envelope.Type != socketmode.EventTypeInteractive {
-			s.log.Info("skipped event because type is not "+string(socketmode.EventTypeInteractive),
-				"type", envelope.Type,
-				"data", envelope.Data,
-			)
-			continue
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case envelope, ok := <-s.smClient.Events:
+			if !ok {
+				return errors.New("channel is closed")
+			}
+			err := s.processInteractiveEvent(ctx, &envelope)
+			if err != nil {
+				return err
+			}
 		}
-		cb, ok := envelope.Data.(slack.InteractionCallback)
-		if !ok {
-			err := fmt.Errorf(
-				"received data cannot be converted into slack.InteractionCallback: %#v",
-				envelope.Data,
-			)
-			s.log.Error(err, "failed to convert type to "+string(socketmode.EventTypeInteractive),
-				"data", envelope.Data,
-			)
-			return err
-		}
-		if cb.Type != slack.InteractionTypeBlockActions {
-			s.log.Info("skipped event because data type is not "+string(slack.InteractionTypeBlockActions),
-				"type", cb.Type,
-			)
-			continue
-		}
-		if envelope.Request == nil {
-			err := fmt.Errorf("request should not be nil: %#v", envelope.Data)
-			s.log.Error(err, "request should not be nil")
-			return err
-		}
-
-		p, err := newPostResultPayloadFromCB(&cb)
-		if err != nil {
-			s.log.Error(err, "failed to get result from callback", "cb", cb)
-			return err
-		}
-
-		// TODO: time.Now() is replaced after timepicker gets available.
-		t := time.Now().Add(30 * time.Minute)
-		err = s.annotate(ctx, p.PodName, p.PodNamespace, t)
-		if err != nil {
-			s.log.Error(err, "failed to annotate deletion time",
-				"name", p.PodName,
-				"namespace", p.PodNamespace,
-			)
-			return err
-		}
-
-		_, _, err = s.apiClient.PostMessageContext(ctx, cb.Channel.ID, p.makeExtendResultMsgOption(t))
-		if err != nil {
-			s.log.Error(err, "failed to send message",
-				"name", p.PodName,
-				"namespace", p.PodNamespace,
-			)
-			return err
-		}
-
-		s.smClient.Ack(*envelope.Request)
 	}
+}
+
+func (s *SocketModeClient) processInteractiveEvent(ctx context.Context, envelope *socketmode.Event) error {
+	if envelope.Type != socketmode.EventTypeInteractive {
+		s.log.Info("skipped event because type is not "+string(socketmode.EventTypeInteractive),
+			"type", envelope.Type,
+			"data", envelope.Data,
+		)
+		return nil
+	}
+	cb, ok := envelope.Data.(slack.InteractionCallback)
+	if !ok {
+		err := fmt.Errorf(
+			"received data cannot be converted into slack.InteractionCallback: %#v",
+			envelope.Data,
+		)
+		s.log.Error(err, "failed to convert type to "+string(socketmode.EventTypeInteractive),
+			"data", envelope.Data,
+		)
+		return err
+	}
+	if cb.Type != slack.InteractionTypeBlockActions {
+		s.log.Info("skipped event because data type is not "+string(slack.InteractionTypeBlockActions),
+			"type", cb.Type,
+		)
+		return nil
+	}
+	if envelope.Request == nil {
+		err := fmt.Errorf("request should not be nil: %#v", envelope.Data)
+		s.log.Error(err, "request should not be nil")
+		return err
+	}
+
+	p, err := newPostResultPayloadFromCB(&cb)
+	if err != nil {
+		s.log.Error(err, "failed to get result from callback", "cb", cb)
+		return err
+	}
+
+	// TODO: time.Now() is replaced after timepicker gets available.
+	t := time.Now().Add(30 * time.Minute)
+	err = s.annotate(ctx, p.PodName, p.PodNamespace, t)
+	if err != nil {
+		s.log.Error(err, "failed to annotate deletion time",
+			"name", p.PodName,
+			"namespace", p.PodNamespace,
+		)
+		return err
+	}
+
+	_, _, err = s.apiClient.PostMessageContext(ctx, cb.Channel.ID, p.makeExtendResultMsgOption(t))
+	if err != nil {
+		s.log.Error(err, "failed to send message",
+			"name", p.PodName,
+			"namespace", p.PodNamespace,
+		)
+		return err
+	}
+
+	s.smClient.Ack(*envelope.Request)
 	return nil
 }

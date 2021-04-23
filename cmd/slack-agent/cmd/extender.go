@@ -68,20 +68,23 @@ var extenderCmd = &cobra.Command{
 		// because rate limit for `connection.open` is so small.
 		// https://api.slack.com/methods/apps.connections.open
 		retry := viper.GetUint("retry")
-		for i := uint(0); i < retry+1; i++ {
-			env := well.NewEnvironment(context.Background())
-			env.Go(s.ListenInteractiveEvents)
-			env.Go(func(_ context.Context) error {
-				return s.Run()
-			})
-			err := well.Wait()
-			if i == retry && err != nil {
-				return err
+		well.Go(func(ctx context.Context) error {
+			for i := uint(0); i < retry+1; i++ {
+				env := well.NewEnvironment(ctx)
+				env.Go(s.ListenInteractiveEvents)
+				env.Go(s.Run)
+				env.Stop()
+				err := env.Wait()
+				if i == retry && err != nil {
+					return err
+				}
+				log.Info("retry opening a connection with Slack", "trycount", i+1, "retry", retry)
+				time.Sleep(time.Minute)
 			}
-			log.Info("retry opening a connection with Slack", "trycount", i+1, "retry", retry)
-			time.Sleep(time.Minute)
-		}
-		return nil
+			return nil
+		})
+		well.Stop()
+		return well.Wait()
 	},
 }
 
