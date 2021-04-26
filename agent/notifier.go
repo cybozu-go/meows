@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/cybozu-go/well"
@@ -30,7 +29,7 @@ func NewNotifier(
 }
 
 // Start start HTTP server.
-func (s *Notifier) Start(_ context.Context) error {
+func (s *Notifier) Start() error {
 	serv := &well.HTTPServer{
 		Server: &http.Server{
 			Addr:    s.listenAddr,

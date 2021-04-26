@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -38,9 +37,12 @@ var notifierCmd = &cobra.Command{
 			}
 		}
 
-		env := well.NewEnvironment(context.Background())
 		s := agent.NewNotifier(viper.GetString(listenAddrFlagName), url, f)
-		env.Go(s.Start)
+		err := s.Start()
+		if err != nil {
+			return err
+		}
+		well.Stop()
 		return well.Wait()
 	},
 }
