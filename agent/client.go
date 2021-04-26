@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -64,14 +65,15 @@ func (c *NotifierClient) PostResult(
 	if err != nil {
 		return err
 	}
-
 	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf(
-			"status code should be %d, but got %d",
-			http.StatusOK,
-			res.StatusCode,
-		)
+		data, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("status code: %d, failed to read response body: %s", res.StatusCode, err)
+		}
+		return fmt.Errorf("status code: %d, error: %s", res.StatusCode, string(data))
 	}
+
 	return nil
 }
