@@ -1,7 +1,7 @@
 Release procedure
 =================
 
-This document describes how to release a new version of neco-template.
+This document describes how to release a new version of github-actions-controller.
 
 Versioning
 ----------
@@ -34,31 +34,32 @@ Bump version
 ------------
 
 1. Determine a new version number.  Let it write `$VERSION` as `VERSION=x.y.z`.
-1. Checkout `main` branch.
-1. Make a branch to release, for example by `git neco dev "$VERSION"`
-1. Edit `CHANGELOG.md` for the new version ([example][]).
-1. Commit the change and push it.
+2. Make a branch to release
+
+    ```console
+    $ git neco dev "$VERSION"`
+    ```
+
+3. Edit `CHANGELOG.md` for the new version ([example][]).
+4. Commit the change and push it.
 
     ```console
     $ git commit -a -m "Bump version to $VERSION"
     $ git neco review
     ```
-1. Merge this branch.
-1. Checkout `main` branch.
-1. Add a git tag, then push it.
+
+5. Merge this branch.
+6. Add a git tag to the main HEAD, then push it.
 
     ```console
-    $ git tag "v$VERSION"
+    $ git checkout main
+    $ git pull
+    $ git tag -a -m "Release v$VERSION" "v$VERSION"
     $ git push origin "v$VERSION"
+    ```
 
-Now the version is bumped up and the latest container image is uploaded to [quay.io](https://quay.io/cybozu/neco-template).
-
-Publish GitHub release page
----------------------------
-
-Go to https://github.com/cybozu-go/neco-template/releases and edit the tag.
-Finally, press `Publish release` button.
-
+GitHub actions will build and push artifacts such as container images and
+create a new GitHub release.
 
 [semver]: https://semver.org/spec/v2.0.0.html
 [example]: https://github.com/cybozu-go/etcdpasswd/commit/77d95384ac6c97e7f48281eaf23cb94f68867f79
