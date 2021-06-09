@@ -62,6 +62,7 @@ build: generate ## Build all binaries.
 	go build -o $(BIN_DIR)/ ./cmd/slack-agent-client
 	go build -o $(BIN_DIR)/ ./cmd/deltime-annotate
 	go build -o $(BIN_DIR)/ ./cmd/job-started
+	go build -o $(BIN_DIR)/ ./cmd/entrypoint
 
 .PHONY: image
 image: ## Build container images.

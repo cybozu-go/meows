@@ -45,6 +45,7 @@ COPY scripts/RunnerService.js ${RUNNER_ASSETS_DIR}/bin
 COPY --from=builder /workspace/tmp/bin/slack-agent-client /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/deltime-annotate /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/job-started /usr/local/bin
+COPY --from=builder /workspace/tmp/bin/entrypoint /usr/local/bin
 
 ENTRYPOINT ["/usr/local/bin/dumb-init", "--"]
-CMD ["/usr/local/bin/entrypoint.sh"]
+CMD ["/usr/local/bin/entrypoint"]
