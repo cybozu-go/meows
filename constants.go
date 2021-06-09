@@ -23,6 +23,12 @@ const (
 	// RunnerTokenEnvName is a env field key for RUNNER_TOKEN.
 	RunnerTokenEnvName = "RUNNER_TOKEN"
 
+	// ExtendDurationEnvName is a env field key for EXTEND_DURATION
+	ExtendDurationEnvName = "EXTEND_DURATION"
+
+	// SlackAgentServiceNameEnvName is a env field key for SLACK_AGENT_SERVICE_NAME
+	SlackAgentServiceNameEnvName = "SLACK_AGENT_SERVICE_NAME"
+
 	// RunnerOrgLabelKey is a label key for organization name.
 	RunnerOrgLabelKey = "actions.cybozu.com/organization"
 
