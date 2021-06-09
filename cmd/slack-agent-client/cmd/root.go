@@ -37,6 +37,7 @@ If RESULT is omitted or any other value is specified, it will be treated as 'unk
 			result = args[1]
 		}
 
+		// TODO: agent.GetJobInfoFromFileが使えるはず
 		var data []byte
 		if clientConfig.jobInfoFile == "-" {
 			d, err := io.ReadAll(os.Stdin)

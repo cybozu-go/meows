@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -25,6 +27,34 @@ type JobInfo struct {
 func GetJobInfo() (*JobInfo, error) {
 	env := readEnv()
 	return envToJobInfo(env)
+}
+
+func GetJobInfoFromFile(file string) (*JobInfo, error) {
+	var data []byte
+	if file == "-" {
+		d, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, err
+		}
+		data = d
+	} else {
+		d, err := os.ReadFile(file)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		data = d
+	}
+
+	var jobInfo *JobInfo
+	if len(data) != 0 {
+		tmp := &JobInfo{}
+		err := json.Unmarshal(data, tmp)
+		if err != nil {
+			return nil, err
+		}
+		jobInfo = tmp
+	}
+	return jobInfo, nil
 }
 
 func (info *JobInfo) RepositoryURL() string {
