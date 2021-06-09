@@ -47,7 +47,14 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := os.MkdirAll(path.workdir, 0777); err != nil {
+		prevDir, err := filepath.Abs(".")
+		if err != nil {
+			return err
+		}
+		defer os.Chdir(prevDir)
+		os.Chdir(path.runner)
+
+		if err := os.Mkdir(path.workdir, 0777); err != nil {
 			return err
 		}
 
@@ -108,7 +115,7 @@ func getEnvs() error {
 
 func setupPaths() {
 	path.runner = filepath.Join("/runner")
-	path.workdir = filepath.Join(path.runner, "_work")
+	path.workdir = filepath.Join("_work")
 	path.tmp = filepath.Join("/tmp")
 	path.extend = filepath.Join(path.tmp, "extend")
 	path.failure = filepath.Join(path.tmp, "failure")
@@ -127,7 +134,7 @@ func runConfig(ctx context.Context) error {
 }
 
 func runSvc(ctx context.Context) error {
-	command := exec.CommandContext(ctx, filepath.Join(path.runner, "bin", "runsvc.sh"))
+	command := exec.CommandContext(ctx, filepath.Join(".", "bin", "runsvc.sh"))
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	if err := command.Run(); err != nil {
@@ -164,7 +171,7 @@ func slackNotify(extend bool) error {
 		jobResult = "unknown"
 	}
 	if len(slackAgentSvcName) != 0 {
-		fmt.Println("Send an notification to slack")
+		fmt.Println("Send an notification to slack jobResult = ", jobResult)
 		c, err := agent.NewClient(fmt.Sprintf("http://%s", slackAgentSvcName))
 		if err != nil {
 			return err
