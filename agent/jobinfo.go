@@ -3,7 +3,6 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -31,19 +30,14 @@ func GetJobInfo() (*JobInfo, error) {
 
 func GetJobInfoFromFile(file string) (*JobInfo, error) {
 	var data []byte
-	if file == "-" {
-		d, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			return nil, err
-		}
-		data = d
-	} else {
-		d, err := os.ReadFile(file)
-		if err != nil && !os.IsNotExist(err) {
-			return nil, err
-		}
-		data = d
+	d, err := os.ReadFile(file)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
+	// Accepts ErrNotExist.
+	// When ErrNotExist is returned, it means that `job_started` was not called in a workflow.
+	// Even in this case, slack notification will run.
+	data = d
 
 	var jobInfo *JobInfo
 	if len(data) != 0 {

@@ -10,66 +10,75 @@ import (
 
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/agent"
+	"github.com/cybozu-go/well"
 
 	"github.com/spf13/cobra"
 )
 
 var (
 	// Environments
-	podName           string
-	podNs             string
-	runnerToken       string
-	runnerOrg         string
-	runnerRepo        string
-	extendDuration    string
-	slackAgentSvcName string
-)
+	podName           = os.Getenv(constants.PodNameEnvName)
+	podNamespace      = os.Getenv(constants.PodNamespaceEnvName)
+	runnerToken       = os.Getenv(constants.RunnerTokenEnvName)
+	runnerOrg         = os.Getenv(constants.RunnerOrgEnvName)
+	runnerRepo        = os.Getenv(constants.RunnerRepoEnvName)
+	extendDuration    = os.Getenv(constants.ExtendDurationEnvName)
+	slackAgentSvcName = os.Getenv(constants.SlackAgentServiceNameEnvName)
 
-var path struct {
-	runner    string
-	workdir   string
-	tmp       string
-	extend    string
-	failure   string
-	cancelled string
-	success   string
-}
+	// Directory/File Paths
+	runnerDir = filepath.Join("/runner")
+	workDir   = filepath.Join(runnerDir, "_work")
+
+	extendFlagFile    = filepath.Join(os.TempDir(), "extend")
+	failureFlagFile   = filepath.Join(os.TempDir(), "failure")
+	cancelledFlagFile = filepath.Join(os.TempDir(), "cancelled")
+	successFlagFile   = filepath.Join(os.TempDir(), "success")
+
+	configCommand = filepath.Join(runnerDir, "config.sh")
+	runSVCCommand = filepath.Join(runnerDir, "bin", "runsvc.sh")
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "entrypoint",
 	Short: "GitHub Actions runner Entrypoint",
 	Long:  "GitHub Actions runner Entrypoint",
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if err := getEnvs(); err != nil {
-			return err
-		}
-		setupPaths()
-		return nil
+		return checkEnvs()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		prevDir, err := filepath.Abs(".")
-		if err != nil {
-			return err
-		}
-		defer os.Chdir(prevDir)
-		os.Chdir(path.runner)
-
-		if err := os.Mkdir(path.workdir, 0777); err != nil {
+		if err := os.Mkdir(workDir, 0777); err != nil {
 			return err
 		}
 
-		runConfig(context.TODO())
-		runSvc(context.TODO())
-
-		extend, err := annotatePods(context.TODO())
-		if err != nil {
-			return err
+		configArgs := []string{
+			"--unattended",
+			"--replace",
+			"--name", podName,
+			"--url", fmt.Sprintf("https://github.com/%s/%s", runnerOrg, runnerRepo),
+			"--token", runnerToken,
+			"--work", workDir,
 		}
-		if err := slackNotify(extend); err != nil {
-			return err
-		}
+		well.Go(func(ctx context.Context) error {
+			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
+				return err
+			}
+			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
+				return err
+			}
 
-		return nil
+			extend, err := annotatePods(ctx)
+			if err != nil {
+				return err
+			}
+			if err := slackNotify(ctx, extend); err != nil {
+				return err
+			}
+
+			time.Sleep(time.Duration(1<<63 - 1))
+			return nil
+		})
+		well.Stop()
+		return well.Wait()
 	},
 }
 
@@ -81,93 +90,74 @@ func Execute() {
 	}
 }
 
-func getEnvs() error {
-	podName = os.Getenv(constants.PodNameEnvName)
+func checkEnvs() error {
 	if len(podName) == 0 {
 		return fmt.Errorf("%s must be set", constants.PodNameEnvName)
 	}
-	podNs = os.Getenv(constants.PodNamespaceEnvName)
-	if len(podName) == 0 {
+	if len(podNamespace) == 0 {
 		return fmt.Errorf("%s must be set", constants.PodNamespaceEnvName)
 	}
-	runnerToken = os.Getenv(constants.RunnerTokenEnvName)
 	if len(runnerToken) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerTokenEnvName)
 	}
-	runnerOrg = os.Getenv(constants.RunnerOrgEnvName)
 	if len(runnerOrg) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerOrgEnvName)
 	}
-	runnerRepo = os.Getenv(constants.RunnerRepoEnvName)
 	if len(runnerRepo) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerRepoEnvName)
 	}
-	extendDuration = os.Getenv(constants.ExtendDurationEnvName)
 	if len(extendDuration) == 0 {
 		extendDuration = "20m"
 	}
 
 	// SLACK_AGENT_SERVICE_NAME is optional
-	slackAgentSvcName = os.Getenv(constants.SlackAgentServiceNameEnvName)
 
 	return nil
 }
 
-func setupPaths() {
-	path.runner = filepath.Join("/runner")
-	path.workdir = filepath.Join("_work")
-	path.tmp = filepath.Join("/tmp")
-	path.extend = filepath.Join(path.tmp, "extend")
-	path.failure = filepath.Join(path.tmp, "failure")
-	path.cancelled = filepath.Join(path.tmp, "cancelled")
-	path.success = filepath.Join(path.tmp, "success")
-}
-
-func runConfig(ctx context.Context) error {
-	command := exec.CommandContext(ctx, filepath.Join(path.runner, "config.sh"), "--unattended", "--replace", "--name", podName, "--url", fmt.Sprintf("https://github.com/%s/%s", runnerOrg, runnerRepo), "--token", runnerToken, "--work", path.workdir)
+func runCommand(ctx context.Context, workDir, commandStr string, args ...string) error {
+	command := exec.CommandContext(ctx, commandStr, args...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
+	command.Dir = workDir
 	if err := command.Run(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func runSvc(ctx context.Context) error {
-	command := exec.CommandContext(ctx, filepath.Join(".", "bin", "runsvc.sh"))
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	if err := command.Run(); err != nil {
-		return err
-	}
-	return nil
+func isFileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
 }
 
 func annotatePods(ctx context.Context) (bool, error) {
-	if _, err := os.Stat(path.extend); err == nil {
+	if isFileExists(extendFlagFile) {
 		dur, err := time.ParseDuration(extendDuration)
 		if err != nil {
 			return false, err
 		}
 		fmt.Printf("Annotate pods with the time %s later\n", extendDuration)
-		agent.AnnotateDeletionTime(ctx, podName, podNs, time.Now().Add(dur))
+		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now().Add(dur))
 		return true, nil
 	} else {
 		fmt.Println("Annotate pods with current time")
-		agent.AnnotateDeletionTime(ctx, podName, podNs, time.Now())
+		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now())
 		return false, nil
 	}
 }
 
-func slackNotify(extend bool) error {
+func slackNotify(ctx context.Context, extend bool) error {
+	// TODO: using ctx
 	var jobResult string
-	if _, err := os.Stat(path.failure); err == nil {
+	switch {
+	case isFileExists(failureFlagFile):
 		jobResult = "failure"
-	} else if _, err := os.Stat(path.cancelled); err == nil {
+	case isFileExists(cancelledFlagFile):
 		jobResult = "cancelled"
-	} else if _, err := os.Stat(path.success); err == nil {
+	case isFileExists(successFlagFile):
 		jobResult = "success"
-	} else {
+	default:
 		jobResult = "unknown"
 	}
 	if len(slackAgentSvcName) != 0 {
@@ -180,7 +170,7 @@ func slackNotify(extend bool) error {
 		if err != nil {
 			return err
 		}
-		return c.PostResult("", jobResult, extend, podNs, podName, jobInfo)
+		return c.PostResult("", jobResult, extend, podNamespace, podName, jobInfo)
 	} else {
 		fmt.Println("Skip sending an notification to slack because SLACK_AGENT_SERVICE_NAME is blank")
 	}

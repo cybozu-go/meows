@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
-	"io"
 	"os"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
@@ -37,33 +35,10 @@ If RESULT is omitted or any other value is specified, it will be treated as 'unk
 			result = args[1]
 		}
 
-		// TODO: agent.GetJobInfoFromFileが使えるはず
-		var data []byte
-		if clientConfig.jobInfoFile == "-" {
-			d, err := io.ReadAll(os.Stdin)
-			if err != nil {
-				return err
-			}
-			data = d
-		} else {
-			d, err := os.ReadFile(clientConfig.jobInfoFile)
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
-			// Accepts ErrNotExist.
-			// When ErrNotExist is returned, it means that `job_started` was not called in a workflow.
-			// Even in this case, slack notification will run.
-			data = d
-		}
-
 		var jobInfo *agent.JobInfo
-		if len(data) != 0 {
-			tmp := &agent.JobInfo{}
-			err := json.Unmarshal(data, tmp)
-			if err != nil {
-				return err
-			}
-			jobInfo = tmp
+		jobInfo, err := agent.GetJobInfoFromFile(clientConfig.jobInfoFile)
+		if err != nil {
+			return err
 		}
 
 		c, err := agent.NewClient(clientConfig.server)
