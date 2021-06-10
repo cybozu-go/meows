@@ -36,14 +36,12 @@ RUN mkdir -p ${AGENT_TOOLSDIRECTORY} \
   && chmod g+rwx ${AGENT_TOOLSDIRECTORY}
 
 USER 10000
-COPY scripts/entrypoint.sh /usr/local/bin
 COPY scripts/job-cancelled /usr/local/bin
 COPY scripts/job-failure   /usr/local/bin
 COPY scripts/job-success   /usr/local/bin
 COPY scripts/RunnerService.js ${RUNNER_ASSETS_DIR}/bin
 
 COPY --from=builder /workspace/tmp/bin/slack-agent-client /usr/local/bin
-COPY --from=builder /workspace/tmp/bin/deltime-annotate /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/job-started /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/entrypoint /usr/local/bin
 

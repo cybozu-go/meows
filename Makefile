@@ -60,7 +60,6 @@ build: generate ## Build all binaries.
 	go build -o $(BIN_DIR)/github-actions-controller ./cmd/controller
 	go build -o $(BIN_DIR)/ ./cmd/slack-agent
 	go build -o $(BIN_DIR)/ ./cmd/slack-agent-client
-	go build -o $(BIN_DIR)/ ./cmd/deltime-annotate
 	go build -o $(BIN_DIR)/ ./cmd/job-started
 	go build -o $(BIN_DIR)/ ./cmd/entrypoint
 
