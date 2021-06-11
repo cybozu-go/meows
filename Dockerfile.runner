@@ -7,7 +7,6 @@ RUN make build
 FROM quay.io/cybozu/ubuntu:20.04
 
 ARG RUNNER_VERSION=2.277.1
-ARG DUMB_INIT_VERSION=1.2.2
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y \
@@ -16,9 +15,6 @@ RUN apt-get update -y \
   && apt-get update -y \
   && apt-get install -y --no-install-recommends libyaml-dev \
   && rm -rf /var/lib/apt/lists/*
-
-RUN curl -sSLf -o /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v${DUMB_INIT_VERSION}/dumb-init_${DUMB_INIT_VERSION}_amd64 \
-  && chmod +x /usr/local/bin/dumb-init
 
 ARG RUNNER_ASSETS_DIR=/runner
 RUN mkdir -p ${RUNNER_ASSETS_DIR} \
@@ -45,5 +41,4 @@ COPY --from=builder /workspace/tmp/bin/slack-agent-client /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/job-started /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/entrypoint /usr/local/bin
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--"]
 CMD ["/usr/local/bin/entrypoint"]
