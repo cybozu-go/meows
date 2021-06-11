@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/well"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -59,9 +62,11 @@ var rootCmd = &cobra.Command{
 			"--work", workDir,
 		}
 		well.Go(func(ctx context.Context) error {
+			agent.StatePending.Set(1)
 			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
+			agent.StatePending.Set(0)
 			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
 				return err
 			}
@@ -80,6 +85,22 @@ var rootCmd = &cobra.Command{
 			}
 			return nil
 		})
+
+		registry := prometheus.DefaultRegisterer
+		agent.MetricsInit(registry, podName)
+
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", promhttp.Handler())
+		metricsServ := &well.HTTPServer{
+			Server: &http.Server{
+				Addr:    "0.0.0.0",
+				Handler: metricsMux,
+			},
+		}
+		if err := metricsServ.ListenAndServe(); err != nil {
+			return err
+		}
+
 		well.Stop()
 		return well.Wait()
 	},
