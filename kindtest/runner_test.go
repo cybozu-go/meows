@@ -117,6 +117,52 @@ func testRunner() {
 		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
 	})
 
+	It("should not be visible environment variables on the job", func() {
+		By("getting pods list before triggering workflow dispatch")
+		before, err := fetchPods(runnerNS, runnerSelector)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(before.Items).Should(HaveLen(numRunners))
+
+		By(`running "check-env" workflow`)
+		err = triggerWorkflowDispatch("check-env.yaml")
+		Expect(err).ShouldNot(HaveOccurred())
+
+		By("confirming the job is finished and one Pod has deletion time annotation")
+		var shouldBeDeletedAt string
+		Eventually(func() error {
+			after, err := fetchPods(runnerNS, runnerSelector)
+			if err != nil {
+				return err
+			}
+			for _, po := range after.Items {
+				if v, ok := po.Annotations[constants.PodDeletionTimeKey]; ok {
+					fmt.Println("====== Pod should be deleted at " + v)
+					shouldBeDeletedAt = v
+					return nil
+				}
+			}
+			return errors.New("one pod should have annotation " + constants.PodDeletionTimeKey)
+		}, time.Minute, time.Second).ShouldNot(HaveOccurred())
+		now := time.Now().UTC()
+		fmt.Println("====== Current time is " + now.Format(time.RFC3339))
+
+		By("confirming the timestamp value is now")
+		t, err := time.Parse(time.RFC3339, shouldBeDeletedAt)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(t.After(now.Add(-5 * time.Second))).To(BeTrue())
+		Expect(t.Before(now.Add(5 * time.Second))).To(BeTrue())
+
+		By("confirming one Pod is recreated")
+		Eventually(func() error {
+			after, err := fetchPods(runnerNS, runnerSelector)
+			if err != nil {
+				return err
+			}
+			return equalNumRecreatedPods(before, after, 1)
+		}).ShouldNot(HaveOccurred())
+		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
+	})
+
 	It("should delete RunnerPool properly", func() {
 		By("getting pods list before deleting RunnerPool")
 		pods, err := fetchPods(runnerNS, runnerSelector)
