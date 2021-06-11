@@ -18,6 +18,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	metricsDefaultAddr = ":8080"
+)
+
+var config struct {
+	metricsAddress string
+}
+
 var (
 	// Environments
 	podName           = os.Getenv(constants.PodNameEnvName)
@@ -93,7 +101,7 @@ var rootCmd = &cobra.Command{
 		metricsMux.Handle("/metrics", promhttp.Handler())
 		metricsServ := &well.HTTPServer{
 			Server: &http.Server{
-				Addr:    "0.0.0.0",
+				Addr:    config.metricsAddress,
 				Handler: metricsMux,
 			},
 		}
@@ -112,6 +120,11 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func init() {
+	fs := rootCmd.Flags()
+	fs.StringVar(&config.metricsAddress, "metrics-address", metricsDefaultAddr, "Listening address and port for metrics.")
 }
 
 func checkEnvs() error {
