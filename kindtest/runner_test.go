@@ -30,7 +30,7 @@ func testRunner() {
 		// Set interval and limit considering rate limit.
 		Eventually(func() error {
 			return equalNumExistingRunners(pods, numRunners)
-		}, 5*time.Minute, 15*time.Second).ShouldNot(HaveOccurred())
+		}).ShouldNot(HaveOccurred())
 	})
 
 	It("should run a success job on a self-hosted runner Pod and delete the Pod immediately", func() {
@@ -52,7 +52,7 @@ func testRunner() {
 				return err
 			}
 			return equalNumRecreatedPods(before, after, 1)
-		}, 5*time.Minute, time.Second).ShouldNot(HaveOccurred())
+		}).ShouldNot(HaveOccurred())
 
 		By("confirming that one of the slack-agent pod emitted a dummy message to stdout")
 		//{"level":"info","ts":1623123384.4349568,"caller":"agent/server.go:141","msg":"success to send slack message","pod":"test-runner/runnerpool-sample-5f4fbff6bb-wpjq6"}
@@ -113,7 +113,7 @@ func testRunner() {
 				return err
 			}
 			return equalNumRecreatedPods(before, after, 1)
-		}, 5*time.Minute, time.Second).ShouldNot(HaveOccurred())
+		}).ShouldNot(HaveOccurred())
 		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
 	})
 
@@ -138,6 +138,6 @@ func testRunner() {
 		// Set interval and limit considering rate limit.
 		Eventually(func() error {
 			return equalNumExistingRunners(pods, 0)
-		}, 5*time.Minute, 30*time.Second).ShouldNot(HaveOccurred())
+		}).ShouldNot(HaveOccurred())
 	})
 }

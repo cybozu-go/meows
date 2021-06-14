@@ -49,7 +49,7 @@ func TestOnKind(t *testing.T) {
 	}
 	RegisterFailHandler(Fail)
 	SetDefaultEventuallyTimeout(5 * time.Minute)
-	SetDefaultEventuallyPollingInterval(1 * time.Second)
+	SetDefaultEventuallyPollingInterval(10 * time.Second)
 	RunSpecs(t, "KindTest Suite")
 }
 
