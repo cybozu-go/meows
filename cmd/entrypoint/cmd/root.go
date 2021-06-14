@@ -40,6 +40,7 @@ var (
 	runnerDir = filepath.Join("/runner")
 	workDir   = filepath.Join(runnerDir, "_work")
 
+	startedFlagFile   = filepath.Join(os.TempDir(), "started")
 	extendFlagFile    = filepath.Join(os.TempDir(), "extend")
 	failureFlagFile   = filepath.Join(os.TempDir(), "failure")
 	cancelledFlagFile = filepath.Join(os.TempDir(), "cancelled")
@@ -60,7 +61,9 @@ var rootCmd = &cobra.Command{
 		if err := os.MkdirAll(workDir, 0755); err != nil {
 			return err
 		}
-
+		registry := prometheus.DefaultRegisterer
+		agent.MetricsInit(registry, podName)
+		agent.UpdatePodStatus(agent.Starting)
 		configArgs := []string{
 			"--unattended",
 			"--replace",
@@ -70,14 +73,21 @@ var rootCmd = &cobra.Command{
 			"--work", workDir,
 		}
 		well.Go(func(ctx context.Context) error {
-			agent.StatePending.Set(1)
+			agent.UpdatePodStatus(agent.Registering)
+
 			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
-			agent.StatePending.Set(0)
+
+			agent.UpdateJobStatus(agent.Waiting)
 			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
 				return err
 			}
+
+			agent.UpdateJobStatus(agent.Completed)
+			agent.UpdatePodStatus(agent.Deleting)
+
+			setResultMetrics()
 
 			extend, err := annotatePod(ctx)
 			if err != nil {
@@ -94,8 +104,13 @@ var rootCmd = &cobra.Command{
 			return nil
 		})
 
-		registry := prometheus.DefaultRegisterer
-		agent.MetricsInit(registry, podName)
+		well.Go(func(ctx context.Context) error {
+			for !isFileExists(startedFlagFile) {
+				time.Sleep(1000)
+			}
+			agent.UpdateJobStatus(agent.Running)
+			return nil
+		})
 
 		metricsMux := http.NewServeMux()
 		metricsMux.Handle("/metrics", promhttp.Handler())
@@ -205,6 +220,19 @@ func annotatePod(ctx context.Context) (bool, error) {
 		fmt.Println("Annotate pod with current time")
 		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now())
 		return false, nil
+	}
+}
+
+func setResultMetrics() {
+	switch {
+	case isFileExists(failureFlagFile):
+		agent.UpdateJobResult(agent.Failure)
+	case isFileExists(cancelledFlagFile):
+		agent.UpdateJobResult(agent.Cancelled)
+	case isFileExists(successFlagFile):
+		agent.UpdateJobResult(agent.Success)
+	default:
+		agent.UpdateJobResult(agent.Unknown)
 	}
 }
 

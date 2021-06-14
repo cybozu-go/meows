@@ -5,39 +5,117 @@ import (
 )
 
 const (
-	namespace = "runner"
-	subsystem = "pod"
+	namespace = "runner_pool"
+)
+
+type PodStatus string
+type JobStatus string
+type JobResult string
+
+const (
+	Starting    = PodStatus("starting")
+	Registering = PodStatus("registering")
+	Deleting    = PodStatus("deleting")
+
+	Waiting   = JobStatus("waiting")
+	Running   = JobStatus("running")
+	Completed = JobStatus("completed")
+
+	Success   = JobResult("success")
+	Failure   = JobResult("failure")
+	Cancelled = JobResult("cancelled")
+	Unknown   = JobResult("unknown")
 )
 
 var (
-	StatePending prometheus.Gauge
+	AllPodStatus = []PodStatus{
+		Starting,
+		Registering,
+		Deleting,
+	}
+
+	AllJobStatus = []JobStatus{
+		Waiting,
+		Running,
+		Completed,
+	}
+
+	AllJobResult = []JobResult{
+		Success,
+		Failure,
+		Cancelled,
+		Unknown,
+	}
+
+	podStatus *prometheus.GaugeVec
+	jobStatus *prometheus.GaugeVec
+	jobResult *prometheus.GaugeVec
 )
 
 func MetricsInit(registry prometheus.Registerer, name string) {
 	labels := prometheus.Labels{
-		"name": name,
+		"runner_pool_name": name,
 	}
-	StatePending = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Subsystem: subsystem,
-		Name:      "state",
-		Help:      "",
-		ConstLabels: mergeLabels(labels, prometheus.Labels{
-			"state": "pending",
-		}),
-	})
-
+	podStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Name:        "pod",
+			Help:        "`status` label show the status of the pod.",
+			ConstLabels: labels,
+		},
+		[]string{"status"},
+	)
+	jobStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Name:        "job",
+			Help:        "`status` label show the status of the job.",
+			ConstLabels: labels,
+		},
+		[]string{"status"},
+	)
+	jobResult = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace:   namespace,
+			Name:        "job_result",
+			Help:        "`result` label show the result of the job.",
+			ConstLabels: labels,
+		},
+		[]string{"result"},
+	)
 	registry.MustRegister(
-		StatePending,
+		podStatus,
+		jobStatus,
+		jobResult,
 	)
 }
 
-func mergeLabels(labels ...prometheus.Labels) prometheus.Labels {
-	merged := make(prometheus.Labels, 0)
-	for _, l := range labels {
-		for k, v := range l {
-			merged[k] = v
+func UpdatePodStatus(label PodStatus) {
+	for _, labelStatus := range AllPodStatus {
+		if labelStatus == label {
+			podStatus.WithLabelValues(string(labelStatus)).Set(1)
+		} else {
+			podStatus.WithLabelValues(string(labelStatus)).Set(0)
 		}
 	}
-	return merged
+}
+
+func UpdateJobStatus(label JobStatus) {
+	for _, labelStatus := range AllJobStatus {
+		if labelStatus == label {
+			podStatus.WithLabelValues(string(labelStatus)).Set(1)
+		} else {
+			podStatus.WithLabelValues(string(labelStatus)).Set(0)
+		}
+	}
+}
+
+func UpdateJobResult(label JobResult) {
+	for _, labelResult := range AllJobResult {
+		if labelResult == label {
+			podStatus.WithLabelValues(string(labelResult)).Set(1)
+		} else {
+			podStatus.WithLabelValues(string(labelResult)).Set(0)
+		}
+	}
 }
