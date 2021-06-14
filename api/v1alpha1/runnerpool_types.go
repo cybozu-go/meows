@@ -140,6 +140,11 @@ func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
 	return s.validateCreate()
 }
 
+// GetRunnerDeploymentName returns the name of Deployment for runners.
+func (r *RunnerPool) GetRunnerDeploymentName() string {
+	return r.Name
+}
+
 func init() {
 	SchemeBuilder.Register(&RunnerPool{}, &RunnerPoolList{})
 }
