@@ -20,10 +20,14 @@ var clientConfig struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "slack-agent-client PODNAME [RESULT]",
+	Use:   "slack-agent-client RUNNER_PODNAME [RESULT]",
 	Short: "slack-agent-client sends job result to Slack agent",
-	Long:  "slack-agent-client sends job result to Slack agent",
-	Args:  cobra.RangeArgs(1, 2),
+	Long: `slack-agent-client sends job result to Slack agent
+
+For RESULT, specify 'success', 'failure', 'cancelled', or 'unknown'.
+If RESULT is omitted or any other value is specified, it will be treated as 'unknown' in the slack-agent server.
+`,
+	Args: cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -45,6 +49,9 @@ var rootCmd = &cobra.Command{
 			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
+			// Accepts ErrNotExist.
+			// When ErrNotExist is returned, it means that `job_started` was not called in a workflow.
+			// Even in this case, slack notification will run.
 			data = d
 		}
 

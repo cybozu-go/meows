@@ -178,7 +178,7 @@ func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, 
 	} else {
 		msg = messagePodExtendFailure(namespace + "/" + pod)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), slackPostTimeout)
+	ctx, cancel := context.WithTimeout(ctx, slackPostTimeout)
 	defer cancel()
 	_, _, err := s.apiClient.PostMessageContext(ctx, channel, msg)
 	if err != nil {

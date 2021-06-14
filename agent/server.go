@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cybozu-go/well"
@@ -88,10 +88,10 @@ func (s *Server) Run(ctx context.Context) error {
 	return env.Wait()
 }
 
-func errorResponse(w http.ResponseWriter, statusCode int, message ...string) {
+func errorResponse(w http.ResponseWriter, statusCode int, messages ...string) {
 	w.WriteHeader(statusCode)
-	if len(message) != 0 {
-		w.Write([]byte(fmt.Sprintf(message[0])))
+	if len(messages) != 0 {
+		w.Write([]byte(strings.Join(messages, ";")))
 	}
 }
 

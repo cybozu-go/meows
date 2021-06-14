@@ -16,13 +16,6 @@ const (
 	JobResultUnknown   = "unknown"
 )
 
-var JobResults = []string{
-	JobResultSuccess,
-	JobResultFailure,
-	JobResultCancelled,
-	JobResultUnknown,
-}
-
 // These colors are based on the following guide.
 // - Model Color Palette for Color Universal Design (ver.4)
 //   ref: https://jfly.uni-koeln.de/colorset/
