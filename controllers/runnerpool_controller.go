@@ -11,9 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -30,10 +28,7 @@ type RunnerPoolReconciler struct {
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(
-	client client.Client,
-	log logr.Logger,
-	scheme *runtime.Scheme,
+func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme,
 
 	repositoryNames []string,
 	organizationName string,
@@ -70,51 +65,36 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	if rp.ObjectMeta.DeletionTimestamp != nil {
 		if controllerutil.ContainsFinalizer(rp, constants.RunnerPoolFinalizer) {
-			err := r.cleanUpOwnedResources(ctx, req.NamespacedName)
-			if err != nil {
-				log.Error(err, "failed to clean up deployment")
+			log.Info("start finalizing RunnerPool")
+
+			if err := r.finalize(ctx, log, rp); err != nil {
+				log.Error(err, "failed to finalize")
 				return ctrl.Result{}, err
 			}
 
-			err = r.removeFinalizer(ctx, rp)
-			if err != nil {
+			controllerutil.RemoveFinalizer(rp, constants.RunnerPoolFinalizer)
+			if err := r.Update(ctx, rp); err != nil {
 				log.Error(err, "failed to remove finalizer")
 				return ctrl.Result{}, err
 			}
-			log.Info("removed finalizer")
+
+			log.Info("finalizing RunnerPool is completed")
 		}
 		return ctrl.Result{}, nil
 	}
 
-	found := false
-	for _, n := range r.repositoryNames {
-		if n == rp.Spec.RepositoryName {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return ctrl.Result{}, fmt.Errorf("found the invalid repository name %v. Valid repository names are %v", rp.Spec.RepositoryName, r.repositoryNames)
-	}
-
-	d := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
-			Namespace: req.Namespace,
-		},
-	}
-	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
-		return r.updateDeploymentWithRunnerPool(rp, d)
-	})
-	if err != nil {
-		log.Error(err, "unable to create-or-update Deployment")
+	if err := r.validateRepositoryName(rp); err != nil {
+		log.Error(err, "failed to validate repository name")
 		return ctrl.Result{}, err
 	}
-	log.Info("completed create-or-update successfully", "result", op)
+
+	if err := r.reconcileDeployment(ctx, log, rp); err != nil {
+		log.Error(err, "failed to reconcile deployment")
+		return ctrl.Result{}, err
+	}
 
 	rp.Status.Bound = true
-	err = r.Status().Update(ctx, rp)
-	if err != nil {
+	if err := r.Status().Update(ctx, rp); err != nil {
 		log.Error(err, "failed to update status")
 		return ctrl.Result{}, err
 	}
@@ -129,124 +109,137 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *RunnerPoolReconciler) removeFinalizer(ctx context.Context, rp *actionsv1alpha1.RunnerPool) error {
-	rp2 := rp.DeepCopy()
-	controllerutil.RemoveFinalizer(rp2, constants.RunnerPoolFinalizer)
-	patch := client.MergeFrom(rp)
-	return r.Patch(ctx, rp2, patch)
-}
-
-func (r *RunnerPoolReconciler) cleanUpOwnedResources(ctx context.Context, namespacedName types.NamespacedName) error {
-	d := &appsv1.Deployment{}
-	err := r.Get(ctx, namespacedName, d)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
+func (r *RunnerPoolReconciler) validateRepositoryName(rp *actionsv1alpha1.RunnerPool) error {
+	for _, n := range r.repositoryNames {
+		if n == rp.Spec.RepositoryName {
 			return nil
 		}
-		return err
 	}
-	return r.Delete(ctx, d)
+	return fmt.Errorf("found the invalid repository name %v. Valid repository names are %v", rp.Spec.RepositoryName, r.repositoryNames)
 }
 
-func (r *RunnerPoolReconciler) updateDeploymentWithRunnerPool(rp *actionsv1alpha1.RunnerPool, d *appsv1.Deployment) error {
-	rp2 := rp.DeepCopy()
-
-	depLabels := rp2.GetLabels()
-	if depLabels == nil {
-		depLabels = make(map[string]string)
+func (r *RunnerPoolReconciler) finalize(ctx context.Context, log logr.Logger, rp *actionsv1alpha1.RunnerPool) error {
+	d := &appsv1.Deployment{}
+	d.SetNamespace(rp.GetNamespace())
+	d.SetName(rp.GetRunnerDeploymentName())
+	if err := r.Delete(ctx, d); err != nil {
+		log.Error(err, "failed to delete deployment")
+		return err
 	}
-	depLabels[constants.RunnerOrgLabelKey] = r.organizationName
-	depLabels[constants.RunnerRepoLabelKey] = rp2.Spec.RepositoryName
-	d.ObjectMeta.Labels = depLabels
+	return nil
+}
 
-	d.Spec.Replicas = rp2.Spec.Replicas
-	d.Spec.Selector = rp2.Spec.Selector
-	d.Spec.Strategy = rp2.Spec.Strategy
-
-	podLabels := rp2.Spec.Template.ObjectMeta.Labels
-	if podLabels == nil {
-		podLabels = make(map[string]string)
-	}
-	podLabels[constants.RunnerOrgLabelKey] = r.organizationName
-	podLabels[constants.RunnerRepoLabelKey] = rp2.Spec.RepositoryName
-	d.Spec.Template.ObjectMeta.Labels = podLabels
-
-	d.Spec.Template.ObjectMeta.Annotations = rp2.Spec.Template.ObjectMeta.Annotations
-
-	var container *corev1.Container
-	for i := range rp2.Spec.Template.Spec.Containers {
-		c := &rp2.Spec.Template.Spec.Containers[i]
-		if c.Name == constants.RunnerContainerName {
-			container = c
-			break
+func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr.Logger, rp *actionsv1alpha1.RunnerPool) error {
+	d := &appsv1.Deployment{}
+	d.SetNamespace(rp.GetNamespace())
+	d.SetName(rp.GetRunnerDeploymentName())
+	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
+		depLabels := rp.GetLabels()
+		if depLabels == nil {
+			depLabels = make(map[string]string)
 		}
-	}
+		depLabels[constants.RunnerOrgLabelKey] = r.organizationName
+		depLabels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+		d.ObjectMeta.Labels = depLabels
 
-	if container == nil {
-		return fmt.Errorf("container with name %s should exist in the manifest", constants.RunnerContainerName)
-	}
+		d.Spec.Replicas = rp.Spec.Replicas
+		d.Spec.Selector = rp.Spec.Selector
+		d.Spec.Strategy = rp.Spec.Strategy
 
-	envMap := make(map[string]struct{})
-	for _, v := range container.Env {
-		envMap[v.Name] = struct{}{}
-	}
+		podLabels := rp.Spec.Template.ObjectMeta.Labels
+		if podLabels == nil {
+			podLabels = make(map[string]string)
+		}
+		podLabels[constants.RunnerOrgLabelKey] = r.organizationName
+		podLabels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+		d.Spec.Template.ObjectMeta.Labels = podLabels
 
-	if _, ok := envMap[constants.PodNameEnvName]; !ok {
-		container.Env = append(
-			container.Env,
-			corev1.EnvVar{
-				Name: constants.PodNameEnvName,
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
+		d.Spec.Template.ObjectMeta.Annotations = rp.Spec.Template.ObjectMeta.Annotations
+
+		var container *corev1.Container
+		for i := range rp.Spec.Template.Spec.Containers {
+			c := &rp.Spec.Template.Spec.Containers[i]
+			if c.Name == constants.RunnerContainerName {
+				container = c
+				break
+			}
+		}
+		if container == nil {
+			return fmt.Errorf("container with name %s should exist in the manifest", constants.RunnerContainerName)
+		}
+
+		envMap := make(map[string]struct{})
+		for _, v := range container.Env {
+			envMap[v.Name] = struct{}{}
+		}
+
+		if _, ok := envMap[constants.PodNameEnvName]; !ok {
+			container.Env = append(
+				container.Env,
+				corev1.EnvVar{
+					Name: constants.PodNameEnvName,
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.name",
+						},
 					},
 				},
-			},
-		)
-	}
-	if _, ok := envMap[constants.PodNamespaceEnvName]; !ok {
-		container.Env = append(
-			container.Env,
-			corev1.EnvVar{
-				Name: constants.PodNamespaceEnvName,
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "metadata.namespace",
+			)
+		}
+		if _, ok := envMap[constants.PodNamespaceEnvName]; !ok {
+			container.Env = append(
+				container.Env,
+				corev1.EnvVar{
+					Name: constants.PodNamespaceEnvName,
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							FieldPath: "metadata.namespace",
+						},
 					},
 				},
-			},
-		)
+			)
+		}
+		if _, ok := envMap[constants.RunnerOrgEnvName]; !ok {
+			container.Env = append(
+				container.Env,
+				corev1.EnvVar{
+					Name:  constants.RunnerOrgEnvName,
+					Value: r.organizationName,
+				},
+			)
+		}
+		if _, ok := envMap[constants.RunnerRepoEnvName]; !ok {
+			container.Env = append(
+				container.Env,
+				corev1.EnvVar{
+					Name:  constants.RunnerRepoEnvName,
+					Value: rp.Spec.RepositoryName,
+				},
+			)
+		}
+		if _, ok := envMap[constants.SlackAgentEnvName]; !ok && rp.Spec.SlackAgentServiceName != nil {
+			container.Env = append(
+				container.Env,
+				corev1.EnvVar{
+					Name:  constants.SlackAgentEnvName,
+					Value: *rp.Spec.SlackAgentServiceName,
+				},
+			)
+		}
+
+		if !equality.Semantic.DeepDerivative(&rp.Spec.Template.Spec, &d.Spec.Template.Spec) {
+			d.Spec.Template.Spec = rp.Spec.Template.Spec
+		}
+		return ctrl.SetControllerReference(rp, d, r.Scheme)
+	})
+
+	if err != nil {
+		log.Error(err, "failed to reconcile deployment")
+		return err
 	}
-	if _, ok := envMap[constants.RunnerOrgEnvName]; !ok {
-		container.Env = append(
-			container.Env,
-			corev1.EnvVar{
-				Name:  constants.RunnerOrgEnvName,
-				Value: r.organizationName,
-			},
-		)
-	}
-	if _, ok := envMap[constants.RunnerRepoEnvName]; !ok {
-		container.Env = append(
-			container.Env,
-			corev1.EnvVar{
-				Name:  constants.RunnerRepoEnvName,
-				Value: rp2.Spec.RepositoryName,
-			},
-		)
-	}
-	if _, ok := envMap[constants.SlackAgentEnvName]; !ok && rp2.Spec.SlackAgentServiceName != nil {
-		container.Env = append(
-			container.Env,
-			corev1.EnvVar{
-				Name:  constants.SlackAgentEnvName,
-				Value: *rp2.Spec.SlackAgentServiceName,
-			},
-		)
+	if op != controllerutil.OperationResultNone {
+		log.Info("reconciled stateful set", "operation", string(op))
 	}
 
-	if !equality.Semantic.DeepDerivative(&rp2.Spec.Template.Spec, &d.Spec.Template.Spec) {
-		d.Spec.Template.Spec = rp2.Spec.Template.Spec
-	}
-	return ctrl.SetControllerReference(rp, d, r.Scheme)
+	return nil
 }
