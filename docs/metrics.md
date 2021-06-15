@@ -6,7 +6,7 @@ Metrics
 [`runner-pool`](crd-runner-pool.md) provides the following kind of metrics in Prometheus format.
 Aside from [the standard Go runtime and process metrics][standard], runner-pool.
 
-All these metrics are prefixed wit `runner_pool_` and have `runner_pool_name` labels.
+All these metrics are prefixed wit `runner_` and have `runner_pool_name` labels.
 
 | Name     | label                | Description                                                                                     | Type  |
 | -------- | -------------------- | ----------------------------------------------------------------------------------------------- | ----- |

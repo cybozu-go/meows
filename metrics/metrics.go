@@ -1,11 +1,11 @@
-package agent
+package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
-	namespace = "runner_pool"
+	namespace = "runner"
 )
 
 type PodStatus string
@@ -52,14 +52,14 @@ var (
 	jobResult *prometheus.GaugeVec
 )
 
-func MetricsInit(registry prometheus.Registerer, name string) {
+func Init(registry prometheus.Registerer, name string) {
 	labels := prometheus.Labels{
 		"runner_pool_name": name,
 	}
 	podStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace:   namespace,
-			Name:        "pod",
+			Name:        "pod_status",
 			Help:        "`status` label show the status of the pod.",
 			ConstLabels: labels,
 		},
@@ -68,7 +68,7 @@ func MetricsInit(registry prometheus.Registerer, name string) {
 	jobStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace:   namespace,
-			Name:        "job",
+			Name:        "job_status",
 			Help:        "`status` label show the status of the job.",
 			ConstLabels: labels,
 		},
@@ -92,30 +92,30 @@ func MetricsInit(registry prometheus.Registerer, name string) {
 
 func UpdatePodStatus(label PodStatus) {
 	for _, labelStatus := range AllPodStatus {
+		var val float64 = 0
 		if labelStatus == label {
-			podStatus.WithLabelValues(string(labelStatus)).Set(1)
-		} else {
-			podStatus.WithLabelValues(string(labelStatus)).Set(0)
+			val = 1
 		}
+		podStatus.WithLabelValues(string(labelStatus)).Set(val)
 	}
 }
 
 func UpdateJobStatus(label JobStatus) {
 	for _, labelStatus := range AllJobStatus {
+		var val float64 = 0
 		if labelStatus == label {
-			podStatus.WithLabelValues(string(labelStatus)).Set(1)
-		} else {
-			podStatus.WithLabelValues(string(labelStatus)).Set(0)
+			val = 1
 		}
+		podStatus.WithLabelValues(string(labelStatus)).Set(val)
 	}
 }
 
 func UpdateJobResult(label JobResult) {
 	for _, labelResult := range AllJobResult {
+		var val float64 = 0
 		if labelResult == label {
-			podStatus.WithLabelValues(string(labelResult)).Set(1)
-		} else {
-			podStatus.WithLabelValues(string(labelResult)).Set(0)
+			val = 1
 		}
+		podStatus.WithLabelValues(string(labelResult)).Set(val)
 	}
 }

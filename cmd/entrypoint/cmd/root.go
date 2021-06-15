@@ -12,6 +12,7 @@ import (
 
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/agent"
+	"github.com/cybozu-go/github-actions-controller/metrics"
 	"github.com/cybozu-go/well"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -62,8 +63,8 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		registry := prometheus.DefaultRegisterer
-		agent.MetricsInit(registry, podName)
-		agent.UpdatePodStatus(agent.Starting)
+		metrics.Init(registry, podName)
+		metrics.UpdatePodStatus(metrics.Starting)
 		configArgs := []string{
 			"--unattended",
 			"--replace",
@@ -73,19 +74,19 @@ var rootCmd = &cobra.Command{
 			"--work", workDir,
 		}
 		well.Go(func(ctx context.Context) error {
-			agent.UpdatePodStatus(agent.Registering)
+			metrics.UpdatePodStatus(metrics.Registering)
 
 			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
 
-			agent.UpdateJobStatus(agent.Waiting)
+			metrics.UpdateJobStatus(metrics.Waiting)
 			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
 				return err
 			}
 
-			agent.UpdateJobStatus(agent.Completed)
-			agent.UpdatePodStatus(agent.Deleting)
+			metrics.UpdateJobStatus(metrics.Completed)
+			metrics.UpdatePodStatus(metrics.Deleting)
 
 			setResultMetrics()
 
@@ -108,7 +109,7 @@ var rootCmd = &cobra.Command{
 			for !isFileExists(startedFlagFile) {
 				time.Sleep(1000)
 			}
-			agent.UpdateJobStatus(agent.Running)
+			metrics.UpdateJobStatus(metrics.Running)
 			return nil
 		})
 
@@ -226,13 +227,13 @@ func annotatePod(ctx context.Context) (bool, error) {
 func setResultMetrics() {
 	switch {
 	case isFileExists(failureFlagFile):
-		agent.UpdateJobResult(agent.Failure)
+		metrics.UpdateJobResult(metrics.Failure)
 	case isFileExists(cancelledFlagFile):
-		agent.UpdateJobResult(agent.Cancelled)
+		metrics.UpdateJobResult(metrics.Cancelled)
 	case isFileExists(successFlagFile):
-		agent.UpdateJobResult(agent.Success)
+		metrics.UpdateJobResult(metrics.Success)
 	default:
-		agent.UpdateJobResult(agent.Unknown)
+		metrics.UpdateJobResult(metrics.Unknown)
 	}
 }
 
