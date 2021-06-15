@@ -106,7 +106,7 @@ func UpdateJobStatus(label JobStatus) {
 		if labelStatus == label {
 			val = 1
 		}
-		podStatus.WithLabelValues(string(labelStatus)).Set(val)
+		jobStatus.WithLabelValues(string(labelStatus)).Set(val)
 	}
 }
 
@@ -116,6 +116,6 @@ func UpdateJobResult(label JobResult) {
 		if labelResult == label {
 			val = 1
 		}
-		podStatus.WithLabelValues(string(labelResult)).Set(val)
+		jobResult.WithLabelValues(string(labelResult)).Set(val)
 	}
 }
