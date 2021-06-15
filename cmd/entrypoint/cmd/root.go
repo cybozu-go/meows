@@ -177,13 +177,13 @@ func slackNotify(ctx context.Context, extend bool) error {
 	var jobResult string
 	switch {
 	case isFileExists(failureFlagFile):
-		jobResult = "failure"
+		jobResult = agent.JobResultFailure
 	case isFileExists(cancelledFlagFile):
-		jobResult = "cancelled"
+		jobResult = agent.JobResultCancelled
 	case isFileExists(successFlagFile):
-		jobResult = "success"
+		jobResult = agent.JobResultSuccess
 	default:
-		jobResult = "unknown"
+		jobResult = agent.JobResultUnknown
 	}
 	if len(slackAgentSvcName) != 0 {
 		fmt.Println("Send an notification to slack jobResult = ", jobResult)
