@@ -34,6 +34,7 @@ var (
 	runnerToken       = os.Getenv(constants.RunnerTokenEnvName)
 	runnerOrg         = os.Getenv(constants.RunnerOrgEnvName)
 	runnerRepo        = os.Getenv(constants.RunnerRepoEnvName)
+	runnerPoolName    = os.Getenv(constants.RunnerPoolNameEnvName)
 	extendDuration    = os.Getenv(constants.ExtendDurationEnvName)
 	slackAgentSvcName = os.Getenv(constants.SlackAgentServiceNameEnvName)
 
@@ -63,7 +64,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		registry := prometheus.DefaultRegisterer
-		metrics.Init(registry, podName)
+		metrics.Init(registry, runnerPoolName)
 		metrics.UpdatePodStatus(metrics.Starting)
 		configArgs := []string{
 			"--unattended",
@@ -159,6 +160,9 @@ func checkEnvs() error {
 	if len(runnerRepo) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerRepoEnvName)
 	}
+	if len(runnerPoolName) == 0 {
+		return fmt.Errorf("%s must be set", constants.RunnerPoolNameEnvName)
+	}
 	if len(extendDuration) == 0 {
 		extendDuration = "20m"
 	}
@@ -187,6 +191,7 @@ func removedEnv() []string {
 		constants.RunnerTokenEnvName,
 		constants.RunnerOrgEnvName,
 		constants.RunnerRepoEnvName,
+		constants.RunnerPoolNameEnvName,
 		constants.SlackAgentServiceNameEnvName,
 	}
 	var removedEnv []string
