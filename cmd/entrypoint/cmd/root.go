@@ -173,7 +173,6 @@ func annotatePods(ctx context.Context) (bool, error) {
 }
 
 func slackNotify(ctx context.Context, extend bool) error {
-	// TODO: using ctx
 	var jobResult string
 	switch {
 	case isFileExists(failureFlagFile):
@@ -195,7 +194,7 @@ func slackNotify(ctx context.Context, extend bool) error {
 		if err != nil {
 			return err
 		}
-		return c.PostResult("", jobResult, extend, podNamespace, podName, jobInfo)
+		return c.PostResult(ctx, "", jobResult, extend, podNamespace, podName, jobInfo)
 	} else {
 		fmt.Println("Skip sending an notification to slack because SLACK_AGENT_SERVICE_NAME is blank")
 	}

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -84,7 +85,7 @@ func NewClient(serverURL string) (*Client, error) {
 }
 
 // PostResult sends a result of CI job to server.
-func (c *Client) PostResult(channel, result string, extend bool, namespaceName, podName string, info *JobInfo) error {
+func (c *Client) PostResult(ctx context.Context, channel, result string, extend bool, namespaceName, podName string, info *JobInfo) error {
 	payload := makePayload(result, namespaceName, podName, info)
 	payload.Channel = channel
 	payload.Extend = extend
@@ -98,7 +99,15 @@ func (c *Client) PostResult(channel, result string, extend bool, namespaceName, 
 	if err != nil {
 		return err
 	}
-	res, err := http.Post(u.String(), "application/json", bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(buf))
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+
+	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}

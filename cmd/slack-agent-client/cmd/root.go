@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
@@ -45,7 +46,7 @@ If RESULT is omitted or any other value is specified, it will be treated as 'unk
 		if err != nil {
 			return err
 		}
-		return c.PostResult(clientConfig.channel, result, clientConfig.extend, clientConfig.namespace, podName, jobInfo)
+		return c.PostResult(context.Background(), clientConfig.channel, result, clientConfig.extend, clientConfig.namespace, podName, jobInfo)
 	},
 }
 
