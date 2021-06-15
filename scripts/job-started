@@ -1,6 +1,0 @@
-#! /bin/sh
-
-touch /tmp/github.env
-echo WORKFLOW_NAME="${GITHUB_WORKFLOW} #${GITHUB_RUN_NUMBER}" >> /tmp/github.env
-echo BRANCH_NAME=${GITHUB_REF#refs/heads/} >> /tmp/github.env
-echo RUN_ID=${GITHUB_RUN_ID} >> /tmp/github.env

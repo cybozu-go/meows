@@ -8,39 +8,20 @@ jobs:
     name: Push images to quay.io
     runs-on: ubuntu-20.04
     env:
-      CONTROLLER_IMG: quay.io/cybozu/actions-runner-controller:latest
-      RUNNER_IMG: quay.io/cybozu/actions-runner:latest
-      AGENT_IMG: quay.io/cybozu/actions-slack-agent:latest
+      IMAGE_PREFIX: quay.io/cybozu/
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
           go-version: 1.16
-      - name: Build images
-        run: |
-          make setup
-          make images
       - name: Log in quay.io
         run: |
           echo ${{ secrets.QUAY_PASSWORD }} | docker login -u ${{ secrets.QUAY_USER }} --password-stdin quay.io
-      - name: Tag images
-        run: |
-          TAG=${GITHUB_REF#refs/tags/v}
-          docker tag ${CONTROLLER_IMG} ${CONTROLLER_IMG/latest/${TAG}}
-          docker tag ${RUNNER_IMG} ${RUNNER_IMG/latest/${TAG}}
-          docker tag ${AGENT_IMG} ${AGENT_IMG/latest/${TAG}}
-      - name: Push versioned images
-        run: |
-          TAG=${GITHUB_REF#refs/tags/v}
-          docker push ${CONTROLLER_IMG/latest/${TAG}}
-          docker push ${RUNNER_IMG/latest/${TAG}}
-          docker push ${AGENT_IMG/latest/${TAG}}
-      - name: Push the latest images
-        run: |
-          docker push ${CONTROLLER_IMG}
-          docker push ${RUNNER_IMG}
-          docker push ${AGENT_IMG}
-
+      - run: make setup
+      - run: make images
+      - run: make tag push IMAGE_TAG=${GITHUB_REF#refs/tags/v}
+      - run: make tag push IMAGE_TAG=latest
+        if: ${{ contains(github.ref, '-') }}
   release:
     name: Release on GitHub
     needs: image

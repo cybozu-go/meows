@@ -1,7 +1,6 @@
 package kindtest
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -12,25 +11,14 @@ import (
 )
 
 func testRunner() {
-	ctx := context.Background()
-
-	It("should deploy manager successfully and have it deploy deployment", func() {
-		By("confirming all controller pods are ready")
-		Eventually(func() error {
-			return isDeploymentReady(
-				"controller-manager",
-				systemNS,
-				2,
-			)
-		}).ShouldNot(HaveOccurred())
+	It("should register self-hosted runners to GitHub Actions", func() {
+		stdout, stderr, err := kustomizeBuild("./manifests/runnerpool")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		kubectlSafeWithInput(stdout, "apply", "-f", "-")
 
 		By("confirming all runner pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady(
-				poolName,
-				runnerNS,
-				numRunners,
-			)
+			return isDeploymentReady("runnerpool-sample", runnerNS, 3)
 		}).ShouldNot(HaveOccurred())
 	})
 
@@ -41,8 +29,8 @@ func testRunner() {
 
 		// Set interval and limit considering rate limit.
 		Eventually(func() error {
-			return equalNumExistingRunners(ctx, pods, numRunners)
-		}, 2*time.Minute, 15*time.Second).ShouldNot(HaveOccurred())
+			return equalNumExistingRunners(pods, numRunners)
+		}).ShouldNot(HaveOccurred())
 	})
 
 	It("should run a success job on a self-hosted runner Pod and delete the Pod immediately", func() {
@@ -52,27 +40,28 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "success" workflow`)
-		err = triggerWorkflowDispatch(ctx, "success.yaml")
+		err = triggerWorkflowDispatch("success.yaml")
 		Expect(err).ShouldNot(HaveOccurred())
 
 		By("confirming one Pod is recreated")
+		var delPodNames []string
 		Eventually(func() error {
 			after, err := fetchPods(runnerNS, runnerSelector)
+			delPodNames, _ = getRecretedPods(before, after)
 			if err != nil {
 				return err
 			}
 			return equalNumRecreatedPods(before, after, 1)
-		}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
-	})
+		}).ShouldNot(HaveOccurred())
 
-	It("should send a request to Slack agent", func() {
 		By("confirming that one of the slack-agent pod emitted a dummy message to stdout")
+		//{"level":"info","ts":1623123384.4349568,"caller":"agent/server.go:141","msg":"success to send slack message","pod":"test-runner/runnerpool-sample-5f4fbff6bb-wpjq6"}
 		Eventually(func() error {
 			stdout, stderr, err := execAtLocal(
 				"sh", nil,
 				"-c", fmt.Sprintf(
-					"kubectl logs -n %s -l app=slack-agent -c notifier | grep -q %s",
-					runnerNS, "neco-test/github-actions-controller-ci",
+					"kubectl logs -n %s -l app=slack-agent | grep \"success to send slack message\" | grep -q %s",
+					runnerNS, delPodNames[0],
 				),
 			)
 			if err != nil {
@@ -89,7 +78,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "failure" workflow`)
-		err = triggerWorkflowDispatch(ctx, "failure.yaml")
+		err = triggerWorkflowDispatch("failure.yaml")
 		Expect(err).ShouldNot(HaveOccurred())
 
 		By("confirming the job is finished and one Pod has deletion time annotation")
@@ -114,8 +103,8 @@ func testRunner() {
 		By("confirming the timestamp value is around 30 sec later from now")
 		t, err := time.Parse(time.RFC3339, shouldBeDeletedAt)
 		Expect(err).ShouldNot(HaveOccurred())
-		Expect(now.Add(20 * time.Second).Before(t)).To(BeTrue())
-		Expect(now.Add(30 * time.Second).After(t)).To(BeTrue())
+		Expect(t.After(now.Add(20 * time.Second))).To(BeTrue())
+		Expect(t.Before(now.Add(30 * time.Second))).To(BeTrue())
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
@@ -124,7 +113,7 @@ func testRunner() {
 				return err
 			}
 			return equalNumRecreatedPods(before, after, 1)
-		}, 2*time.Minute, time.Second).ShouldNot(HaveOccurred())
+		}).ShouldNot(HaveOccurred())
 		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
 	})
 
@@ -148,7 +137,7 @@ func testRunner() {
 		By("confirming runners are deleted via GitHub Actions API")
 		// Set interval and limit considering rate limit.
 		Eventually(func() error {
-			return equalNumExistingRunners(ctx, pods, 0)
-		}, 3*time.Minute, 30*time.Second).ShouldNot(HaveOccurred())
+			return equalNumExistingRunners(pods, 0)
+		}).ShouldNot(HaveOccurred())
 	})
 }

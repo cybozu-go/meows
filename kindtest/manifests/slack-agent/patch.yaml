@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-agent
+spec:
+  template:
+    spec:
+      containers:
+      - name: agent
+        image: actions-controller:kindtest
+        imagePullPolicy: Never

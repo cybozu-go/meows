@@ -1,0 +1,7 @@
+bases:
+- ../../../config/agent
+
+patchesStrategicMerge:
+- patch.yaml
+
+namespace: test-runner

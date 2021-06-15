@@ -47,50 +47,51 @@ Flags:
 `slack-agent`
 -------------
 
-The Slack agent CLI has subcommands `notifier`, `extender` and `client`.
-
-- `notifier`: Send messages to Webhook
-- `extender`: Receive button events and annotate a `Pod` with a deletion time
-- `client`: Send requests to `notifier`
-
-The Slack agent `Pod` runs both `notifier` and `extender` in different containers.
-These subcommands allow you to use the following options:
+The Slack agent is a server program.
+This notifies CI results and accepts requests for extending Pods' lifecycles
 
 ```bash
-$ slack-agent notifier -h
-notifier starts Slack agent to send job results to Slack
+$ slack-agent -h
+Slack agent notifies CI results and accepts requests for extending Pods' lifecycles
 
 Usage:
-  Slack notifier [flags]
+  slack-agent [flags]
 
 Flags:
-  -h, --help                 help for notifier
+      --app-token string     The Slack App token.
+      --bot-token string     The Slack Bot token.
+  -c, --channel string       The Slack channel to notify messages to
+  -d, --development          Development mode.
+  -h, --help                 help for slack-agent
       --listen-addr string   The address the notifier endpoint binds to (default ":8080")
-  -o, --webhook-url string   The Slack Webhook URL to notify messages to
-
-Global Flags:
-  -d, --development        Development mode.
-      --logfile string     Log filename
-      --logformat string   Log format [plain,logfmt,json]
-      --loglevel string    Log level [critical,error,warning,info,debug]
-
-
-$ slack-agent extender -h
-notifier starts Slack agent to receive interactive messages from Slack
-
-Usage:
-  Slack extender [flags]
-
-Flags:
-      --app-token string   The Slack App token.
-      --bot-token string   The Slack Bot token.
-  -h, --help               help for extender
-      --retry uint         How many times the extender retries to connect Slack.
-
-Global Flags:
-  -d, --development        Development mode.
-      --logfile string     Log filename
-      --logformat string   Log format [plain,logfmt,json]
-      --loglevel string    Log level [critical,error,warning,info,debug]
+      --logfile string       Log filename
+      --logformat string     Log format [plain,logfmt,json]
+      --loglevel string      Log level [critical,error,warning,info,debug]
+  -v, --verbose              Verbose.
 ```
 
+
+`slack-agent-client`
+--------------------
+
+This is a client for `slack-agent`.
+
+```bash
+$ slack-agent-client -h
+slack-agent-client sends job result to Slack agent
+
+Usage:
+  slack-agent-client PODNAME [RESULT] [flags]
+
+Flags:
+  -c, --channel string     The Slack channel to notify messages to
+  -e, --extend             Enable extend button.
+  -f, --file string        Job info file. (default "/tmp/github.env")
+  -h, --help               help for slack-agent-client
+      --logfile string     Log filename
+      --logformat string   Log format [plain,logfmt,json]
+      --loglevel string    Log level [critical,error,warning,info,debug]
+  -n, --namespace string   Pod namespace. (default "default")
+  -s, --server string      The address to send requests to. (default "http://127.0.0.1:8080")
+
+```
