@@ -65,7 +65,7 @@ var rootCmd = &cobra.Command{
 		}
 		registry := prometheus.DefaultRegisterer
 		metrics.Init(registry, runnerPoolName)
-		metrics.UpdatePodStatus(metrics.Starting)
+		metrics.UpdatePodStatus(metrics.Initializing)
 		configArgs := []string{
 			"--unattended",
 			"--replace",
@@ -75,21 +75,20 @@ var rootCmd = &cobra.Command{
 			"--work", workDir,
 		}
 		well.Go(func(ctx context.Context) error {
-			metrics.UpdatePodStatus(metrics.Registering)
+			metrics.UpdatePodStatus(metrics.Running)
 
 			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
 
-			metrics.UpdateJobStatus(metrics.Waiting)
+			metrics.UpdateJobStatus(metrics.Listening)
 			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
 				return err
 			}
 
-			metrics.UpdateJobStatus(metrics.Completed)
-			metrics.UpdatePodStatus(metrics.Deleting)
-
-			setResultMetrics()
+			metrics.UpdatePodStatus(metrics.Debugging)
+			metrics.UpdateJobStatus(metrics.Finished)
+			updateResultMetrics()
 
 			extend, err := annotatePod(ctx)
 			if err != nil {
@@ -110,7 +109,7 @@ var rootCmd = &cobra.Command{
 			for !isFileExists(startedFlagFile) {
 				time.Sleep(1000)
 			}
-			metrics.UpdateJobStatus(metrics.Running)
+			metrics.UpdateJobStatus(metrics.Assigned)
 			return nil
 		})
 
@@ -229,7 +228,7 @@ func annotatePod(ctx context.Context) (bool, error) {
 	}
 }
 
-func setResultMetrics() {
+func updateResultMetrics() {
 	switch {
 	case isFileExists(failureFlagFile):
 		metrics.UpdateJobResult(metrics.Failure)

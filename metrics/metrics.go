@@ -13,13 +13,13 @@ type JobStatus string
 type JobResult string
 
 const (
-	Starting    = PodStatus("starting")
-	Registering = PodStatus("registering")
-	Deleting    = PodStatus("deleting")
+	Initializing = PodStatus("initializing")
+	Running      = PodStatus("running")
+	Debugging    = PodStatus("debugging")
 
-	Waiting   = JobStatus("waiting")
-	Running   = JobStatus("running")
-	Completed = JobStatus("completed")
+	Listening = JobStatus("listening")
+	Assigned  = JobStatus("assigned")
+	Finished  = JobStatus("finished")
 
 	Success   = JobResult("success")
 	Failure   = JobResult("failure")
@@ -29,15 +29,15 @@ const (
 
 var (
 	AllPodStatus = []PodStatus{
-		Starting,
-		Registering,
-		Deleting,
+		Initializing,
+		Running,
+		Debugging,
 	}
 
 	AllJobStatus = []JobStatus{
-		Waiting,
-		Running,
-		Completed,
+		Listening,
+		Assigned,
+		Finished,
 	}
 
 	AllJobResult = []JobResult{
