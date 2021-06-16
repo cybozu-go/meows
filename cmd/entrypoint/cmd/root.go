@@ -12,7 +12,6 @@ import (
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/well"
-
 	"github.com/spf13/cobra"
 )
 
@@ -47,7 +46,7 @@ var rootCmd = &cobra.Command{
 		return checkEnvs()
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := os.Mkdir(workDir, 0777); err != nil {
+		if err := os.MkdirAll(workDir, 0755); err != nil {
 			return err
 		}
 
@@ -67,15 +66,18 @@ var rootCmd = &cobra.Command{
 				return err
 			}
 
-			extend, err := annotatePods(ctx)
+			extend, err := annotatePod(ctx)
 			if err != nil {
 				return err
 			}
-			if err := slackNotify(ctx, extend); err != nil {
+			if err := notifyToSlack(ctx, extend); err != nil {
 				return err
 			}
 
-			time.Sleep(time.Duration(1<<63 - 1))
+			select {
+			case <-ctx.Done():
+			case <-time.After(time.Duration(1<<63 - 1)):
+			}
 			return nil
 		})
 		well.Stop()
@@ -121,14 +123,14 @@ func runCommand(ctx context.Context, workDir, commandStr string, args ...string)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	command.Dir = workDir
-	command.Env = removeEnv()
+	command.Env = removedEnv()
 	if err := command.Run(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func removeEnv() []string {
+func removedEnv() []string {
 	rmList := []string{
 		constants.PodNameEnvName,
 		constants.PodNamespaceEnvName,
@@ -156,23 +158,23 @@ func isFileExists(filename string) bool {
 	return err == nil
 }
 
-func annotatePods(ctx context.Context) (bool, error) {
+func annotatePod(ctx context.Context) (bool, error) {
 	if isFileExists(extendFlagFile) {
 		dur, err := time.ParseDuration(extendDuration)
 		if err != nil {
 			return false, err
 		}
-		fmt.Printf("Annotate pods with the time %s later\n", extendDuration)
+		fmt.Printf("Annotate pod with the time %s later\n", extendDuration)
 		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now().Add(dur))
 		return true, nil
 	} else {
-		fmt.Println("Annotate pods with current time")
+		fmt.Println("Annotate pod with current time")
 		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now())
 		return false, nil
 	}
 }
 
-func slackNotify(ctx context.Context, extend bool) error {
+func notifyToSlack(ctx context.Context, extend bool) error {
 	var jobResult string
 	switch {
 	case isFileExists(failureFlagFile):

@@ -117,13 +117,13 @@ func testRunner() {
 		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
 	})
 
-	It("should not be visible environment variables on the job", func() {
+	It("should be successful the job that makes sure invisible environment variables.", func() {
 		By("getting pods list before triggering workflow dispatch")
 		before, err := fetchPods(runnerNS, runnerSelector)
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(before.Items).Should(HaveLen(numRunners))
 
-		By(`running "check-env" workflow`)
+		By(`running "check-env" workflow that makes sure invisible environment variables.`)
 		err = triggerWorkflowDispatch("check-env.yaml")
 		Expect(err).ShouldNot(HaveOccurred())
 
