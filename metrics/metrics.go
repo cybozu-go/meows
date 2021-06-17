@@ -36,8 +36,7 @@ var (
 		Unknown,
 	}
 
-	podStatus *prometheus.GaugeVec
-	jobStatus *prometheus.GaugeVec
+	podState  *prometheus.GaugeVec
 	jobResult *prometheus.GaugeVec
 )
 
@@ -45,10 +44,10 @@ func Init(registry prometheus.Registerer, name string) {
 	labels := prometheus.Labels{
 		"runner_pool": name,
 	}
-	podStatus = prometheus.NewGaugeVec(
+	podState = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace:   namespace,
-			Name:        "pod_status",
+			Name:        "pod_state",
 			Help:        "1 if the state of the runner pod is the state specified by the `state` label",
 			ConstLabels: labels,
 		},
@@ -64,19 +63,18 @@ func Init(registry prometheus.Registerer, name string) {
 		[]string{"result"},
 	)
 	registry.MustRegister(
-		podStatus,
-		jobStatus,
+		podState,
 		jobResult,
 	)
 }
 
 func UpdatePodState(label PodState) {
-	for _, labelStatus := range AllPodState {
+	for _, labelState := range AllPodState {
 		var val float64 = 0
-		if labelStatus == label {
+		if labelState == label {
 			val = 1
 		}
-		podStatus.WithLabelValues(string(labelStatus)).Set(val)
+		podState.WithLabelValues(string(labelState)).Set(val)
 	}
 }
 
