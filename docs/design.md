@@ -171,15 +171,16 @@ stage of the development. I keep this in this document for future use.
 
 ### How Runner's state is managed
 
-Runner `Pod` exposes `/metrics` endpoint that is Prometheus metrics for the state.
-The metrics provided are as follows.
-- initializing: `Pod` finished an initialization, for example, booting a couple
-  of VMs needed in a job before the job is assigned.
-- running: `Pod` is running `runsvc.sh`.
-- debugging: The job has finished with failure and Users can enter `Pod` to debug.
-- job result: success or failure or canceled or unknown
+A Runner `Pod` has the following state as a GitHub Actions job runner.
 
-Detailed running state of the runner as seen on GitHub is not provided
+- `initializing`: `Pod` initializing. Prepare the necessary environment for Job.
+    for example, booting a couple of VMs needed in a job before the job is assigned.
+- `running`: `Pod` is running. Registered in GitHub Actions.
+- `debugging`: The job has finished with failure and Users can enter `Pod` to debug.
+
+The above states are exposed from `/metrics` endpoint as Prometheus metrics. See [metrics.md](metrics.md).
+
+Detailed `running` state of the runner as seen on GitHub is not provided
 in the `/metrics` endpoint of the runner `Pod`.
 Because those detailed states are going to be provided metrics by controller based
 on the [state](design.md#how-runner-state-is-managed-on-github-actions-api) that
@@ -219,4 +220,3 @@ This might be improved by taking the way that the controller updates a `Secret`
 periodically. Otherwise, we have to create a server responsible for getting
 registration tokens and have runners make a request for the server to get a
 token right after the initialiation is done.
-
