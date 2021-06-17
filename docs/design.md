@@ -171,25 +171,15 @@ stage of the development. I keep this in this document for future use.
 
 ### How Runner's state is managed
 
-A Runner `Pod` has the following state as a GitHub Actions job runner.
-
-- initializing: `Pod` finished an initialization, for example, booting a couple
-  of VMs needed in a job before the job is assigned.
-- registered: `Pod` registered itself on GitHub Actions.
-- listening: `Pod` starts listening with Long Polling.
-- assigned: `Pod` is assigned a job and starts running it.
-- debugging: The job has finished with failure and Users can enter `Pod` to debug.
-
-#### Exposing Runner's the state as Prometheus metrics
-
 Runner `Pod` exposes `/metrics` endpoint that is Prometheus metrics for the state.
 The metrics provided are as follows.
-- initializing: Same as described above
-- running: Compound state of registered, listening, assigned
-- debugging: Same as described above
+- initializing: `Pod` finished an initialization, for example, booting a couple
+  of VMs needed in a job before the job is assigned.
+- running: `Pod` is running `runsvc.sh`.
+- debugging: The job has finished with failure and Users can enter `Pod` to debug.
 - job result: success or failure or canceled or unknown
 
-Detailed running state such as registered, listening, and assigned are not provided
+Detailed running state of the runner as seen on GitHub is not provided
 in the `/metrics` endpoint of the runner `Pod`.
 Because those detailed states are going to be provided metrics by controller based
 on the [state](design.md#how-runner-state-is-managed-on-github-actions-api) that
