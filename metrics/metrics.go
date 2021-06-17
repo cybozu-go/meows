@@ -8,18 +8,13 @@ const (
 	namespace = "runner"
 )
 
-type PodStatus string
-type JobStatus string
+type PodState string
 type JobResult string
 
 const (
-	Initializing = PodStatus("initializing")
-	Running      = PodStatus("running")
-	Debugging    = PodStatus("debugging")
-
-	Listening = JobStatus("listening")
-	Assigned  = JobStatus("assigned")
-	Finished  = JobStatus("finished")
+	Initializing = PodState("initializing")
+	Running      = PodState("running")
+	Debugging    = PodState("debugging")
 
 	Success   = JobResult("success")
 	Failure   = JobResult("failure")
@@ -28,16 +23,10 @@ const (
 )
 
 var (
-	AllPodStatus = []PodStatus{
+	AllPodState = []PodState{
 		Initializing,
 		Running,
 		Debugging,
-	}
-
-	AllJobStatus = []JobStatus{
-		Listening,
-		Assigned,
-		Finished,
 	}
 
 	AllJobResult = []JobResult{
@@ -54,31 +43,22 @@ var (
 
 func Init(registry prometheus.Registerer, name string) {
 	labels := prometheus.Labels{
-		"runner_pool_name": name,
+		"runner_pool": name,
 	}
 	podStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace:   namespace,
 			Name:        "pod_status",
-			Help:        "`status` label show the status of the pod.",
+			Help:        "1 if the state of the runner pod is the state specified by the `state` label",
 			ConstLabels: labels,
 		},
-		[]string{"status"},
-	)
-	jobStatus = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace:   namespace,
-			Name:        "job_status",
-			Help:        "`status` label show the status of the job.",
-			ConstLabels: labels,
-		},
-		[]string{"status"},
+		[]string{"state"},
 	)
 	jobResult = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace:   namespace,
 			Name:        "job_result",
-			Help:        "`result` label show the result of the job.",
+			Help:        "1 if the result of the job is the result specified by the `result` label",
 			ConstLabels: labels,
 		},
 		[]string{"result"},
@@ -90,23 +70,13 @@ func Init(registry prometheus.Registerer, name string) {
 	)
 }
 
-func UpdatePodStatus(label PodStatus) {
-	for _, labelStatus := range AllPodStatus {
+func UpdatePodState(label PodState) {
+	for _, labelStatus := range AllPodState {
 		var val float64 = 0
 		if labelStatus == label {
 			val = 1
 		}
 		podStatus.WithLabelValues(string(labelStatus)).Set(val)
-	}
-}
-
-func UpdateJobStatus(label JobStatus) {
-	for _, labelStatus := range AllJobStatus {
-		var val float64 = 0
-		if labelStatus == label {
-			val = 1
-		}
-		jobStatus.WithLabelValues(string(labelStatus)).Set(val)
 	}
 }
 

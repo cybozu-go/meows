@@ -42,7 +42,6 @@ var (
 	runnerDir = filepath.Join("/runner")
 	workDir   = filepath.Join(runnerDir, "_work")
 
-	startedFlagFile   = filepath.Join(os.TempDir(), "started")
 	extendFlagFile    = filepath.Join(os.TempDir(), "extend")
 	failureFlagFile   = filepath.Join(os.TempDir(), "failure")
 	cancelledFlagFile = filepath.Join(os.TempDir(), "cancelled")
@@ -65,7 +64,7 @@ var rootCmd = &cobra.Command{
 		}
 		registry := prometheus.DefaultRegisterer
 		metrics.Init(registry, runnerPoolName)
-		metrics.UpdatePodStatus(metrics.Initializing)
+		metrics.UpdatePodState(metrics.Initializing)
 		configArgs := []string{
 			"--unattended",
 			"--replace",
@@ -75,21 +74,17 @@ var rootCmd = &cobra.Command{
 			"--work", workDir,
 		}
 		well.Go(func(ctx context.Context) error {
-			metrics.UpdatePodStatus(metrics.Running)
-
 			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
 
-			metrics.UpdateJobStatus(metrics.Listening)
+			metrics.UpdatePodState(metrics.Running)
 			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
 				return err
 			}
 
-			metrics.UpdatePodStatus(metrics.Debugging)
-			metrics.UpdateJobStatus(metrics.Finished)
+			metrics.UpdatePodState(metrics.Debugging)
 			updateResultMetrics()
-
 			extend, err := annotatePod(ctx)
 			if err != nil {
 				return err
@@ -102,14 +97,6 @@ var rootCmd = &cobra.Command{
 			case <-ctx.Done():
 			case <-time.After(time.Duration(1<<63 - 1)):
 			}
-			return nil
-		})
-
-		well.Go(func(ctx context.Context) error {
-			for !isFileExists(startedFlagFile) {
-				time.Sleep(1000)
-			}
-			metrics.UpdateJobStatus(metrics.Assigned)
 			return nil
 		})
 

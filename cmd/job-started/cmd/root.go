@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/spf13/cobra"
@@ -15,15 +14,6 @@ var rootCmd = &cobra.Command{
 	Use:  "job-started",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fileName := filepath.Join(os.TempDir(), "started")
-		_, err := os.Stat(fileName)
-		if os.IsNotExist(err) {
-			file, err := os.Create(fileName)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-		}
 		jobInfo, err := agent.GetJobInfo()
 		if err != nil {
 			return err
