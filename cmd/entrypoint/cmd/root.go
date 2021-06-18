@@ -84,7 +84,6 @@ var rootCmd = &cobra.Command{
 			}
 
 			metrics.UpdatePodState(metrics.Debugging)
-			updateResultMetrics()
 			extend, err := annotatePod(ctx)
 			if err != nil {
 				return err
@@ -212,19 +211,6 @@ func annotatePod(ctx context.Context) (bool, error) {
 		fmt.Println("Annotate pod with current time")
 		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now())
 		return false, nil
-	}
-}
-
-func updateResultMetrics() {
-	switch {
-	case isFileExists(failureFlagFile):
-		metrics.UpdateJobResult(metrics.Failure)
-	case isFileExists(cancelledFlagFile):
-		metrics.UpdateJobResult(metrics.Cancelled)
-	case isFileExists(successFlagFile):
-		metrics.UpdateJobResult(metrics.Success)
-	default:
-		metrics.UpdateJobResult(metrics.Unknown)
 	}
 }
 
