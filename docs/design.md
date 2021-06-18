@@ -173,24 +173,18 @@ stage of the development. I keep this in this document for future use.
 
 A Runner `Pod` has the following state as a GitHub Actions job runner.
 
-- registered: `Pod` registered itself on GitHub Actions.
-- initialized: `Pod` finished an initialization, for example, booting a couple
-  of VMs needed in a job before the job is assigned.
-- listening: `Pod` starts listening with Long Polling.
-- assigned: `Pod` is assigned a job and starts running it.
-- debug: The job has finished with failure and Users can enter `Pod` to debug.
+- `initializing`: `Pod` initializing. Prepare the necessary environment for Job.
+    for example, booting a couple of VMs needed in a job before the job is assigned.
+- `running`: `Pod` is running. Registered in GitHub Actions.
+- `debugging`: The job has finished with failure and Users can enter `Pod` to debug.
 
-Runner `Pod`s might not need to manage all of these state, but some of them are
-useful to check the system is properly running or not.
-The state "debug" is a must to be watched to keep runner `Pod`s in stock.
-Users can leave many failed runner `Pod`s for investigation, but the number of
-replicas is also limited. Exposing the state as Prometheus metrics allows users
-to aggregate the number of `Pod`s in each state and raise alerts that they are
-running out of available runners.
+The above states are exposed from `/metrics` endpoint as Prometheus metrics. See [metrics.md](metrics.md).
 
-However, as mentioned above, GitHub API does not provide a way to connect the job
-status information with the self-hosted runner.  So, runner `Pod`s have to execute
-commands to tell the metrics exporter server that the state has changed.
+Detailed `running` state of the runner as seen on GitHub is not provided
+in the `/metrics` endpoint of the runner `Pod`.
+Because those detailed states are going to be provided metrics by controller based
+on the [state](design.md#how-runner-state-is-managed-on-github-actions-api) that
+controller can get from GitHubActionsAPI.
 
 ### Why is webhook used
 
@@ -226,4 +220,3 @@ This might be improved by taking the way that the controller updates a `Secret`
 periodically. Otherwise, we have to create a server responsible for getting
 registration tokens and have runners make a request for the server to get a
 token right after the initialiation is done.
-

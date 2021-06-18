@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,9 +12,20 @@ import (
 
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/agent"
+	"github.com/cybozu-go/github-actions-controller/metrics"
 	"github.com/cybozu-go/well"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
+
+const (
+	metricsDefaultAddr = ":8080"
+)
+
+var config struct {
+	metricsAddress string
+}
 
 var (
 	// Environments
@@ -22,6 +34,7 @@ var (
 	runnerToken       = os.Getenv(constants.RunnerTokenEnvName)
 	runnerOrg         = os.Getenv(constants.RunnerOrgEnvName)
 	runnerRepo        = os.Getenv(constants.RunnerRepoEnvName)
+	runnerPoolName    = os.Getenv(constants.RunnerPoolNameEnvName)
 	extendDuration    = os.Getenv(constants.ExtendDurationEnvName)
 	slackAgentSvcName = os.Getenv(constants.SlackAgentServiceNameEnvName)
 
@@ -49,7 +62,9 @@ var rootCmd = &cobra.Command{
 		if err := os.MkdirAll(workDir, 0755); err != nil {
 			return err
 		}
-
+		registry := prometheus.DefaultRegisterer
+		metrics.Init(registry, runnerPoolName)
+		metrics.UpdatePodState(metrics.Initializing)
 		configArgs := []string{
 			"--unattended",
 			"--replace",
@@ -62,10 +77,13 @@ var rootCmd = &cobra.Command{
 			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
+
+			metrics.UpdatePodState(metrics.Running)
 			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
 				return err
 			}
 
+			metrics.UpdatePodState(metrics.Debugging)
 			extend, err := annotatePod(ctx)
 			if err != nil {
 				return err
@@ -80,6 +98,19 @@ var rootCmd = &cobra.Command{
 			}
 			return nil
 		})
+
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", promhttp.Handler())
+		metricsServ := &well.HTTPServer{
+			Server: &http.Server{
+				Addr:    config.metricsAddress,
+				Handler: metricsMux,
+			},
+		}
+		if err := metricsServ.ListenAndServe(); err != nil {
+			return err
+		}
+
 		well.Stop()
 		return well.Wait()
 	},
@@ -91,6 +122,11 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func init() {
+	fs := rootCmd.Flags()
+	fs.StringVar(&config.metricsAddress, "metrics-address", metricsDefaultAddr, "Listening address and port for metrics.")
 }
 
 func checkEnvs() error {
@@ -108,6 +144,9 @@ func checkEnvs() error {
 	}
 	if len(runnerRepo) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerRepoEnvName)
+	}
+	if len(runnerPoolName) == 0 {
+		return fmt.Errorf("%s must be set", constants.RunnerPoolNameEnvName)
 	}
 	if len(extendDuration) == 0 {
 		extendDuration = "20m"
@@ -137,6 +176,7 @@ func removedEnv() []string {
 		constants.RunnerTokenEnvName,
 		constants.RunnerOrgEnvName,
 		constants.RunnerRepoEnvName,
+		constants.RunnerPoolNameEnvName,
 		constants.SlackAgentServiceNameEnvName,
 	}
 	var removedEnv []string

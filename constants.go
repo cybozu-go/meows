@@ -17,6 +17,9 @@ const (
 	// RunnerRepoEnvName is a env field key for RUNNER_REPO.
 	RunnerRepoEnvName = "RUNNER_REPO"
 
+	// RunnerPoolNameEnvName is a env field key for RUNNER_POOL_NAME.
+	RunnerPoolNameEnvName = "RUNNER_POOL_NAME"
+
 	// SlackAgentEnvName is a env field key for SLACK_AGENT_SERVICE_NAME.
 	SlackAgentEnvName = "SLACK_AGENT_SERVICE_NAME"
 
