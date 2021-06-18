@@ -4,7 +4,15 @@ WORKDIR /workspace
 COPY . .
 RUN make build
 
-FROM quay.io/cybozu/ubuntu:20.04
+FROM quay.io/cybozu/ubuntu:20.04 as controller
+
+COPY --from=builder /workspace/tmp/bin/github-actions-controller /usr/local/bin
+COPY --from=builder /workspace/tmp/bin/slack-agent /usr/local/bin
+
+USER 10000:10000
+ENTRYPOINT ["github-actions-controller"]
+
+FROM quay.io/cybozu/ubuntu:20.04 as runner
 
 ARG RUNNER_VERSION=2.277.1
 

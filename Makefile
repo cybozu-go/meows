@@ -65,8 +65,8 @@ build: generate ## Build all binaries.
 
 .PHONY: image
 image: ## Build container images.
-	docker build -t actions-controller:devel -f Dockerfile.controller  .
-	docker build -t actions-runner:devel -f Dockerfile.runner .
+	docker build --target controller -t actions-controller:devel .
+	docker build --target runner -t actions-runner:devel .
 
 .PHONY: tag
 tag: ## Tag container images.
