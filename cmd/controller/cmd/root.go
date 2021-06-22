@@ -11,6 +11,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
+const defaultRunnerImage = "quay.io/cybozu/actions-runner:latest"
+
 var config struct {
 	zapOpts zap.Options
 
@@ -24,6 +26,7 @@ var config struct {
 	organizationName  string
 	repositoryNames   []string
 
+	runnerImage         string
 	runnerSweepInterval time.Duration
 	podSweepInterval    time.Duration
 }
@@ -73,6 +76,7 @@ func init() {
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
 	fs.StringSliceVarP(&config.repositoryNames, "repository-names", "r", []string{}, "The GitHub repository names, separated with comma.")
 
+	fs.StringVar(&config.runnerImage, "runner-image", defaultRunnerImage, "The image of runner container")
 	fs.DurationVar(&config.runnerSweepInterval, "runner-sweep-interval", 30*time.Minute, "Interval to watch and sweep unused GitHub Actions runners.")
 	fs.DurationVar(&config.podSweepInterval, "pod-sweep-interval", time.Minute, "Interval to watch and delete Pods.")
 

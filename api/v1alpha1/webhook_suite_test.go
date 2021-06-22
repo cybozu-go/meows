@@ -18,7 +18,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -29,21 +28,19 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
-var ctx context.Context
-var cancel context.CancelFunc
+var mgrCtx context.Context
+var mgrCancel context.CancelFunc
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Webhook Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Webhook Suite")
 }
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
-	ctx, cancel = context.WithCancel(context.TODO())
+	mgrCtx, mgrCancel = context.WithCancel(context.Background())
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -93,7 +90,7 @@ var _ = BeforeSuite(func() {
 	//+kubebuilder:scaffold:webhook
 
 	go func() {
-		err = mgr.Start(ctx)
+		err = mgr.Start(mgrCtx)
 		if err != nil {
 			Expect(err).NotTo(HaveOccurred())
 		}
@@ -113,7 +110,7 @@ var _ = BeforeSuite(func() {
 }, 60)
 
 var _ = AfterSuite(func() {
-	cancel()
+	mgrCancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())

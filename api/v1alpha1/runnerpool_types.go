@@ -7,73 +7,72 @@ import (
 	"fmt"
 
 	constants "github.com/cybozu-go/github-actions-controller"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-// NOTE: Some lines of the code are proudly copied from Kubernetes project.
-// https://github.com/kubernetes/apimachinery/tree/master/pkg/apis/meta/v1
-// https://github.com/kubernetes/api/tree/master/core/v1
-// https://github.com/kubernetes/api/tree/master/apps/v1
-
 var reservedEnvNames = map[string]bool{
-	constants.PodNameEnvName:      true,
-	constants.PodNamespaceEnvName: true,
-	constants.RunnerOrgEnvName:    true,
-	constants.RunnerRepoEnvName:   true,
+	constants.PodNameEnvName:        true,
+	constants.PodNamespaceEnvName:   true,
+	constants.RunnerOrgEnvName:      true,
+	constants.RunnerRepoEnvName:     true,
+	constants.RunnerPoolNameEnvName: true,
+	constants.SlackAgentEnvName:     true,
+	constants.RunnerTokenEnvName:    true,
 }
 
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
-	// RepositoryName describes repository name to register Pods as self-hosted
-	// runners.
+	// RepositoryName describes repository name to register Pods as self-hosted runners.
 	RepositoryName string `json:"repositoryName"`
 
 	// SlackAgentServiceName is a Service name of Slack agent.
 	// +optional
-	SlackAgentServiceName *string `json:"slackAgentServiceName,omitempty"`
+	SlackAgentServiceName string `json:"slackAgentServiceName,omitempty"`
 
-	// Number of desired pods. This is a pointer to distinguish between explicit
-	// zero and not specified. Defaults to 1.
+	// Number of desired runner pods. Defaults to 1.
+	// +kubebuilder:default=1
 	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
+	Replicas int32 `json:"replicas,omitempty"`
 
-	// Label selector for pods. Existing ReplicaSets whose pods are
-	// selected by this will be the ones affected by this deployment.
-	// It must match the pod template's labels.
-	Selector *metav1.LabelSelector `json:"selector"`
-
-	// Template describes the pods that will be created.
-	Template PodTemplateSpec `json:"template"`
-
-	// The deployment strategy to use to replace existing pods with new ones.
+	// Template describes the runner pods that will be created.
 	// +optional
-	Strategy appsv1.DeploymentStrategy `json:"strategy,omitempty"`
+	Template RunnerPodTemplateSec `json:"template,omitempty"`
 }
 
-// PodTemplateSpec describes the data a pod should have when created from a template.
-// This is slightly modified from corev1.PodTemplateSpec.
-type PodTemplateSpec struct {
-	// Standard object's metadata.  The name in this metadata is ignored.
+type RunnerPodTemplateSec struct {
+	// Docker image name for the runner container.
 	// +optional
-	ObjectMeta `json:"metadata,omitempty"`
+	Image string `json:"image,omitempty"`
 
-	// Specification of the desired behavior of the pod.
-	Spec corev1.PodSpec `json:"spec"`
-}
-
-// ObjectMeta is metadata of objects.
-// This is partially copied from metav1.ObjectMeta.
-type ObjectMeta struct {
-	// Labels is a map of string keys and values.
+	// Image pull policy for the runner container.
 	// +optional
-	Labels map[string]string `json:"labels,omitempty"`
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
-	// Annotations is a map of string keys and values.
+	// ImagePullSecrets is a list of secret names in the same namespace to use for pulling any of the images.
 	// +optional
-	Annotations map[string]string `json:"annotations,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	// Security options for the runner container.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+
+	// List of environment variables to set in the runner container.
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Compute Resources required by the runner container.
+	// +optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Pod volumes to mount into the runner container's filesystem.
+	// +optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// List of volumes that can be mounted by containers belonging to the pod.
+	// +optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // RunnerPoolStatus defines status of RunnerPool
@@ -110,41 +109,48 @@ func init() {
 
 func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
 	var allErrs field.ErrorList
-	var container *corev1.Container
 	p := field.NewPath("spec")
 
-	runnerIndex := -1
-	for i, c := range s.Template.Spec.Containers {
-		if c.Name == constants.RunnerContainerName {
-			container = &c
-			runnerIndex = i
-			break
-		}
+	if len(s.RepositoryName) == 0 {
+		pp := p.Child("repositoryName")
+		allErrs = append(allErrs, field.Required(pp, "the field is required"))
 	}
 
-	pp := p.Child("template").Child("spec").Child("containers")
-	if container == nil {
-		allErrs = append(allErrs, field.Required(pp, fmt.Sprintf("%s container is required", constants.RunnerContainerName)))
-		return allErrs
-	}
-
-	for i, e := range container.Env {
+	for i, e := range s.Template.Env {
 		if reservedEnvNames[e.Name] {
-			allErrs = append(allErrs, field.Forbidden(pp.Index(runnerIndex).Child("env").Index(i), fmt.Sprintf("using the reserved environment variable %s in %s is forbidden", e.Name, constants.RunnerContainerName)))
+			allErrs = append(allErrs, field.Forbidden(p.Child("template").Child("env").Index(i),
+				fmt.Sprintf("using the reserved environment variable %s in %s is forbidden", e.Name, constants.RunnerContainerName)))
 		}
 	}
+
 	return allErrs
 }
 
 func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
-	return s.validateCreate()
+	var allErrs field.ErrorList
+	p := field.NewPath("spec")
+
+	if s.RepositoryName != old.RepositoryName {
+		pp := p.Child("repositoryName")
+		allErrs = append(allErrs, field.Forbidden(pp, "the field is immutable"))
+	}
+
+	for i, e := range s.Template.Env {
+		if reservedEnvNames[e.Name] {
+			allErrs = append(allErrs, field.Forbidden(p.Child("template").Child("env").Index(i),
+				fmt.Sprintf("using the reserved environment variable %s in %s is forbidden", e.Name, constants.RunnerContainerName)))
+		}
+	}
+
+	return allErrs
 }
 
-// GetRunnerDeploymentName returns the name of Deployment for runners.
+// GetRunnerDeploymentName returns the Deployment name for runners.
 func (r *RunnerPool) GetRunnerDeploymentName() string {
 	return r.Name
 }
 
-func init() {
-	SchemeBuilder.Register(&RunnerPool{}, &RunnerPoolList{})
+// GetRunnerServiceAccountName returns the ServiceAccount name for runners.
+func (r *RunnerPool) GetRunnerServiceAccountName() string {
+	return r.Name
 }
