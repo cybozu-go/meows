@@ -36,7 +36,7 @@ var (
 	runnerRepo        = os.Getenv(constants.RunnerRepoEnvName)
 	runnerPoolName    = os.Getenv(constants.RunnerPoolNameEnvName)
 	extendDuration    = os.Getenv(constants.ExtendDurationEnvName)
-	slackAgentSvcName = os.Getenv(constants.SlackAgentServiceNameEnvName)
+	slackAgentSvcName = os.Getenv(constants.SlackAgentEnvName)
 
 	// Directory/File Paths
 	runnerDir = filepath.Join("/runner")
@@ -177,7 +177,7 @@ func removedEnv() []string {
 		constants.RunnerOrgEnvName,
 		constants.RunnerRepoEnvName,
 		constants.RunnerPoolNameEnvName,
-		constants.SlackAgentServiceNameEnvName,
+		constants.SlackAgentEnvName,
 	}
 	var removedEnv []string
 	rmMap := make(map[string]struct{})
