@@ -1,10 +1,28 @@
 package constants
 
-// constants for GitHub actions controller
+// Container names
 const (
 	// RunnerContainerName is a container name which runs GitHub Actions runner.
 	RunnerContainerName = "runner"
+)
 
+// Metadata keys
+const (
+	// RunnerOrgLabelKey is a label key for organization name.
+	RunnerOrgLabelKey = "actions.cybozu.com/organization"
+
+	// RunnerRepoLabelKey is a label key for repository name.
+	RunnerRepoLabelKey = "actions.cybozu.com/repository"
+
+	// PodDeletionTimeKey is an annotation key to manage pod deletion time.
+	PodDeletionTimeKey = "actions.cybozu.com/deleted-at"
+
+	// RunnerPoolFinalizer is a finalizer for runnerpool resource.
+	RunnerPoolFinalizer = "actions.cybozu.com/runnerpool"
+)
+
+// Environment variables
+const (
 	// PodNameEnvName is a env field key for POD_NAME.
 	PodNameEnvName = "POD_NAME"
 
@@ -28,19 +46,4 @@ const (
 
 	// ExtendDurationEnvName is a env field key for EXTEND_DURATION
 	ExtendDurationEnvName = "EXTEND_DURATION"
-
-	// SlackAgentServiceNameEnvName is a env field key for SLACK_AGENT_SERVICE_NAME
-	SlackAgentServiceNameEnvName = "SLACK_AGENT_SERVICE_NAME"
-
-	// RunnerOrgLabelKey is a label key for organization name.
-	RunnerOrgLabelKey = "actions.cybozu.com/organization"
-
-	// RunnerRepoLabelKey is a label key for repository name.
-	RunnerRepoLabelKey = "actions.cybozu.com/repository"
-
-	// PodDeletionTimeKey is an annotation key to manage pod deletion time.
-	PodDeletionTimeKey = "actions.cybozu.com/deleted-at"
-
-	// RunnerPoolFinalizer is a finalizer for runnerpool resource.
-	RunnerPoolFinalizer = "actions.cybozu.com/runnerpool"
 )
