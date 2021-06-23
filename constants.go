@@ -21,6 +21,15 @@ const (
 	RunnerPoolFinalizer = "actions.cybozu.com/runnerpool"
 )
 
+// Container ports
+const (
+	// RunnerMetricsPort is the port number for runner container.
+	RunnerMetricsPort = 8080
+
+	// RunnerMetricsPortName is the port name for runner container.
+	RunnerMetricsPortName = "metrics"
+)
+
 // Environment variables
 const (
 	// PodNameEnvName is a env field key for POD_NAME.
