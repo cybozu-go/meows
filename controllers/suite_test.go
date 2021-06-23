@@ -1,12 +1,15 @@
 package controllers
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
+	"time"
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -28,6 +31,11 @@ var scheme = runtime.NewScheme()
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
+
+	SetDefaultEventuallyTimeout(10 * time.Second)
+	SetDefaultEventuallyPollingInterval(time.Second)
+	SetDefaultConsistentlyDuration(10 * time.Second)
+	SetDefaultConsistentlyPollingInterval(time.Second)
 
 	RunSpecsWithDefaultAndCustomReporters(t,
 		"Controller Suite",
@@ -65,3 +73,12 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+func createNamespaces(ctx context.Context, namespaces ...string) {
+	for _, n := range namespaces {
+		ns := &corev1.Namespace{}
+		ns.Name = n
+		err := k8sClient.Create(ctx, ns)
+		ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+	}
+}

@@ -8,16 +8,19 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var _ = Describe("PodSweeper runner", func() {
-	ctx := context.Background()
 	organizationName := "podsweep-org"
 	namespace := "podsweep-ns"
-	interval := time.Second
+
+	ctx := context.Background()
+	var mgrCtx context.Context
+	var mgrCancel context.CancelFunc
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -29,15 +32,15 @@ var _ = Describe("PodSweeper runner", func() {
 
 		sweeper := NewPodSweeper(
 			mgr.GetClient(),
-			ctrl.Log.WithName("actions-token-updator"),
-			interval,
+			ctrl.Log.WithName("pod-sweeper"),
+			time.Second,
 			organizationName,
 		)
-		err = mgr.Add(sweeper)
-		Expect(err).ToNot(HaveOccurred())
+		Expect(mgr.Add(sweeper)).To(Succeed())
 
+		mgrCtx, mgrCancel = context.WithCancel(context.Background())
 		go func() {
-			err := mgr.Start(ctx)
+			err := mgr.Start(mgrCtx)
 			if err != nil {
 				panic(err)
 			}
@@ -46,17 +49,12 @@ var _ = Describe("PodSweeper runner", func() {
 	})
 
 	AfterEach(func() {
-		ctx.Done()
+		mgrCancel()
 		time.Sleep(500 * time.Millisecond)
 	})
 
 	It("should create Namespace", func() {
-		By("creating namespace")
-		ctx := context.Background()
-		ns := &corev1.Namespace{}
-		ns.Name = namespace
-		err := k8sClient.Create(ctx, ns)
-		Expect(err).ToNot(HaveOccurred())
+		createNamespaces(ctx, namespace)
 	})
 
 	It("should delete pods", func() {
@@ -81,21 +79,13 @@ var _ = Describe("PodSweeper runner", func() {
 				},
 			},
 		}
-
-		err := k8sClient.Create(ctx, &pod)
-		Expect(err).ShouldNot(HaveOccurred())
+		Expect(k8sClient.Create(ctx, &pod)).To(Succeed())
 
 		By("cofirming Pod is deleted eventually")
-		Eventually(func() error {
-			return k8sClient.Get(
-				ctx,
-				types.NamespacedName{
-					Name:      pod.Name,
-					Namespace: pod.Namespace,
-				},
-				&corev1.Pod{},
-			)
-		}, 10*time.Second).Should(HaveOccurred())
+		Eventually(func() bool {
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: "sample0", Namespace: namespace}, &corev1.Pod{})
+			return apierrors.IsNotFound(err)
+		}).Should(BeTrue())
 	})
 
 	It("should not delete pods", func() {
@@ -148,34 +138,19 @@ var _ = Describe("PodSweeper runner", func() {
 		for _, tt := range testCases {
 			By("creating pod " + tt.name)
 			pod := tt.input
-			err := k8sClient.Create(ctx, &pod)
-			Expect(err).ShouldNot(HaveOccurred())
+			Expect(k8sClient.Create(ctx, &pod)).To(Succeed())
+			nsn := types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
 
-			By("cofirming Pod is not deleted")
+			By("cofirming test pod is not deleted")
 			time.Sleep(5 * time.Second)
-			err = k8sClient.Get(
-				ctx,
-				types.NamespacedName{
-					Name:      pod.Name,
-					Namespace: pod.Namespace,
-				},
-				&corev1.Pod{},
-			)
-			Expect(err).ShouldNot(HaveOccurred())
+			Expect(k8sClient.Get(ctx, nsn, &corev1.Pod{})).To(Succeed())
 
-			By("cofirming Pod is deleted")
-			err = k8sClient.Delete(ctx, &pod)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(func() error {
-				return k8sClient.Get(
-					ctx,
-					types.NamespacedName{
-						Name:      pod.Name,
-						Namespace: pod.Namespace,
-					},
-					&corev1.Pod{},
-				)
-			}, 10*time.Second).Should(HaveOccurred())
+			By("deleting test pod")
+			Expect(k8sClient.Delete(ctx, &pod)).To(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, nsn, &corev1.Pod{})
+				return apierrors.IsNotFound(err)
+			}).Should(BeTrue())
 		}
 	})
 })

@@ -121,8 +121,10 @@ func (r *RunnerPoolReconciler) finalize(ctx context.Context, log logr.Logger, rp
 	d.SetNamespace(rp.GetNamespace())
 	d.SetName(rp.GetRunnerDeploymentName())
 	if err := r.Delete(ctx, d); err != nil {
-		log.Error(err, "failed to delete deployment")
-		return err
+		if !apierrors.IsNotFound(err) {
+			log.Error(err, "failed to delete deployment")
+			return err
+		}
 	}
 	return nil
 }
@@ -249,7 +251,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		return err
 	}
 	if op != controllerutil.OperationResultNone {
-		log.Info("reconciled stateful set", "operation", string(op))
+		log.Info("reconciled deployment", "operation", string(op))
 	}
 
 	return nil

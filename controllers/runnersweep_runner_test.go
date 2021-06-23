@@ -18,12 +18,13 @@ import (
 )
 
 var _ = Describe("RunnerSweeper runner", func() {
-	ctx := context.Background()
 	organizationName := "runnersweep-org"
 	repositoryName := "runnersweep-repo"
-	interval := time.Second
-
 	githubClient := github.NewFakeClient(organizationName)
+
+	ctx := context.Background()
+	var mgrCtx context.Context
+	var mgrCancel context.CancelFunc
 
 	BeforeEach(func() {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -35,16 +36,16 @@ var _ = Describe("RunnerSweeper runner", func() {
 
 		sweeper := NewRunnerSweeper(
 			mgr.GetClient(),
-			ctrl.Log.WithName("actions-token-updator"),
-			interval,
+			ctrl.Log.WithName("runner-sweeper"),
+			time.Second,
 			githubClient,
 			[]string{repositoryName},
 		)
-		err = mgr.Add(sweeper)
-		Expect(err).ToNot(HaveOccurred())
+		Expect(mgr.Add(sweeper)).To(Succeed())
 
+		mgrCtx, mgrCancel = context.WithCancel(context.Background())
 		go func() {
-			err := mgr.Start(ctx)
+			err := mgr.Start(mgrCtx)
 			if err != nil {
 				panic(err)
 			}
@@ -53,13 +54,13 @@ var _ = Describe("RunnerSweeper runner", func() {
 	})
 
 	AfterEach(func() {
-		ctx.Done()
+		mgrCancel()
 		time.Sleep(500 * time.Millisecond)
 	})
 
 	It("should delete unused runner", func() {
 		By("creating namespaces")
-		createNamespaces(ctx, []string{"ns0", "ns1"})
+		createNamespaces(ctx, "ns0", "ns1")
 
 		testCases := []struct {
 			name            string
@@ -131,36 +132,20 @@ var _ = Describe("RunnerSweeper runner", func() {
 
 			// sleep until one loop certainly finishes
 			time.Sleep(2 * time.Second)
-			time.Sleep(interval)
 		}
 	})
 })
 
-func createNamespaces(ctx context.Context, namespaces []string) {
-	for _, n := range namespaces {
-		ns := &corev1.Namespace{}
-		ns.Name = n
-		err := k8sClient.Create(ctx, ns)
-		ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
-	}
-}
-
 func deletePods(ctx context.Context, namespacedNames []types.NamespacedName) {
 	for _, n := range namespacedNames {
-		err := k8sClient.Delete(ctx, &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      n.Name,
-				Namespace: n.Namespace,
-			},
-		})
-		ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
-		EventuallyWithOffset(1, func() error {
-			err := k8sClient.Get(ctx, n, new(corev1.Pod))
-			if apierrors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}).ShouldNot(HaveOccurred())
+		pod := &corev1.Pod{}
+		pod.Name = n.Name
+		pod.Namespace = n.Namespace
+		ExpectWithOffset(1, k8sClient.Delete(ctx, pod)).To(Succeed())
+		EventuallyWithOffset(1, func() bool {
+			err := k8sClient.Get(ctx, n, &corev1.Pod{})
+			return apierrors.IsNotFound(err)
+		}).Should(BeTrue())
 	}
 }
 
