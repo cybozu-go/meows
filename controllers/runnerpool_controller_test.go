@@ -99,6 +99,10 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(d.Labels[constants.RunnerRepoLabelKey]).To(Equal(repositoryNames[0]))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
+		Expect(c.Ports).To(HaveLen(1))
+		Expect(c.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
+		Expect(c.Ports[0].Name).To(Equal(constants.RunnerMetricsPortName))
+		Expect(c.Ports[0].ContainerPort).To(BeNumerically("==", constants.RunnerMetricsPort))
 		Expect(c.Env).To(HaveLen(6))
 		Expect(c.Env[0].Name).To(Equal(constants.PodNameEnvName))
 		Expect(c.Env[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))
@@ -156,6 +160,10 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(d.Labels[constants.RunnerRepoLabelKey]).To(Equal(repositoryNames[1]))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		c := d.Spec.Template.Spec.Containers[0]
+		Expect(c.Ports).To(HaveLen(1))
+		Expect(c.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
+		Expect(c.Ports[0].Name).To(Equal(constants.RunnerMetricsPortName))
+		Expect(c.Ports[0].ContainerPort).To(BeNumerically("==", constants.RunnerMetricsPort))
 		Expect(c.Env).To(HaveLen(5))
 		Expect(c.Env[0].Name).To(Equal(constants.PodNameEnvName))
 		Expect(c.Env[0].ValueFrom.FieldRef.FieldPath).To(Equal("metadata.name"))

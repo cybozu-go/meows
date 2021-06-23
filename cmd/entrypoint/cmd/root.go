@@ -19,10 +19,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	metricsDefaultAddr = ":8080"
-)
-
 var config struct {
 	metricsAddress string
 }
@@ -126,7 +122,7 @@ func Execute() {
 
 func init() {
 	fs := rootCmd.Flags()
-	fs.StringVar(&config.metricsAddress, "metrics-address", metricsDefaultAddr, "Listening address and port for metrics.")
+	fs.StringVar(&config.metricsAddress, "metrics-address", fmt.Sprintf(":%d", constants.RunnerMetricsPort), "Listening address and port for metrics.")
 }
 
 func checkEnvs() error {

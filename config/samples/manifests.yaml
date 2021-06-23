@@ -17,10 +17,6 @@ spec:
       containers:
       - name: runner
         image: actions-runner:latest
-        ports:
-          - name: metrics
-            containerPort: 8080
-            protocol: TCP
       serviceAccountName: runner
 ---
 apiVersion: v1

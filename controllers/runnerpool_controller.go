@@ -172,6 +172,13 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 			return fmt.Errorf("container with name %s should exist in the manifest", constants.RunnerContainerName)
 		}
 
+		// Add metrics port
+		container.Ports = append(container.Ports, corev1.ContainerPort{
+			Protocol:      corev1.ProtocolTCP,
+			Name:          constants.RunnerMetricsPortName,
+			ContainerPort: constants.RunnerMetricsPort,
+		})
+
 		envMap := make(map[string]struct{})
 		for _, v := range container.Env {
 			envMap[v.Name] = struct{}{}
