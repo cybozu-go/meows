@@ -1,5 +1,5 @@
 bases:
-- ../../../config/samples
+- ../../../config/runnerpool
 
 patchesStrategicMerge:
 - patch.yaml
