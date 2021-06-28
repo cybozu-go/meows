@@ -1,0 +1,12 @@
+name: job-success
+on: push
+
+jobs:
+  build:
+    name: job-success
+    runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
+    steps:
+      - run: job-started
+      - run: true
+      - if: success()
+        run: job-success

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -14,11 +15,11 @@ func testRunner() {
 	It("should register self-hosted runners to GitHub Actions", func() {
 		stdout, stderr, err := kustomizeBuild("./manifests/runnerpool")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-		kubectlSafeWithInput(stdout, "apply", "-f", "-")
+		kubectlSafeWithInput(stdout, "apply", "-n", runnerNS, "-f", "-")
 
 		By("confirming all runner pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady("runnerpool-sample", runnerNS, 3)
+			return isDeploymentReady("runnerpool-sample", runnerNS, numRunners)
 		}).ShouldNot(HaveOccurred())
 	})
 
@@ -26,10 +27,19 @@ func testRunner() {
 		By("counting the number of self-hosted runners fetched via GitHub Actions API")
 		pods, err := fetchPods(runnerNS, runnerSelector)
 		Expect(err).ShouldNot(HaveOccurred())
+		Expect(pods.Items).Should(HaveLen(numRunners))
+		podNames := getPodNames(pods)
 
 		// Set interval and limit considering rate limit.
 		Eventually(func() error {
-			return equalNumExistingRunners(pods, numRunners)
+			runnerNames, err := fetchRunnerNames(runnerNS + "/" + poolName)
+			if err != nil {
+				return err
+			}
+			if len(runnerNames) != numRunners || !cmp.Equal(podNames, runnerNames) {
+				return fmt.Errorf("%d runners should exist: pods %#v runners %#v", numRunners, podNames, runnerNames)
+			}
+			return nil
 		}).ShouldNot(HaveOccurred())
 	})
 
@@ -40,8 +50,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "success" workflow`)
-		err = triggerWorkflowDispatch("success.yaml")
-		Expect(err).ShouldNot(HaveOccurred())
+		pushWorkflowFile("job-success.yaml", runnerNS, poolName)
 
 		By("confirming one Pod is recreated")
 		var delPodNames []string
@@ -78,8 +87,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "failure" workflow`)
-		err = triggerWorkflowDispatch("failure.yaml")
-		Expect(err).ShouldNot(HaveOccurred())
+		pushWorkflowFile("job-failure.yaml", runnerNS, poolName)
 
 		By("confirming the job is finished and one Pod has deletion time annotation")
 		var shouldBeDeletedAt string
@@ -124,8 +132,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "check-env" workflow that makes sure invisible environment variables.`)
-		err = triggerWorkflowDispatch("check-env.yaml")
-		Expect(err).ShouldNot(HaveOccurred())
+		pushWorkflowFile("check-env.yaml", runnerNS, poolName)
 
 		By("confirming the job is finished and one Pod has deletion time annotation")
 		var shouldBeDeletedAt string
@@ -164,10 +171,6 @@ func testRunner() {
 	})
 
 	It("should delete RunnerPool properly", func() {
-		By("getting pods list before deleting RunnerPool")
-		pods, err := fetchPods(runnerNS, runnerSelector)
-		Expect(err).ShouldNot(HaveOccurred())
-
 		By("deleting deployment by finalizer")
 		stdout, stderr, err := kubectl("delete", "runnerpools", "-n", runnerNS, poolName)
 		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
@@ -183,7 +186,14 @@ func testRunner() {
 		By("confirming runners are deleted via GitHub Actions API")
 		// Set interval and limit considering rate limit.
 		Eventually(func() error {
-			return equalNumExistingRunners(pods, 0)
+			runnerNames, err := fetchRunnerNames(runnerNS + "/" + poolName)
+			if err != nil {
+				return err
+			}
+			if len(runnerNames) != 0 {
+				return fmt.Errorf("%d runners still exist: runners %#v", len(runnerNames), runnerNames)
+			}
+			return nil
 		}).ShouldNot(HaveOccurred())
 	})
 }

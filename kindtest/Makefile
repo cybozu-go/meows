@@ -7,6 +7,7 @@ CERT_MANAGER_VERSION := 1.3.1
 
 PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/tmp/bin
+REPO_DIR := $(PROJECT_DIR)/tmp/repo
 
 KIND := $(BIN_DIR)/kind
 KUBECTL := $(BIN_DIR)/kubectl
@@ -48,15 +49,17 @@ start: ## Start kind cluster.
 
 .PHONY: test
 test: ## Run all test on kind.
+	mkdir -p $(REPO_DIR)
+	rm -rf $(REPO_DIR)/.git $(REPO_DIR)/.github
 	. ${PROJECT_DIR}/.secret.env.sh; \
-		KINDTEST=1 BIN_DIR=$(BIN_DIR) GITHUB_APP_PRIVATE_KEY_PATH=${PROJECT_DIR}/.secret.private-key.pem \
-		go test . -v -ginkgo.v -ginkgo.failFast
+		KINDTEST=1 BIN_DIR=$(BIN_DIR) \
+		TEST_REPO_WORK_DIR=$(REPO_DIR) \
+		GITHUB_APP_PRIVATE_KEY_PATH=$(PROJECT_DIR)/.secret.private-key.pem \
+		go test . -v -ginkgo.v -ginkgo.failFast $(KINDTEST_OPT)
 
 .PHONY: bootstrap
 bootstrap: ## Run bootstrap test on kind.
-	. ${PROJECT_DIR}/.secret.env.sh; \
-		KINDTEST=1 BIN_DIR=$(BIN_DIR) GITHUB_APP_PRIVATE_KEY_PATH=${PROJECT_DIR}/.secret.private-key.pem \
-		go test . -v -ginkgo.v -ginkgo.failFast -ginkgo.focus 'bootstrap'
+	$(MAKE) test KINDTEST_OPT="-ginkgo.focus 'bootstrap'"
 
 .PHONY: logs
 logs:

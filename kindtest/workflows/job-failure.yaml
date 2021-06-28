@@ -1,0 +1,12 @@
+name: job-failure
+on: push
+
+jobs:
+  build:
+    name: job-failure
+    runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
+    steps:
+      - run: job-started
+      - run: false
+      - if: failure()
+        run: job-failure
