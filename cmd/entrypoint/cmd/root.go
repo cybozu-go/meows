@@ -60,16 +60,18 @@ var rootCmd = &cobra.Command{
 		}
 		registry := prometheus.DefaultRegisterer
 		metrics.Init(registry, runnerPoolName)
-		metrics.UpdatePodState(metrics.Initializing)
-		configArgs := []string{
-			"--unattended",
-			"--replace",
-			"--name", podName,
-			"--url", fmt.Sprintf("https://github.com/%s/%s", runnerOrg, runnerRepo),
-			"--token", runnerToken,
-			"--work", workDir,
-		}
+
 		well.Go(func(ctx context.Context) error {
+			metrics.UpdatePodState(metrics.Initializing)
+			configArgs := []string{
+				"--unattended",
+				"--replace",
+				"--name", podName,
+				"--labels", podNamespace + "/" + runnerPoolName,
+				"--url", fmt.Sprintf("https://github.com/%s/%s", runnerOrg, runnerRepo),
+				"--token", runnerToken,
+				"--work", workDir,
+			}
 			if _, err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
