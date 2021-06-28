@@ -7,6 +7,7 @@ import (
 	constants "github.com/cybozu-go/github-actions-controller"
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -164,7 +165,11 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 	d := &appsv1.Deployment{}
 	d.SetNamespace(rp.GetNamespace())
 	d.SetName(rp.GetRunnerDeploymentName())
+
+	var orig, updated *appsv1.DeploymentSpec
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
+		orig = d.Spec.DeepCopy()
+
 		d.Labels = mergeMap(d.GetLabels(), labelSet(rp, constants.AppComponentRunner))
 		d.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: labelSet(rp, constants.AppComponentRunner),
@@ -194,6 +199,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		runnerContainer.Ports = r.makeRunnerContainerPorts()
 		runnerContainer.VolumeMounts = rp.Spec.Template.VolumeMounts
 
+		updated = d.Spec.DeepCopy()
 		return ctrl.SetControllerReference(rp, d, r.scheme)
 	})
 
@@ -201,10 +207,14 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		log.Error(err, "failed to reconcile deployment")
 		return err
 	}
-	if op != controllerutil.OperationResultNone {
+	switch op {
+	case controllerutil.OperationResultCreated:
 		log.Info("reconciled deployment", "operation", string(op))
+	case controllerutil.OperationResultUpdated:
+		// The deployment update should occur only when the users update their RunnerPool CR.
+		// If this log shows frequently, users need to review their RunnerPool CR.
+		log.Info("reconciled deployment", "operation", string(op), "diff", cmp.Diff(orig, updated))
 	}
-
 	return nil
 }
 
@@ -237,7 +247,8 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *actionsv1alpha1.Runner
 			Name: constants.PodNameEnvName,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.name",
+					APIVersion: "v1",
+					FieldPath:  "metadata.name",
 				},
 			},
 		},
@@ -245,7 +256,8 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *actionsv1alpha1.Runner
 			Name: constants.PodNamespaceEnvName,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.namespace",
+					APIVersion: "v1",
+					FieldPath:  "metadata.namespace",
 				},
 			},
 		},

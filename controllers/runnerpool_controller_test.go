@@ -30,6 +30,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 	deploymentName := "runnerpool-1"
 	slackAgentServiceName := "slack-agent"
 	defaultRunnerImage := "sample:latest"
+	wait := 10 * time.Second
 
 	ctx := context.Background()
 	var mgrCtx context.Context
@@ -88,6 +89,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			}
 			return nil
 		}).Should(Succeed())
+		time.Sleep(wait) // Wait for the reconciliation to run a few times. Please check the controller's log.
 
 		By("getting the created Deployment")
 		d := new(appsv1.Deployment)
@@ -213,8 +215,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 			{Name: "volume2", MountPath: "/volume2"},
 		}
 		rp.Spec.Template.Volumes = []corev1.Volume{
-			{Name: "volume1"},
-			{Name: "volume2"},
+			{Name: "volume1", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+			{Name: "volume2", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
@@ -229,6 +231,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			}
 			return nil
 		}).Should(Succeed())
+		time.Sleep(wait) // Wait for the reconciliation to run a few times. Please check the controller's log.
 
 		By("getting the created Deployment")
 		d := new(appsv1.Deployment)
