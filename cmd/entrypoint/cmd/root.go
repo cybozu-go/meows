@@ -209,6 +209,7 @@ func runService(ctx context.Context) error {
 			fmt.Println("Runner listener exit with terminated error, stop the service, no retry needed.")
 			stopping = true
 			metrics.IncrementListenerExitState(metrics.TerminatedError)
+			return fmt.Errorf("runner listener exit with terminated error: %v", err)
 		case 2:
 			fmt.Println("Runner listener exit with retryable error, re-launch runner in 5 seconds.")
 			stopping = false
