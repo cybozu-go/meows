@@ -32,7 +32,6 @@ RUN mkdir -p ${RUNNER_ASSETS_DIR} \
   && tar xzf ./runner.tar.gz \
   && rm runner.tar.gz \
   && ./bin/installdependencies.sh \
-  && rm ./bin/RunnerService.js \
   && chown -R 10000 ${RUNNER_ASSETS_DIR}
 
 ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
