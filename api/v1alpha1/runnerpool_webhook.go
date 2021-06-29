@@ -44,7 +44,6 @@ func (r *RunnerPool) ValidateUpdate(old runtime.Object) error {
 	if len(errs) == 0 {
 		return nil
 	}
-
 	return apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "RunnerPool"}, r.Name, errs)
 }
 

@@ -19,6 +19,23 @@ const (
 
 	// RunnerPoolFinalizer is a finalizer for runnerpool resource.
 	RunnerPoolFinalizer = "actions.cybozu.com/runnerpool"
+
+	// AppNameLabelKey is a label key for application name.
+	AppNameLabelKey = "app.kubernetes.io/name"
+
+	// AppComponentLabelKey is a label key for the component.
+	AppComponentLabelKey = "app.kubernetes.io/component"
+
+	// AppInstanceLabelKey is a label key for the instance name.
+	AppInstanceLabelKey = "app.kubernetes.io/instance"
+)
+
+const (
+	// AppName is the application name.
+	AppName = "actions"
+
+	// AppComponentRunner is the component name for runner.
+	AppComponentRunner = "runner"
 )
 
 // Container ports

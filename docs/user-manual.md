@@ -121,18 +121,8 @@ spec:
   repositoryName: repository-sample
   slackAgentServiceName: slack-agent
   replicas: 3
-  selector:
-    matchLabels:
-      app: actions-runner
   template:
-    metadata:
-      labels:
-        app: actions-runner
-    spec:
-      containers:
-      - name: runner
-        image: quay.io/cybozu/actions-runner:latest
-      serviceAccountName: runner
+    image: quay.io/cybozu/actions-runner:latest
 ```
 
 The controller creates a `Deployment` based on `template` in `RunnerPool`.
@@ -142,8 +132,8 @@ The controller is mainly responsible for:
 
 - Add the GitHub organization name specified with the controller CLI's option and
   the repository name defined in the `RunnerPool` manifest to `metadata.labels`.
-- Add environment variables needed to run `entrypoing.sh`.
-  `entrypoing.sh` is a default command for the runner container and contains
+- Add environment variables needed to run `entrypoint`.
+  `entrypoint` is a default command for the runner container and contains
   [`github.com/actions/runner`](https://github.com/actions/runner).
 
 You are responsible for:

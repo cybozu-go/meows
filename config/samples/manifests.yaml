@@ -6,40 +6,30 @@ spec:
   repositoryName: repository-sample
   slackAgentServiceName: slack-agent
   replicas: 3
-  selector:
-    matchLabels:
-      app: actions-runner
   template:
-    metadata:
-      labels:
-        app: actions-runner
-    spec:
-      containers:
-      - name: runner
-        image: actions-runner:latest
-      serviceAccountName: runner
+    image: actions-runner:latest
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: runner
+  name: runnerpool-sample
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: runner
+  name: runnerpool-sample
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: runner
+  name: runnerpool-sample
 subjects:
 - kind: ServiceAccount
-  name: runner
+  name: runnerpool-sample
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: runner
+  name: runnerpool-sample
 rules:
 - apiGroups:
   - ""

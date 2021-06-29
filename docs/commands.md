@@ -30,6 +30,7 @@ Flags:
   -o, --organization-name string           The GitHub organization name
       --pod-sweep-interval duration        Interval to watch and delete Pods. (default 1m0s)
   -r, --repository-names strings           The GitHub repository names, separated with comma.
+      --runner-image string                The image of runner container (default "quay.io/cybozu/actions-runner:latest")
       --runner-sweep-interval duration     Interval to watch and sweep unused GitHub Actions runners. (default 30m0s)
       --skip_headers                       If true, avoid header prefixes in the log messages
       --skip_log_headers                   If true, avoid headers when opening log files
