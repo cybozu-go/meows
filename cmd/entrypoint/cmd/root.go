@@ -203,18 +203,23 @@ func runService(ctx context.Context) error {
 	case 0:
 		fmt.Println("Runner listener exit with 0 return code, stop the service, no retry needed.")
 		stopping = true
+		metrics.IncrementListenerExitState(metrics.Successful)
 	case 1:
 		fmt.Println("Runner listener exit with terminated error, stop the service, no retry needed.")
 		stopping = true
+		metrics.IncrementListenerExitState(metrics.TerminatedError)
 	case 2:
 		fmt.Println("Runner listener exit with retryable error, re-launch runner in 5 seconds.")
 		stopping = false
+		metrics.IncrementListenerExitState(metrics.RetryableError)
 	case 3:
 		fmt.Println("Runner listener exit because of updating, re-launch runner in 5 seconds.")
 		stopping = false
+		metrics.IncrementListenerExitState(metrics.Updating)
 	default:
 		fmt.Println("Runner listener exit with undefined return code, re-launch runner in 5 seconds.")
 		stopping = false
+		metrics.IncrementListenerExitState(metrics.Undefined)
 	}
 	if !stopping {
 		time.Sleep(5000 * time.Millisecond)
