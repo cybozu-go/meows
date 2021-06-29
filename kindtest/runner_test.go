@@ -107,7 +107,11 @@ func testRunner() {
 				return err
 			}
 			for _, po := range after.Items {
-				if v, ok := po.Annotations[constants.PodDeletionTimeKey]; ok {
+				v, err := getDeletionTime(po)
+				if err != nil {
+					return err
+				}
+				if v != "" {
 					fmt.Println("====== Pod should be deleted at " + v)
 					shouldBeDeletedAt = v
 					return nil
@@ -152,7 +156,11 @@ func testRunner() {
 				return err
 			}
 			for _, po := range after.Items {
-				if v, ok := po.Annotations[constants.PodDeletionTimeKey]; ok {
+				v, err := getDeletionTime(po)
+				if err != nil {
+					return err
+				}
+				if v != "" {
 					fmt.Println("====== Pod should be deleted at " + v)
 					shouldBeDeletedAt = v
 					return nil

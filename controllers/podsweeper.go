@@ -2,6 +2,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
@@ -15,6 +19,41 @@ import (
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete
 
+type RunnerPodClient interface {
+	GetDeletionTime(ip string) (string, error)
+}
+
+type RunnerPodClientImpl struct{}
+
+func (c *RunnerPodClientImpl) GetDeletionTime(ip string) (string, error) {
+	url := fmt.Sprintf("http://%s:%d/deletion_time", ip, constants.RunnerMetricsPort)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client := &http.Client{}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(string(b), "\n"), nil
+}
+
+func NewRunnerPodClient() RunnerPodClient {
+	return &RunnerPodClientImpl{}
+}
+
 // PodSweeper sweeps Pods managed by RunnerPool controller
 type PodSweeper struct {
 	k8sClient client.Client
@@ -22,6 +61,7 @@ type PodSweeper struct {
 	interval  time.Duration
 
 	organizationName string
+	runnerPodClient  RunnerPodClient
 }
 
 // NewPodSweeper returns PodSweeper
@@ -29,7 +69,6 @@ func NewPodSweeper(
 	k8sClient client.Client,
 	log logr.Logger,
 	interval time.Duration,
-
 	organizationName string,
 ) manager.Runnable {
 	return &PodSweeper{
@@ -37,6 +76,7 @@ func NewPodSweeper(
 		log:              log,
 		interval:         interval,
 		organizationName: organizationName,
+		runnerPodClient:  NewRunnerPodClient(),
 	}
 }
 
@@ -87,6 +127,14 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 		v, ok := po.Annotations[constants.PodDeletionTimeKey]
 		if !ok {
+			v, err = r.runnerPodClient.GetDeletionTime(po.Status.PodIP)
+			if err != nil {
+				r.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API")
+				continue
+			}
+		}
+
+		if v == "" {
 			continue
 		}
 

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
@@ -45,6 +46,8 @@ var (
 
 	configCommand   = filepath.Join(runnerDir, "config.sh")
 	listenerCommand = filepath.Join(runnerDir, "bin", "Runner.Listener")
+
+	deletionTime atomic.Value = atomic.Value{}
 )
 
 var rootCmd = &cobra.Command{
@@ -58,6 +61,7 @@ var rootCmd = &cobra.Command{
 		if err := os.MkdirAll(workDir, 0755); err != nil {
 			return err
 		}
+		deletionTime.Store(time.Time{})
 		registry := prometheus.DefaultRegisterer
 		metrics.Init(registry, runnerPoolName)
 
@@ -82,7 +86,7 @@ var rootCmd = &cobra.Command{
 			}
 
 			metrics.UpdatePodState(metrics.Debugging)
-			extend, err := annotatePod(ctx)
+			extend, err := updateDeletionTime()
 			if err != nil {
 				return err
 			}
@@ -96,6 +100,7 @@ var rootCmd = &cobra.Command{
 
 		metricsMux := http.NewServeMux()
 		metricsMux.Handle("/metrics", promhttp.Handler())
+		metricsMux.Handle("/deletion_time", http.HandlerFunc(deletionTimeHandler))
 		metricsServ := &well.HTTPServer{
 			Server: &http.Server{
 				Addr:    config.metricsAddress,
@@ -224,18 +229,18 @@ func isFileExists(filename string) bool {
 	return err == nil
 }
 
-func annotatePod(ctx context.Context) (bool, error) {
+func updateDeletionTime() (bool, error) {
 	if isFileExists(extendFlagFile) {
 		dur, err := time.ParseDuration(extendDuration)
 		if err != nil {
 			return false, err
 		}
 		fmt.Printf("Annotate pod with the time %s later\n", extendDuration)
-		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now().Add(dur))
+		deletionTime.Store(time.Now().UTC().Add(dur))
 		return true, nil
 	} else {
 		fmt.Println("Annotate pod with current time")
-		agent.AnnotateDeletionTime(ctx, podName, podNamespace, time.Now())
+		deletionTime.Store(time.Now().UTC())
 		return false, nil
 	}
 }
@@ -267,4 +272,13 @@ func notifyToSlack(ctx context.Context, extend bool) error {
 		fmt.Println("Skip sending an notification to slack because SLACK_AGENT_SERVICE_NAME is blank")
 	}
 	return nil
+}
+
+func deletionTimeHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	if dt, ok := deletionTime.Load().(*time.Time); ok {
+		if !dt.IsZero() {
+			fmt.Fprintln(w, dt.UTC().Format(time.RFC3339))
+		}
+	}
 }
