@@ -68,19 +68,17 @@ The following steps are needed to register a runner on GitHub Actions.
 1. Fetch a registration token via GitHub Actions [API](https://docs.github.com/en/rest/reference/actions#create-a-registration-token-for-a-repository).
 1. Execute [`config.sh`](https://github.com/actions/runner/blob/main/src/Misc/layoutroot/config.sh)
   to configure a runner.
-1. Execute [`run.sh`](https://github.com/actions/runner/blob/main/src/Misc/layoutroot/run.sh) or [`runsvc.sh`](https://github.com/actions/runner/blob/main/src/Misc/layoutbin/runsvc.sh)
-  to start the long polling for GitHub Actions API.
+1. Execute [`Runner.Listener`](https://github.com/actions/runner/blob/main/src/Runner.Listener/Program.cs) to start the long polling for GitHub Actions API.
 
-`run.sh` and `runsvc.sh` execute the same binary to start a long polling in the
-end, but `runsvc.sh` is preferable because it handles some errors and then
-restarts the main command automatically.
-They upgrade the the binary by themselves when a new release is out. This help
+`Runner.Listener` start a long polling in the end, and `cmd/entrypoint/cmd/root.go#runService`
+handles some errors and then restarts the `Runner.Listener` automatically for upgrade themselves.
+They upgrade the binary by themselves when a new release is out. This help
 us avoid unnecessary `Pod` recreation.
 
-#### `runsvc.sh` should be executed right after `config.sh`
+#### `Runner.Listener` should be executed right after `config.sh`
 
-We should execute `runsvc.sh` within about 30 seconds after executing `config.sh`.
-After that, `runsvc.sh` fails to open a connection with GitHub Actions
+We should execute `Runner.Listener` within about 30 seconds after executing `config.sh`.
+After that, `Runner.Listener` fails to open a connection with GitHub Actions
 API.  Note that this behavior is not clearly written in the official documentation
 and might change unexpectedly.
 
@@ -95,7 +93,7 @@ Runner has the `status` and `busy` state as written [here](https://docs.github.c
   - `true`: The runner is running a workflow.
   - `false`: The runner is NOT running a workflow.
 
-If the `--once` option is given to `runsvc.sh`, `runsvc.sh` does not repeat the
+If the `--once` option is given to `Runner.Listener` does not repeat the
 long polling again, and never gets `online` after the assigned job is done.
 This behavior is useful for ensuring to make a clean environment for each job.
 
@@ -112,7 +110,7 @@ and might change unexpectedly.
 - If all the runners are `online` and `busy` at the time a job is created, the
   job is queued first and then scheduled right after any runner finishes its job
   and gets non-`busy`.
-  - Even if `runsvc.sh` runs with the `--once` option, a job is assigned on the
+  - Even if `Runner.Listener` runs with the `--once` option, a job is assigned on the
     runner doing a job and never proceeds. This seems to be because the runner is
     recognized as `online` at the very time the job is done, but it gets `offline`
     when the job actually starts. In this situation, the job can be canceled only
@@ -178,6 +176,14 @@ A Runner `Pod` has the following state as a GitHub Actions job runner.
 - `running`: `Pod` is running. Registered in GitHub Actions.
 - `debugging`: The job has finished with failure and Users can enter `Pod` to debug.
 
+In addition, it has the following states as the exit state of the execution result of `Runner.Listener`.
+
+- `successful`: When the job is successful and the RunnerPod will continue to finish.
+- `terminated_error`: When the job is a failure and the RunnerPod will continue to finish.
+- `retryable_error`: If execution fails due to a factor other than a job, restart `Runner.Listener`.
+- `updating`: When a new `Runner.Listener` is released, it updates itself and restarts` Runner.Listener`.
+- `undefined`: When the exit code of `Runner.Listener` is undefined. It restarts` Runner.Listener`.
+
 The above states are exposed from `/metrics` endpoint as Prometheus metrics. See [metrics.md](metrics.md).
 
 Detailed `running` state of the runner as seen on GitHub is not provided
@@ -209,14 +215,14 @@ repository and we need to make another component responsible for registering tok
   are generally more diffcult to manage than stateless workloads.
 
 Update:  
-Originally, `runsvc.sh` is thought to be able to run in 1 hour or more after
-`config.sh` is done, but it turns out that we should execute `runsvc.sh` withi
+Originally, `Runner.Listener` is thought to be able to run in 1 hour or more after
+`config.sh` is done, but it turns out that we should execute `Runner.Listener` within
 about 30 seconds after executing `config.sh`. This means that `config.sh` which
 registers a runner on GitHub has to run after the initialization step.
-So, an initialiation step might be time-consuming, but it's limited to finishing
+So, an initialization step might be time-consuming, but it's limited to finishing
 a job in 1 hour in the current design.
 
 This might be improved by taking the way that the controller updates a `Secret`
 periodically. Otherwise, we have to create a server responsible for getting
 registration tokens and have runners make a request for the server to get a
-token right after the initialiation is done.
+token right after the initialization is done.
