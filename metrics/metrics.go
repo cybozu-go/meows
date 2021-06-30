@@ -16,11 +16,9 @@ const (
 	Running      = PodState("running")
 	Debugging    = PodState("debugging")
 
-	Successful      = ListenerExitState("successful")
-	TerminatedError = ListenerExitState("terminated_error")
-	RetryableError  = ListenerExitState("retryable_error")
-	Updating        = ListenerExitState("updating")
-	Undefined       = ListenerExitState("undefined")
+	RetryableError = ListenerExitState("retryable_error")
+	Updating       = ListenerExitState("updating")
+	Undefined      = ListenerExitState("undefined")
 )
 
 var (
@@ -31,8 +29,6 @@ var (
 	}
 
 	AllListenerExitState = []ListenerExitState{
-		Successful,
-		TerminatedError,
 		RetryableError,
 		Updating,
 		Undefined,

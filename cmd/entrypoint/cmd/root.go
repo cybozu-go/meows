@@ -88,10 +88,7 @@ var rootCmd = &cobra.Command{
 				return err
 			}
 
-			select {
-			case <-ctx.Done():
-			case <-time.After(time.Duration(1<<63 - 1)):
-			}
+			<-ctx.Done()
 			return nil
 		})
 
@@ -200,11 +197,9 @@ func runService(ctx context.Context) error {
 		switch code {
 		case 0:
 			fmt.Println("Runner listener exit with 0 return code, stop the service, no retry needed.")
-			metrics.IncrementListenerExitState(metrics.Successful)
 			return nil
 		case 1:
 			fmt.Println("Runner listener exit with terminated error, stop the service, no retry needed.")
-			metrics.IncrementListenerExitState(metrics.TerminatedError)
 			return fmt.Errorf("runner listener exit with terminated error: %v", err)
 		case 2:
 			fmt.Println("Runner listener exit with retryable error, re-launch runner in 5 seconds.")
@@ -218,7 +213,7 @@ func runService(ctx context.Context) error {
 		}
 
 		// Sleep 5 seconds to wait for the update process finish.
-		time.Sleep(5000 * time.Millisecond)
+		time.Sleep(5 * time.Second)
 	}
 }
 

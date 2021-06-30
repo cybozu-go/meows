@@ -178,8 +178,6 @@ A Runner `Pod` has the following state as a GitHub Actions job runner.
 
 In addition, it has the following states as the exit state of the execution result of `Runner.Listener`.
 
-- `successful`: When the `Runner.Listener` is successful completed and the RunnerPod will continue to finish.
-- `terminated_error`: When a fatal error occurs, and the RunnerPod will continue to finish.
 - `retryable_error`: If execution fails due to a factor other than a job, restart `Runner.Listener`.
 - `updating`: When a new `Runner.Listener` is released, it updates itself and restarts` Runner.Listener`.
 - `undefined`: When the exit code of `Runner.Listener` is undefined. It restarts` Runner.Listener`.
