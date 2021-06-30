@@ -159,10 +159,8 @@ func runCommand(ctx context.Context, workDir, commandStr string, args ...string)
 	command.Stderr = os.Stderr
 	command.Dir = workDir
 	command.Env = removedEnv()
-	if err := command.Run(); err != nil {
-		return command.ProcessState.ExitCode(), err
-	}
-	return command.ProcessState.ExitCode(), nil
+	err := command.Run()
+	return command.ProcessState.ExitCode(), err
 }
 
 func removedEnv() []string {
@@ -190,44 +188,38 @@ func removedEnv() []string {
 }
 
 func runService(ctx context.Context) error {
-	var stopping bool = false
-	for !stopping {
-		var code int
-		var err error
-		if code, err = runCommand(ctx, runnerDir, listenerCommand, "run", "--startuptype", "service", "--once"); err != nil {
-			if _, ok := err.(*exec.ExitError); !ok {
-				return err
-			}
+	for {
+		code, err := runCommand(ctx, runnerDir, listenerCommand, "run", "--startuptype", "service", "--once")
+		if _, ok := err.(*exec.ExitError); !ok {
+			return err
 		}
+
+		// This logic is based on the following code.
+		// ref: https://github.com/actions/runner/blob/v2.278.0/src/Misc/layoutbin/RunnerService.js
 		fmt.Println("Runner listener exited with error code", code)
 		switch code {
 		case 0:
 			fmt.Println("Runner listener exit with 0 return code, stop the service, no retry needed.")
-			stopping = true
 			metrics.IncrementListenerExitState(metrics.Successful)
+			return nil
 		case 1:
 			fmt.Println("Runner listener exit with terminated error, stop the service, no retry needed.")
-			stopping = true
 			metrics.IncrementListenerExitState(metrics.TerminatedError)
 			return fmt.Errorf("runner listener exit with terminated error: %v", err)
 		case 2:
 			fmt.Println("Runner listener exit with retryable error, re-launch runner in 5 seconds.")
-			stopping = false
 			metrics.IncrementListenerExitState(metrics.RetryableError)
 		case 3:
 			fmt.Println("Runner listener exit because of updating, re-launch runner in 5 seconds.")
-			stopping = false
 			metrics.IncrementListenerExitState(metrics.Updating)
 		default:
 			fmt.Println("Runner listener exit with undefined return code, re-launch runner in 5 seconds.")
-			stopping = false
 			metrics.IncrementListenerExitState(metrics.Undefined)
 		}
-		if !stopping {
-			time.Sleep(5000 * time.Millisecond)
-		}
+
+		// Sleep 5 seconds to wait for the update process finish.
+		time.Sleep(5000 * time.Millisecond)
 	}
-	return nil
 }
 
 func isFileExists(filename string) bool {
