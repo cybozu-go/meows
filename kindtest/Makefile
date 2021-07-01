@@ -2,8 +2,8 @@ CURL := curl -sSLf
 
 KUSTOMIZE_VERSION := 3.8.7
 K8S_VERSION := 1.19.7
-KIND_VERSION := 0.10.0
-CERT_MANAGER_VERSION := 1.2.0
+KIND_VERSION := 0.11.1
+CERT_MANAGER_VERSION := 1.3.1
 
 PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/tmp/bin
@@ -42,7 +42,7 @@ clean: ## Clean files
 
 .PHONY: start
 start: ## Start kind cluster.
-	$(KIND) create cluster --image kindest/node:v$(K8S_VERSION) --name $(KIND_CLUSTER_NAME) --config kind.yaml
+	$(KIND) create cluster --image kindest/node:v$(K8S_VERSION) --name $(KIND_CLUSTER_NAME) --config kind.yaml --wait 1m
 	$(MAKE) cert-manager
 	$(MAKE) load
 
@@ -80,4 +80,4 @@ load: ## Load docker images onto kind cluster.
 .PHONY: cert-manager
 cert-manager:
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
-	$(KUBECTL) -n cert-manager wait --for=condition=available --timeout=10m --all deployments
+	$(KUBECTL) -n cert-manager wait --for=condition=available --timeout=180s --all deployments
