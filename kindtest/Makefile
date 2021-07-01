@@ -58,6 +58,13 @@ bootstrap: ## Run bootstrap test on kind.
 		KINDTEST=1 BIN_DIR=$(BIN_DIR) GITHUB_APP_PRIVATE_KEY_PATH=${PROJECT_DIR}/.secret.private-key.pem \
 		go test . -v -ginkgo.v -ginkgo.failFast -ginkgo.focus 'bootstrap'
 
+.PHONY: logs
+logs:
+	rm -rf logs.tar.gz logs
+	$(KIND) export logs --name=$(KIND_CLUSTER_NAME) ./logs
+	tar czf logs.tar.gz logs
+	rm -rf logs
+
 .PHONY: stop
 stop: ## Stop kind cluster
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
