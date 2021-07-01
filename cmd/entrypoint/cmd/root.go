@@ -43,8 +43,8 @@ var (
 	cancelledFlagFile = filepath.Join(os.TempDir(), "cancelled")
 	successFlagFile   = filepath.Join(os.TempDir(), "success")
 
-	configCommand = filepath.Join(runnerDir, "config.sh")
-	runSVCCommand = filepath.Join(runnerDir, "bin", "runsvc.sh")
+	configCommand   = filepath.Join(runnerDir, "config.sh")
+	listenerCommand = filepath.Join(runnerDir, "bin", "Runner.Listener")
 )
 
 var rootCmd = &cobra.Command{
@@ -70,12 +70,12 @@ var rootCmd = &cobra.Command{
 			"--work", workDir,
 		}
 		well.Go(func(ctx context.Context) error {
-			if err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
+			if _, err := runCommand(ctx, runnerDir, configCommand, configArgs...); err != nil {
 				return err
 			}
 
 			metrics.UpdatePodState(metrics.Running)
-			if err := runCommand(ctx, runnerDir, runSVCCommand); err != nil {
+			if err := runService(ctx); err != nil {
 				return err
 			}
 
@@ -88,10 +88,7 @@ var rootCmd = &cobra.Command{
 				return err
 			}
 
-			select {
-			case <-ctx.Done():
-			case <-time.After(time.Duration(1<<63 - 1)):
-			}
+			<-ctx.Done()
 			return nil
 		})
 
@@ -153,16 +150,14 @@ func checkEnvs() error {
 	return nil
 }
 
-func runCommand(ctx context.Context, workDir, commandStr string, args ...string) error {
+func runCommand(ctx context.Context, workDir, commandStr string, args ...string) (int, error) {
 	command := exec.CommandContext(ctx, commandStr, args...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	command.Dir = workDir
 	command.Env = removedEnv()
-	if err := command.Run(); err != nil {
-		return err
-	}
-	return nil
+	err := command.Run()
+	return command.ProcessState.ExitCode(), err
 }
 
 func removedEnv() []string {
@@ -187,6 +182,39 @@ func removedEnv() []string {
 		}
 	}
 	return removedEnv
+}
+
+func runService(ctx context.Context) error {
+	for {
+		code, err := runCommand(ctx, runnerDir, listenerCommand, "run", "--startuptype", "service", "--once")
+		if _, ok := err.(*exec.ExitError); !ok {
+			return err
+		}
+
+		// This logic is based on the following code.
+		// ref: https://github.com/actions/runner/blob/v2.278.0/src/Misc/layoutbin/RunnerService.js
+		fmt.Println("Runner listener exited with error code", code)
+		switch code {
+		case 0:
+			fmt.Println("Runner listener exit with 0 return code, stop the service, no retry needed.")
+			return nil
+		case 1:
+			fmt.Println("Runner listener exit with terminated error, stop the service, no retry needed.")
+			return fmt.Errorf("runner listener exit with terminated error: %v", err)
+		case 2:
+			fmt.Println("Runner listener exit with retryable error, re-launch runner in 5 seconds.")
+			metrics.IncrementListenerExitState(metrics.RetryableError)
+		case 3:
+			fmt.Println("Runner listener exit because of updating, re-launch runner in 5 seconds.")
+			metrics.IncrementListenerExitState(metrics.Updating)
+		default:
+			fmt.Println("Runner listener exit with undefined return code, re-launch runner in 5 seconds.")
+			metrics.IncrementListenerExitState(metrics.Undefined)
+		}
+
+		// Sleep 5 seconds to wait for the update process finish.
+		time.Sleep(5 * time.Second)
+	}
 }
 
 func isFileExists(filename string) bool {

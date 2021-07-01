@@ -41,3 +41,10 @@ jobs:
       - run: make setup
       - run: make -C kindtest start
       - run: make -C kindtest test
+      - run: make -C kindtest logs
+        if: always()
+      - uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: logs.tar.gz
+          path: kindtest/logs.tar.gz

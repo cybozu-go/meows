@@ -32,7 +32,6 @@ RUN mkdir -p ${RUNNER_ASSETS_DIR} \
   && tar xzf ./runner.tar.gz \
   && rm runner.tar.gz \
   && ./bin/installdependencies.sh \
-  && rm ./bin/RunnerService.js \
   && chown -R 10000 ${RUNNER_ASSETS_DIR}
 
 ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
@@ -43,7 +42,6 @@ USER 10000
 COPY scripts/job-cancelled /usr/local/bin
 COPY scripts/job-failure   /usr/local/bin
 COPY scripts/job-success   /usr/local/bin
-COPY scripts/RunnerService.js ${RUNNER_ASSETS_DIR}/bin
 
 COPY --from=builder /workspace/tmp/bin/slack-agent-client /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/job-started /usr/local/bin

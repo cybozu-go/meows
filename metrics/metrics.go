@@ -9,11 +9,16 @@ const (
 )
 
 type PodState string
+type ListenerExitState string
 
 const (
 	Initializing = PodState("initializing")
 	Running      = PodState("running")
 	Debugging    = PodState("debugging")
+
+	RetryableError = ListenerExitState("retryable_error")
+	Updating       = ListenerExitState("updating")
+	Undefined      = ListenerExitState("undefined")
 )
 
 var (
@@ -23,7 +28,14 @@ var (
 		Debugging,
 	}
 
-	podState *prometheus.GaugeVec
+	AllListenerExitState = []ListenerExitState{
+		RetryableError,
+		Updating,
+		Undefined,
+	}
+
+	podState          *prometheus.GaugeVec
+	listenerExitState *prometheus.CounterVec
 )
 
 func Init(registry prometheus.Registerer, name string) {
@@ -39,8 +51,20 @@ func Init(registry prometheus.Registerer, name string) {
 		},
 		[]string{"state"},
 	)
+
+	listenerExitState = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace:   namespace,
+			Name:        "listener_exit_state",
+			Help:        "Counter for exit codes returned by the Runner.Listener",
+			ConstLabels: labels,
+		},
+		[]string{"state"},
+	)
+
 	registry.MustRegister(
 		podState,
+		listenerExitState,
 	)
 }
 
@@ -52,4 +76,8 @@ func UpdatePodState(label PodState) {
 		}
 		podState.WithLabelValues(string(labelState)).Set(val)
 	}
+}
+
+func IncrementListenerExitState(label ListenerExitState) {
+	listenerExitState.WithLabelValues(string(label)).Inc()
 }
