@@ -73,6 +73,6 @@ load: ## Load docker images onto kind cluster.
 .PHONY: cert-manager
 cert-manager:
 	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
-	$(KUBECTL) wait pods -n cert-manager -l app=cert-manager --for=condition=Ready --timeout=2m
-	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=2m
-	$(KUBECTL) wait pods -n cert-manager -l app=webhook --for=condition=Ready --timeout=2m
+	$(KUBECTL) wait pods -n cert-manager -l app=cert-manager --for=condition=Ready --timeout=5m
+	$(KUBECTL) wait pods -n cert-manager -l app=cainjector --for=condition=Ready --timeout=5m
+	$(KUBECTL) wait pods -n cert-manager -l app=webhook --for=condition=Ready --timeout=5m
