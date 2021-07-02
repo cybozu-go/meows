@@ -99,7 +99,7 @@ func testRunner() {
 		By(`running "failure" workflow`)
 		pushWorkflowFile("job-failure.tmpl.yaml", runner2NS, runnerPoolName)
 
-		By("confirming the job is finished and one Pod has deletion time annotation")
+		By("confirming the job is finished and get deletion time from API of one Pod")
 		var shouldBeDeletedAt string
 		Eventually(func() error {
 			after, err := fetchPods(runner2NS, runnerSelector)
@@ -117,7 +117,7 @@ func testRunner() {
 					return nil
 				}
 			}
-			return errors.New("one pod should have annotation " + constants.PodDeletionTimeKey)
+			return errors.New("one pod should get deletion time from /" + constants.DeletionTimeEndpoint)
 		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
 		now := time.Now().UTC()
 		fmt.Println("====== Current time is " + now.Format(time.RFC3339))
@@ -148,7 +148,7 @@ func testRunner() {
 		By(`running "check-env" workflow that makes sure invisible environment variables.`)
 		pushWorkflowFile("check-env.tmpl.yaml", runner1NS, runnerPoolName)
 
-		By("confirming the job is finished and one Pod has deletion time annotation")
+		By("confirming the job is finished and get deletion time from API of one Pod")
 		var shouldBeDeletedAt string
 		Eventually(func() error {
 			after, err := fetchPods(runner1NS, runnerSelector)
@@ -166,7 +166,7 @@ func testRunner() {
 					return nil
 				}
 			}
-			return errors.New("one pod should have annotation " + constants.PodDeletionTimeKey)
+			return errors.New("one pod should get deletion time from /" + constants.DeletionTimeEndpoint)
 		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
 		now := time.Now().UTC()
 		fmt.Println("====== Current time is " + now.Format(time.RFC3339))

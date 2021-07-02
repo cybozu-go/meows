@@ -5,7 +5,6 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -13,8 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 var _ = Describe("PodSweeper runner", func() {
@@ -22,7 +19,7 @@ var _ = Describe("PodSweeper runner", func() {
 	namespace := "podsweep-ns"
 
 	ctx := context.Background()
-	var runnerPodClient RunnerPodClientMock
+	var runnerPodClient *RunnerPodClientMock
 	var mgrCtx context.Context
 	var mgrCancel context.CancelFunc
 
@@ -36,13 +33,13 @@ var _ = Describe("PodSweeper runner", func() {
 
 		runnerPodClient = NewRunnerPodClientMock("")
 
-		sweeper := NewTestPodSweeper(
-			mgr.GetClient(),
-			ctrl.Log.WithName("pod-sweeper"),
-			time.Second,
-			organizationName,
-			&runnerPodClient,
-		)
+		sweeper := &PodSweeper{
+			k8sClient:        mgr.GetClient(),
+			log:              ctrl.Log.WithName("pod-sweeper"),
+			interval:         time.Second,
+			organizationName: organizationName,
+			runnerPodClient:  runnerPodClient,
+		}
 		Expect(mgr.Add(sweeper)).To(Succeed())
 
 		mgrCtx, mgrCancel = context.WithCancel(context.Background())
@@ -304,24 +301,8 @@ func (c *RunnerPodClientMock) GetDeletionTime(ip string) (string, error) {
 	return c.deletionTime, nil
 }
 
-func NewRunnerPodClientMock(deletionTime string) RunnerPodClientMock {
-	return RunnerPodClientMock{
+func NewRunnerPodClientMock(deletionTime string) *RunnerPodClientMock {
+	return &RunnerPodClientMock{
 		deletionTime: deletionTime,
-	}
-}
-
-func NewTestPodSweeper(
-	k8sClient client.Client,
-	log logr.Logger,
-	interval time.Duration,
-	organizationName string,
-	runnerPodClient RunnerPodClient,
-) manager.Runnable {
-	return &PodSweeper{
-		k8sClient:        k8sClient,
-		log:              log,
-		interval:         interval,
-		organizationName: organizationName,
-		runnerPodClient:  runnerPodClient,
 	}
 }

@@ -12,13 +12,12 @@ import (
 	"strings"
 	"text/template"
 
+	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
-	constants "github.com/cybozu-go/github-actions-controller"
 )
 
 var _ = kubectlWithInput
@@ -158,9 +157,9 @@ func getRecretedPods(before, after *corev1.PodList) ([]string, []string) {
 func getDeletionTime(po corev1.Pod) (string, error) {
 	stdout, stderr, err := kubectl(
 		"exec", po.Name,
-		"-n", runnerNS,
+		"-n", po.Namespace,
 		"--",
-		"curl", "-s", fmt.Sprintf("localhost:%d/deletion_time", constants.RunnerMetricsPort),
+		"curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerMetricsPort, constants.DeletionTimeEndpoint),
 	)
 	if err != nil {
 		return "", fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)

@@ -47,6 +47,12 @@ const (
 	RunnerMetricsPortName = "metrics"
 )
 
+// Container endpoints
+const (
+	// DeletionTimeEndpoint is the endpoint to get deletion time for runner container.
+	DeletionTimeEndpoint = "deletion_time"
+)
+
 // Environment variables
 const (
 	// PodNameEnvName is a env field key for POD_NAME.
