@@ -17,25 +17,27 @@ difficult to test in some parts and some parts of the code are not tested intent
 
 What kindtest covers is:
 
-- Runner `Pod`s are registered to GitHub Actions on [`github.com/neco-test/github-actions-controller-ci`](https://github.com/neco-test/github-actions-controller-ci).
+- Runner `Pod`s are registered to GitHub Actions on a test repository.
+    - At present, the test repository is a fixed one (`github.com/neco-test/github-actions-controller-ci`).
 - GitHub Actions workflows run on the `Pod`s.
 - Runner `Pod`s send messages to Slack agent.
-- Slack agent `notifier` sends messages to Slack.
+- Slack agent sends messages to Slack.
 - The controller can delete runner `Pod`s with deletion time annotations.
-- The controller can delete runner registrations of unexisting `Pod`s from GitHub
-  Actions.
+- The controller can delete runner registrations of unexisting `Pod`s from GitHub Actions.
 
 What kindtest does not cover is:
 
 - Slack agent extends a runner `Pod`'s lifetime.
 
-So, you might need to test the Slack agent behavior manually if you make a change
-on Slack agent.
+So, you might need to test the Slack agent behavior manually if you make a change on Slack agent.
 
-In order to run the kindtest, you need to create GitHub App and Slack App.
-Please follow [user manual](./user-manual.md) to prepare.
+In order to run the kindtest, you need to prepare as follows.
 
-You can run the kind test as following.
+1. Create GitHub App and Slack App. Please follow [user manual](./user-manual.md).
+2. Get the write access permission to the test repository.
+    - In the kindtest, test branch and workflow files are generated and pushed dynamically.
+
+You can run the kindtest as following.
 
 1. Create secret files for kindtest.
     ```bash
@@ -53,11 +55,11 @@ You can run the kind test as following.
     ```
 
 2. Install tools.
-    ````bash
+    ```bash
     $ make setup
     ```
 
-3. Run kind test.
+3. Run kindtest.
     ```bash
     # Start kind cluster.
     $ make -C kindtest start
@@ -68,6 +70,9 @@ You can run the kind test as following.
     # Stop kind cluster.
     $ make -C kindtest stop
     ```
+
+At the end of the kindtest, a test branch (`test-branch-YYYY-MM-DD-hhmmss`) is created on the test repository.
+Please clean up the branch manually.
 
 ### Run slack agent manually
 
@@ -111,11 +116,9 @@ on the terminal.
 How to run GitHub Actions controller for development
 ----------------------------------------------------
 
-If you need to run the controller on your local environment, this is the easiest
-way to do that. You can reuse the token for `github.com/neco-test/github-actions-controller-ci`,
-which is prepared for CI, but please be careful that your local environment steals
-the job that is expected to run on a node created in CI and might cause a failure
-on CI.
+If you need to run the controller on your local environment, this is the easiest way to do that.
+You can reuse the token for the test repository, which is prepared for CI.
+But please be careful that your local environment steals the job that is expected to run on a node created in CI and might cause a failure on CI.
 
 ```bash
 # Create secret files for kindtest.
