@@ -15,9 +15,20 @@ func testBootstrap() {
 		}
 	})
 
+	It("create namespaces", func() {
+		createNamespace(controllerNS)
+		createNamespace(runner1NS)
+		kubectlSafe("label", "ns", runner1NS, "runner-test=true")
+		kubectlSafe("label", "ns", runner1NS, "actions.cybozu.com/pod-mutate=true")
+		kubectlSafe("label", "ns", runner1NS, "actions.cybozu.com/runnerpool-validate=true")
+		createNamespace(runner2NS)
+		kubectlSafe("label", "ns", runner2NS, "runner-test=true")
+		kubectlSafe("label", "ns", runner2NS, "actions.cybozu.com/pod-mutate=true")
+		kubectlSafe("label", "ns", runner2NS, "actions.cybozu.com/runnerpool-validate=true")
+	})
+
 	It("should deploy controller successfully", func() {
 		By("creating namespace and secret for controller")
-		createNamespace(controllerNS)
 		kubectlSafe("create", "secret", "generic", "github-app-secret",
 			"-n", controllerNS,
 			"--from-literal=app-id="+githubAppID,
@@ -38,12 +49,8 @@ func testBootstrap() {
 
 	It("should deploy slack-agent successfully", func() {
 		By("creating namespace and secret for slack-agent")
-		createNamespace(runnerNS)
-		kubectlSafe("label", "ns", runnerNS, "runner-test=true")
-		kubectlSafe("label", "ns", runnerNS, "actions.cybozu.com/pod-mutate=true")
-		kubectlSafe("label", "ns", runnerNS, "actions.cybozu.com/runnerpool-validate=true")
 		kubectlSafe("create", "secret", "generic", "slack-app-secret",
-			"-n", runnerNS,
+			"-n", controllerNS,
 			"--from-literal=SLACK_CHANNEL="+slackChannel,
 			"--from-literal=SLACK_APP_TOKEN="+slackAppToken,
 			"--from-literal=SLACK_BOT_TOKEN="+slackBotToken,
@@ -52,11 +59,11 @@ func testBootstrap() {
 		By("apply manifests")
 		stdout, stderr, err := kustomizeBuild("./manifests/slack-agent")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-		kubectlSafeWithInput(stdout, "apply", "-n", runnerNS, "-f", "-")
+		kubectlSafeWithInput(stdout, "apply", "-n", controllerNS, "-f", "-")
 
 		By("confirming all slack-agent pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady("slack-agent", runnerNS, 2)
+			return isDeploymentReady("slack-agent", controllerNS, 2)
 		}).ShouldNot(HaveOccurred())
 	})
 }

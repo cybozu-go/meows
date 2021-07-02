@@ -16,17 +16,18 @@ import (
 )
 
 const (
-	controllerNS = "actions-system"
-	poolName     = "runnerpool-sample"
-	numRunners   = 3
-	orgName      = "neco-test"
-	repoName     = "github-actions-controller-ci"
+	controllerNS   = "actions-system"
+	runnerPoolName = "runnerpool-sample"
+	numRunners     = 3
+	orgName        = "neco-test"
+	repoName       = "github-actions-controller-ci"
 )
 
 var (
 	testID         = time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
 	testBranch     = "test-branch-" + testID
-	runnerNS       = "test-runner-" + testID
+	runner1NS      = "test-runner1-" + testID
+	runner2NS      = "test-runner2-" + testID
 	githubClient   *github.Client
 	runnerSelector = fmt.Sprintf(
 		"%s=%s,%s=%s",

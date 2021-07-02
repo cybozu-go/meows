@@ -4,6 +4,7 @@ metadata:
   name: runnerpool-sample
 spec:
   repositoryName: github-actions-controller-ci
+  slackAgentServiceName: slack-agent.actions-system.svc
   template:
     image: actions-runner:kindtest
     imagePullPolicy: Never
