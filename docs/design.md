@@ -133,8 +133,7 @@ definition. If custom labels are given, users are allowed to set one of the
 custom label value to `runs-on`. This is useful when you want to use multiple
 types of runners, for example, `highmem`and `highcpu`.
 
-In github-actions-controller, The `RunnerPool` name (namespaced name) is set as the custom label.
-So you can use the specified runner for jobs.
+github-actions-controller sets the namespaced name of a `RunnerPool` as a custom label.
 
 ### How self-hosted runners are created and runs jobs
 
