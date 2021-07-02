@@ -87,7 +87,7 @@ var _ = BeforeSuite(func() {
 	fmt.Println(cloneURL)
 	gitSafe("clone", "-v", cloneURL, ".")
 	gitSafe("checkout", "-b", testBranch)
-	pushWorkflowFile("blank.yaml", runnerNS, poolName)
+	pushWorkflowFile("blank.yaml", "", "")
 })
 
 var _ = Describe("github-actions-controller", func() {
