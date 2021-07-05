@@ -56,5 +56,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: always()
         with:
-          name: logs.tar.gz
-          path: kindtest/logs.tar.gz
+          name: logs
+          path: ./tmp/logs/
