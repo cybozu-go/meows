@@ -7,6 +7,7 @@ CERT_MANAGER_VERSION := 1.3.1
 
 PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/tmp/bin
+LOGS_DIR := $(PROJECT_DIR)/tmp/logs
 REPO_DIR := $(PROJECT_DIR)/tmp/repo
 
 KIND := $(BIN_DIR)/kind
@@ -63,10 +64,7 @@ bootstrap: ## Run bootstrap test on kind.
 
 .PHONY: logs
 logs:
-	rm -rf logs.tar.gz logs
-	$(KIND) export logs --name=$(KIND_CLUSTER_NAME) ./logs
-	tar czf logs.tar.gz logs
-	rm -rf logs
+	$(KIND) export logs --name=$(KIND_CLUSTER_NAME) $(LOGS_DIR)
 
 .PHONY: stop
 stop: ## Stop kind cluster
