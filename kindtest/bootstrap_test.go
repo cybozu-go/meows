@@ -6,13 +6,10 @@ import (
 )
 
 func testBootstrap() {
-	It("remove namespaces", func() {
+	It("delete namespaces", func() {
 		// Delete namespaces if exists.
-		_, _, err := kubectl("get", "ns", runnerNS)
-		if err == nil {
-			kubectlSafe("delete", "ns", runnerNS)
-		}
-		_, _, err = kubectl("get", "ns", controllerNS)
+		kubectlSafe("delete", "namespace", "-l", "runner-test=true")
+		_, _, err := kubectl("get", "ns", controllerNS)
 		if err == nil {
 			kubectlSafe("delete", "ns", controllerNS)
 		}
@@ -42,6 +39,7 @@ func testBootstrap() {
 	It("should deploy slack-agent successfully", func() {
 		By("creating namespace and secret for slack-agent")
 		createNamespace(runnerNS)
+		kubectlSafe("label", "ns", runnerNS, "runner-test=true")
 		kubectlSafe("label", "ns", runnerNS, "actions.cybozu.com/pod-mutate=true")
 		kubectlSafe("label", "ns", runnerNS, "actions.cybozu.com/runnerpool-validate=true")
 		kubectlSafe("create", "secret", "generic", "slack-app-secret",
@@ -54,7 +52,7 @@ func testBootstrap() {
 		By("apply manifests")
 		stdout, stderr, err := kustomizeBuild("./manifests/slack-agent")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-		kubectlSafeWithInput(stdout, "apply", "-f", "-")
+		kubectlSafeWithInput(stdout, "apply", "-n", runnerNS, "-f", "-")
 
 		By("confirming all slack-agent pods are ready")
 		Eventually(func() error {

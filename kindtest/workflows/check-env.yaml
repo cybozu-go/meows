@@ -1,0 +1,40 @@
+name: check-env
+on: push
+
+jobs:
+  build:
+    name: Check Environment Var
+    runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
+    steps:
+    - run: job-started
+    - run: |
+        if [ -n "${POD_NAME}" ]; then
+          echo "POD_NAME must not be visible to job" 1>&2
+          exit 1
+        fi
+
+        if [ -n "${RUNNER_TOKEN}" ]; then
+          echo "RUNNER_TOKEN must not be visible to job" 1>&2
+          exit 1
+        fi
+
+        if [ -n "${RUNNER_ORG}" ]; then
+          echo "RUNNER_ORG must not be visible to job" 1>&2
+          exit 1
+        fi
+
+        if [ -n "${RUNNER_REPO}" ]; then
+          echo "RUNNER_REPO must not be visible to job" 1>&2
+          exit 1
+        fi
+
+        if [ -n "${SLACK_AGENT_SERVICE_NAME}" ]; then
+          echo "SLACK_AGENT_SERVICE_NAME must not be visible to job" 1>&2
+          exit 1
+        fi
+    - if: success()
+      run: job-success
+    - if: cancelled()
+      run: job-cancelled
+    - if: failure()
+      run: job-failure

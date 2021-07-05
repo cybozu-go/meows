@@ -130,11 +130,10 @@ The [custom label](https://docs.github.com/en/actions/hosting-your-own-runners/u
 is a label to route jobs to specific types of runners. Users usually use
 self-hosted runners by setting `self-hosted` to `runs-on` in a workflow
 definition. If custom labels are given, users are allowed to set one of the
-custom lebel value to `runs-on`. This is useful when you want to use multiple
+custom label value to `runs-on`. This is useful when you want to use multiple
 types of runners, for example, `highmem`and `highcpu`.
 
-This feature seems to be advanced, and we might not need to use it in the early
-stage of the development. I keep this in this document for future use.
+github-actions-controller sets the namespaced name of a `RunnerPool` as a custom label.
 
 ### How self-hosted runners are created and runs jobs
 

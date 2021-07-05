@@ -1,0 +1,9 @@
+name: blank
+on: push
+
+jobs:
+  build:
+    name: blank
+    runs-on: ubuntu-latest
+    steps:
+    - run: true

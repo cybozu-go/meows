@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"text/template"
 
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/gomega"
@@ -73,6 +75,7 @@ func getPodNames(pods *corev1.PodList) []string {
 	for i, v := range pods.Items {
 		l[i] = v.Name
 	}
+	sort.Strings(l)
 	return l
 }
 
@@ -168,65 +171,58 @@ func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) erro
 	return nil
 }
 
-func equalNumExistingRunners(
-	pods *corev1.PodList,
-	numExisting int,
-) error {
-	runners, res, err := githubClient.Actions.ListRunners(
-		context.Background(),
-		orgName,
-		repoName,
-		&github.ListOptions{Page: 0, PerPage: 100},
-	)
+func fetchRunnerNames(label string) ([]string, error) {
+	runners, res, err := githubClient.Actions.ListRunners(context.Background(), orgName, repoName, &github.ListOptions{Page: 0, PerPage: 100})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if res.NextPage != 0 {
 		panic("more than 100 runners exist: please delete them manually before running a test")
 	}
 
-	runnerMap := make(map[string]struct{})
+	runnerNames := []string{}
+OUTER:
 	for _, r := range runners.Runners {
-		if r == nil || r.Name == nil || r.Status == nil {
+		if r == nil || r.Name == nil || r.Status == nil || *r.Status != "online" {
 			continue
 		}
-		if *r.Status != "online" {
-			continue
-		}
-		runnerMap[*r.Name] = struct{}{}
-	}
 
-	found := make([]string, 0, len(pods.Items))
-	for _, p := range pods.Items {
-		if _, ok := runnerMap[p.Name]; ok {
-			found = append(found, p.Name)
+		for _, l := range r.Labels {
+			if l.GetName() == label {
+				runnerNames = append(runnerNames, *r.Name)
+				continue OUTER
+			}
 		}
 	}
+	sort.Strings(runnerNames)
 
-	if len(found) != numExisting || len(runnerMap) != numExisting {
-		return fmt.Errorf(
-			"%d runners should exist: pods %#v runners %#v",
-			numExisting,
-			found,
-			runnerMap,
-		)
-	}
-	return nil
+	return runnerNames, nil
 }
 
-func triggerWorkflowDispatch(workflowName string) error {
-	res, err := githubClient.Actions.CreateWorkflowDispatchEventByFileName(
-		context.Background(),
-		orgName,
-		repoName,
-		workflowName,
-		github.CreateWorkflowDispatchEventRequest{Ref: "main"},
-	)
-	if err != nil {
-		return err
-	}
-	if res.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("got invalid status code: %d", res.StatusCode)
-	}
-	return nil
+func gitSafe(args ...string) {
+	var stdout, stderr bytes.Buffer
+	command := exec.Command("git", args...)
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	command.Dir = testRepoWorkDir
+
+	err := command.Run()
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout.String(), stderr.String(), err)
+}
+
+func pushWorkflowFile(filename, namespace, runnerPoolName string) {
+	workflowFile := filepath.Join(".github", "workflows", "testjob.yaml")
+
+	var buf bytes.Buffer
+	tpl := template.Must(template.ParseFiles(filepath.Join("./workflows", filename)))
+	tpl.Execute(&buf, map[string]string{
+		"Namespace":  namespace,
+		"RunnerPool": runnerPoolName,
+	})
+	err := ioutil.WriteFile(filepath.Join(testRepoWorkDir, workflowFile), buf.Bytes(), 0644)
+	Expect(err).ShouldNot(HaveOccurred())
+
+	gitSafe("add", workflowFile)
+	gitSafe("commit", "-m", "["+testID+"] "+filename)
+	gitSafe("push", "--set-upstream", "origin", testBranch)
 }

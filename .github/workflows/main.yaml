@@ -30,17 +30,27 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: 1.16
+      - name: Configure GIT
+        run: |
+          git config --global user.email "example@example.com"
+          git config --global user.name "ci-kindtest"
+          echo '${{ secrets.TESTREPO_DEPLOY_KEY }}' > /tmp/deploy-key.pem
+          chmod 600 /tmp/deploy-key.pem
       - name: Create secret files
         run: |
           echo '${{ secrets.APP_PRIVATE_KEY }}' > .secret.private-key.pem
-          echo 'export GITHUB_APP_ID=${{ secrets.APP_ID }}'                           > .secret.env.sh
-          echo 'export GITHUB_APP_INSTALLATION_ID=${{ secrets.APP_INSTALLATION_ID }}' >> .secret.env.sh
-          echo 'export SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}'                    >> .secret.env.sh
-          echo 'export SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}'                >> .secret.env.sh
-          echo 'export SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}'                >> .secret.env.sh
+          cat <<'EOF' > .secret.env.sh
+          export GITHUB_APP_ID=${{ secrets.APP_ID }}
+          export GITHUB_APP_INSTALLATION_ID=${{ secrets.APP_INSTALLATION_ID }}
+          export SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}
+          export SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
+          export SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
+          EOF
       - run: make setup
       - run: make -C kindtest start
       - run: make -C kindtest test
+        env:
+          GIT_SSH_COMMAND: "ssh -i /tmp/deploy-key.pem"
       - run: make -C kindtest logs
         if: always()
       - uses: actions/upload-artifact@v2

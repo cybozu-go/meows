@@ -17,7 +17,6 @@ import (
 
 const (
 	controllerNS = "actions-system"
-	runnerNS     = "test-runner"
 	poolName     = "runnerpool-sample"
 	numRunners   = 3
 	orgName      = "neco-test"
@@ -25,22 +24,27 @@ const (
 )
 
 var (
-	binDir                  = os.Getenv("BIN_DIR")
-	githubAppID             = os.Getenv("GITHUB_APP_ID")
-	githubAppInstallationID = os.Getenv("GITHUB_APP_INSTALLATION_ID")
-	githubAppPrivateKeyPath = os.Getenv("GITHUB_APP_PRIVATE_KEY_PATH")
-	slackChannel            = os.Getenv("SLACK_CHANNEL")
-	slackAppToken           = os.Getenv("SLACK_APP_TOKEN")
-	slackBotToken           = os.Getenv("SLACK_BOT_TOKEN")
-)
-
-var (
+	testID         = time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
+	testBranch     = "test-branch-" + testID
+	runnerNS       = "test-runner-" + testID
 	githubClient   *github.Client
 	runnerSelector = fmt.Sprintf(
 		"%s=%s,%s=%s",
 		constants.RunnerOrgLabelKey, orgName,
 		constants.RunnerRepoLabelKey, repoName,
 	)
+)
+
+// Env variables.
+var (
+	binDir                  = os.Getenv("BIN_DIR")
+	testRepoWorkDir         = os.Getenv("TEST_REPO_WORK_DIR")
+	githubAppID             = os.Getenv("GITHUB_APP_ID")
+	githubAppInstallationID = os.Getenv("GITHUB_APP_INSTALLATION_ID")
+	githubAppPrivateKeyPath = os.Getenv("GITHUB_APP_PRIVATE_KEY_PATH")
+	slackChannel            = os.Getenv("SLACK_CHANNEL")
+	slackAppToken           = os.Getenv("SLACK_APP_TOKEN")
+	slackBotToken           = os.Getenv("SLACK_BOT_TOKEN")
 )
 
 func TestOnKind(t *testing.T) {
@@ -77,6 +81,13 @@ var _ = BeforeSuite(func() {
 	rt, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, appID, appInstallID, githubAppPrivateKeyPath)
 	Expect(err).ShouldNot(HaveOccurred())
 	githubClient = github.NewClient(&http.Client{Transport: rt})
+
+	By("creating test branch in CI test repository")
+	cloneURL := fmt.Sprintf("git@github.com:%s/%s", orgName, repoName)
+	fmt.Println(cloneURL)
+	gitSafe("clone", "-v", cloneURL, ".")
+	gitSafe("checkout", "-b", testBranch)
+	pushWorkflowFile("blank.yaml", "", "")
 })
 
 var _ = Describe("github-actions-controller", func() {
