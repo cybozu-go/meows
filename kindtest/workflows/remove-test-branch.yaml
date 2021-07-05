@@ -1,0 +1,21 @@
+name: Remove test branches
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 15 * * *'
+
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure GIT
+        run: |
+          git config user.name "Daily CI"
+          git config user.email "example@example.com"
+      - name: Remove test branches
+        run: |
+          git fetch origin
+          for branch in $(git branch -r | sed -e 's|^[[:blank:]]*origin/||' | grep "^test-branch-"); do
+            git push --delete origin $branch
+          done

@@ -50,7 +50,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "success" workflow`)
-		pushWorkflowFile("job-success.yaml", runnerNS, poolName)
+		pushWorkflowFile("job-success.tmpl.yaml", runnerNS, poolName)
 
 		By("confirming one Pod is recreated")
 		var delPodNames []string
@@ -87,7 +87,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "failure" workflow`)
-		pushWorkflowFile("job-failure.yaml", runnerNS, poolName)
+		pushWorkflowFile("job-failure.tmpl.yaml", runnerNS, poolName)
 
 		By("confirming the job is finished and one Pod has deletion time annotation")
 		var shouldBeDeletedAt string
@@ -132,7 +132,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "check-env" workflow that makes sure invisible environment variables.`)
-		pushWorkflowFile("check-env.yaml", runnerNS, poolName)
+		pushWorkflowFile("check-env.tmpl.yaml", runnerNS, poolName)
 
 		By("confirming the job is finished and one Pod has deletion time annotation")
 		var shouldBeDeletedAt string

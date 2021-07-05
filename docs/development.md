@@ -36,6 +36,7 @@ In order to run the kindtest, you need to prepare as follows.
 1. Create GitHub App and Slack App. Please follow [user manual](./user-manual.md).
 2. Get the write access permission to the test repository.
     - In the kindtest, test branch and workflow files are generated and pushed dynamically.
+3. Set the [remove-test-branch](../kindtest/workflows/remove-test-branch.yaml) workflow to the test repository.
 
 You can run the kindtest as following.
 
@@ -71,8 +72,6 @@ You can run the kindtest as following.
     $ make -C kindtest stop
     ```
 
-At the end of the kindtest, a test branch (`test-branch-YYYY-MM-DD-hhmmss`) is created on the test repository.
-Please clean up the branch manually.
 
 ### Run slack agent manually
 
