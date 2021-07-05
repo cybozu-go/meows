@@ -11,6 +11,7 @@ import (
 	"sort"
 	"text/template"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -197,6 +198,17 @@ OUTER:
 	sort.Strings(runnerNames)
 
 	return runnerNames, nil
+}
+
+func compareExistingRunners(label string, podNames []string) error {
+	runnerNames, err := fetchRunnerNames(label)
+	if err != nil {
+		return err
+	}
+	if len(runnerNames) != len(podNames) || !cmp.Equal(runnerNames, podNames) {
+		return fmt.Errorf("%d runners should exist: pods %#v runners %#v", len(podNames), podNames, runnerNames)
+	}
+	return nil
 }
 
 func gitSafe(args ...string) {
