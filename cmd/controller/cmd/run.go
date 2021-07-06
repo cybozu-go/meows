@@ -100,15 +100,15 @@ func run() error {
 		return err
 	}
 
-	runnerSweeper := controllers.NewRunnerSweeper(
+	runnerWatcher := controllers.NewRunnerWatcher(
 		mgr.GetClient(),
-		ctrl.Log.WithName("runner-sweeper"),
+		ctrl.Log.WithName("runner-watcher"),
 		config.runnerSweepInterval,
 		githubClient,
 		config.repositoryNames,
 	)
-	if err := mgr.Add(runnerSweeper); err != nil {
-		setupLog.Error(err, "unable to add runner sweeper to manager", "runner", "runner-sweeper")
+	if err := mgr.Add(runnerWatcher); err != nil {
+		setupLog.Error(err, "unable to add runner watcher to manager", "runner", "runner-watcher")
 		return err
 	}
 

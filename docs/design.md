@@ -42,7 +42,7 @@ Components
   - `RunnerPool` reconciler: A controller for the `RunnerPool` custom resource(CR).
   -  `Pod` Mutating webhook: A mutating webhook to inject a GitHub Actions
      registration token to `Pod` `env`.
-  - Runner sweeper: A component to sweep registered information about runners
+  - Runner watcher: A component to watch registered information about runners
     on GitHub periodically.
   - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time
     annotation periodically.
