@@ -40,11 +40,10 @@ Components
 - Runner `Pod`: `Pod` to run GitHub Actions self-hosted runner on.
 - Controller manager
   - `RunnerPool` reconciler: A controller for the `RunnerPool` custom resource(CR).
-  -  `Pod` Mutating webhook: A mutating webhook to inject a GitHub Actions
-     registration token to `Pod` `env`.
-  - Runner watcher: A component to watch registered information about runners
-    on GitHub periodically.
-  - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time available from [Runner Pod API](runner-pod-api.md#get-deletion_time) periodically.
+  - `Pod` Mutating webhook: A mutating webhook to inject a GitHub Actions
+    registration token to `Pod` `env`.
+  - Runner manager: A component to manage registered runners and Pods.
+    It sweeps Pods that exceed the deletion time. Also sweeps runners which are offline and do not have a related `Pod`.
 - Slack agent
   - Notifier: HTTP Server which accepts requests from runner `Pod`s and notify user
     whether jobs are failed or not via Slack Webhook.
@@ -162,7 +161,7 @@ github-actions-controller sets the namespaced name of a `RunnerPool` as a custom
 1. The Slack agent is running a WebSocket process to watch extending messages
   from Slack. If it receives a message, it requests the `Pod` to update the
   designated time.
-1. `Pod` sweeper periodically checks if there are `Pod`s past a deletion time and
+1. The Runner manager periodically checks if there are `Pod`s past a deletion time and
    if any, it deletes `Pod`s.
 
 ### How Runner's state is managed

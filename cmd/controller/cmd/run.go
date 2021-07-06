@@ -9,12 +9,15 @@ import (
 	"github.com/cybozu-go/github-actions-controller/controllers"
 	"github.com/cybozu-go/github-actions-controller/github"
 	"github.com/cybozu-go/github-actions-controller/hooks"
+	"github.com/cybozu-go/github-actions-controller/metrics"
+	rc "github.com/cybozu-go/github-actions-controller/runner/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	k8sMetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	// +kubebuilder:scaffold:imports
 )
@@ -57,6 +60,7 @@ func run() error {
 		setupLog.Error(err, "unable to start manager")
 		return err
 	}
+	metrics.InitControllerMetrics(k8sMetrics.Registry)
 
 	githubClient, err := github.NewClient(
 		config.appID,
@@ -82,6 +86,13 @@ func run() error {
 		githubClient,
 	))
 
+	runnerManager := controllers.NewRunnerManager(
+		ctrl.Log.WithName("RunnerManager"),
+		config.runnerManagerInterval,
+		mgr.GetClient(),
+		githubClient,
+		rc.NewClient())
+
 	reconciler := controllers.NewRunnerPoolReconciler(
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName("RunnerPool"),
@@ -89,6 +100,7 @@ func run() error {
 		config.repositoryNames,
 		config.organizationName,
 		config.runnerImage,
+		runnerManager,
 	)
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "runner-pool-reconciler")
@@ -97,29 +109,6 @@ func run() error {
 
 	if err = (&actionsv1alpha1.RunnerPool{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RunnerPool")
-		return err
-	}
-
-	runnerWatcher := controllers.NewRunnerWatcher(
-		mgr.GetClient(),
-		ctrl.Log.WithName("runner-watcher"),
-		config.runnerSweepInterval,
-		githubClient,
-		config.repositoryNames,
-	)
-	if err := mgr.Add(runnerWatcher); err != nil {
-		setupLog.Error(err, "unable to add runner watcher to manager", "runner", "runner-watcher")
-		return err
-	}
-
-	podSweeper := controllers.NewPodSweeper(
-		mgr.GetClient(),
-		ctrl.Log.WithName("pod-sweeper"),
-		config.podSweepInterval,
-		config.organizationName,
-	)
-	if err := mgr.Add(podSweeper); err != nil {
-		setupLog.Error(err, "unable to add pod sweeper to manager", "runner", "pod-sweeper")
 		return err
 	}
 

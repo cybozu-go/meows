@@ -17,5 +17,4 @@ spec:
         - "--app-id=$(GITHUB_APP_ID)"
         - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
         - "--app-private-key-path=/etc/github/app.pem"
-        - "--runner-sweep-interval=30s"
-        - "--pod-sweep-interval=1s"
+        - "--runner-manager-interval=10s"

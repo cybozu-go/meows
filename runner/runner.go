@@ -45,7 +45,7 @@ func NewRunner(listenAddr string) (*Runner, error) {
 
 func (r *Runner) Run(ctx context.Context) error {
 	registry := prometheus.DefaultRegisterer
-	metrics.Init(registry, r.envs.runnerPoolName)
+	metrics.InitRunnerPodMetrics(registry, r.envs.runnerPoolName)
 
 	env := well.NewEnvironment(ctx)
 	env.Go(r.runListener)
@@ -69,7 +69,7 @@ func (r *Runner) Run(ctx context.Context) error {
 }
 
 func (r *Runner) runListener(ctx context.Context) error {
-	metrics.UpdatePodState(metrics.Initializing)
+	metrics.UpdateRunnerPodState(metrics.Initializing)
 	if len(r.envs.option.SetupCommand) != 0 {
 		if _, err := runCommand(ctx, r.envs.runnerDir, r.envs.option.SetupCommand[0], r.envs.option.SetupCommand[1:]...); err != nil {
 			return err
@@ -89,12 +89,12 @@ func (r *Runner) runListener(ctx context.Context) error {
 		return err
 	}
 
-	metrics.UpdatePodState(metrics.Running)
+	metrics.UpdateRunnerPodState(metrics.Running)
 	if err := r.runService(ctx); err != nil {
 		return err
 	}
 
-	metrics.UpdatePodState(metrics.Debugging)
+	metrics.UpdateRunnerPodState(metrics.Debugging)
 	extend := isFileExists(r.envs.extendFlagFile)
 	err := r.updateDeletionTime(extend)
 	if err != nil {

@@ -29,10 +29,11 @@ type RunnerPoolReconciler struct {
 	repositoryNames  []string
 	organizationName string
 	runnerImage      string
+	runnerManager    RunnerManager
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string) *RunnerPoolReconciler {
+func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string, runnerManager RunnerManager) *RunnerPoolReconciler {
 	return &RunnerPoolReconciler{
 		Client:           client,
 		log:              log,
@@ -40,6 +41,7 @@ func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runt
 		repositoryNames:  repositoryNames,
 		organizationName: organizationName,
 		runnerImage:      runnerImage,
+		runnerManager:    runnerManager,
 	}
 }
 
@@ -81,6 +83,8 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, err
 		}
 
+		r.runnerManager.Stop(req.NamespacedName.String())
+
 		log.Info("finalizing RunnerPool is completed")
 		return ctrl.Result{}, nil
 	}
@@ -94,6 +98,8 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Error(err, "failed to reconcile deployment")
 		return ctrl.Result{}, err
 	}
+
+	r.runnerManager.StartOrUpdate(rp)
 
 	rp.Status.Bound = true
 	if err := r.Status().Update(ctx, rp); err != nil {

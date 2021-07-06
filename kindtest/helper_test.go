@@ -160,7 +160,6 @@ func findPodToBeDeleted(pods *corev1.PodList) (string, time.Time) {
 		}
 		tm, err := getDeletionTime(po)
 		if err != nil || tm.IsZero() {
-			// TODO: output logs
 			continue
 		}
 		return po.Namespace + "/" + po.Name, tm
