@@ -44,8 +44,7 @@ Components
      registration token to `Pod` `env`.
   - Runner watcher: A component to watch registered information about runners
     on GitHub periodically.
-  - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time
-    annotation periodically.
+  - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time available from annotation or Runner Pod API periodically.
 - Slack agent
   - Notifier: HTTP Server which accepts requests from runner `Pod`s and notify user
     whether jobs are failed or not via Slack Webhook.
@@ -154,17 +153,18 @@ github-actions-controller sets the namespaced name of a `RunnerPool` as a custom
       provides a simple `job-failed` command, and asks users to execute this
       command when the job is failed.  The `if: failure()` syntax allows users
       to run the step only when one of previous steps exit with non-zero code.
-   1. Annotate the `Pod` manifest for itself with a timestamp when to delete this
-     `Pod`. If the job is succeeded or canceled, the `Pod` annotates itself with
-      the current time. If the job is failed, the `Pod` annotate itself with the
-      future time, for example 20 min later.
+   1. Publish the timestamp of when to delete this pod in the `/deletion_time` endpoint.
+      If the job is succeeded or canceled, the `Pod` publishes the current time for 
+      delete itself. If the job is failed, the `Pod` publishes the future time for
+      delete itself, for example 20 min later.
 1. The Slack agent notifies the result of the job on a Slack channel.
 1. Users can extend the failed runner if they want to by clicking a button on Slack.
 1. The Slack agent is running a WebSocket process to watch extending messages
   from Slack. If it receives a message, it annotates the `Pod` manifest with the
   designated time.
-1. `Pod` sweeper periodically checks if there are `Pod`s annotated with the old
-  timestamp, and if any, it deletes `Pod`s.
+1. `Pod` sweeper periodically checks if there are `Pod`s published or annotated
+   with the old timestamp, and if any, it deletes `Pod`s. As for the deletion 
+   timestamp, annotation given by the Slack agent has priority.
 
 ### How Runner's state is managed
 
