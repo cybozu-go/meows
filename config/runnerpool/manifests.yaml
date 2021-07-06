@@ -8,35 +8,3 @@ spec:
   replicas: 3
   template:
     image: actions-runner:latest
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: runnerpool-sample
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: runnerpool-sample
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: runnerpool-sample
-subjects:
-- kind: ServiceAccount
-  name: runnerpool-sample
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: runnerpool-sample
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
