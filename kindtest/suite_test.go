@@ -59,6 +59,8 @@ func TestOnKind(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	fmt.Println("testID: " + testID)
+
 	By("checking env variables")
 	Expect(binDir).ShouldNot(BeEmpty())
 	fmt.Println("This test uses the binaries under " + binDir)
