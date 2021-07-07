@@ -297,7 +297,7 @@ type RunnerPodClientMock struct {
 	deletionTime string
 }
 
-func (c *RunnerPodClientMock) GetDeletionTime(ip string) (string, error) {
+func (c *RunnerPodClientMock) GetDeletionTime(ctx context.Context, ip string) (string, error) {
 	return c.deletionTime, nil
 }
 

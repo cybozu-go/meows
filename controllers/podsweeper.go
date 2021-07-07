@@ -89,7 +89,7 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 		v, ok := po.Annotations[constants.PodDeletionTimeKey]
 		if !ok {
-			v, err = r.runnerPodClient.GetDeletionTime(po.Status.PodIP)
+			v, err = r.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
 			if err != nil {
 				r.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API")
 				continue
