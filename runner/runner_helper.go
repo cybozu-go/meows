@@ -27,7 +27,7 @@ func removedEnv() []string {
 		constants.RunnerOrgEnvName,
 		constants.RunnerRepoEnvName,
 		constants.RunnerPoolNameEnvName,
-		constants.SlackAgentEnvName,
+		constants.RunnerOptionEnvName,
 	}
 	var removedEnv []string
 	rmMap := make(map[string]struct{})

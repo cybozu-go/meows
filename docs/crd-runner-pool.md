@@ -15,12 +15,21 @@ GitHub Actions self-hosted runners.
 RunnerPoolSpec
 --------------
 
-| Field                   | Type                                            | Description                                              |
-| ----------------------- | ----------------------------------------------- | -------------------------------------------------------- |
-| `repositoryName`        | string                                          | Repository Name to register Pods as self-hosted runners. |
-| `slackAgentServiceName` | string                                          | Service name of Slack agent.                             |
-| `replicas`              | int32                                           | Number of desired Pods.                                  |
-| `template`              | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec) | Pod manifest Template.                                   |
+| Field            | Type                                            | Description                                              |
+| ---------------- | ----------------------------------------------- | -------------------------------------------------------- |
+| `repositoryName` | string                                          | Repository Name to register Pods as self-hosted runners. |
+| `replicas`       | int32                                           | Number of desired Pods.                                  |
+| `setupCommand`   | []string                                        | Command that runs when the runner pods will be created.  |
+| `slackAgent`     | [SlackAgentConfig](#SlackAgentConfig)           | Configuration of a Slack agent.                          |
+| `template`       | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec) | Pod manifest Template.                                   |
+
+SlackAgentConfig
+----------------
+
+| Field         | Type   | Description                                                                                                                                    |
+| ------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `serviceName` | string | Service name of Slack agent.                                                                                                                   |
+| `channel`     | string | Slack channel which the job results are reported. If this field is omitted, the default channel specified in slack-agent options will be used. |
 
 RunnerPodTemplateSpec
 ---------------------

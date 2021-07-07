@@ -28,8 +28,8 @@ jobs:
           exit 1
         fi
 
-        if [ -n "${SLACK_AGENT_SERVICE_NAME}" ]; then
-          echo "SLACK_AGENT_SERVICE_NAME must not be visible to job" 1>&2
+        if [ -n "${RUNNER_OPTION}" ]; then
+          echo "RUNNER_OPTION must not be visible to job" 1>&2
           exit 1
         fi
     - if: success()

@@ -95,8 +95,8 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 			constants.RunnerOrgEnvName,
 			constants.RunnerRepoEnvName,
 			constants.RunnerPoolNameEnvName,
-			constants.SlackAgentEnvName,
 			constants.RunnerTokenEnvName,
+			constants.RunnerOptionEnvName,
 		}
 
 		for _, envName := range testCases {

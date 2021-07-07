@@ -13,19 +13,24 @@ import (
 
 func testRunner() {
 	It("should create runner pods", func() {
-		stdout, stderr, err := kustomizeBuild("./manifests/runnerpool")
+		By("creating runnerpool1")
+		stdout, stderr, err := kustomizeBuild("./manifests/runnerpool1")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 		kubectlSafeWithInput(stdout, "apply", "-n", runner1NS, "-f", "-")
+
+		By("creating runnerpool2")
+		stdout, stderr, err = kustomizeBuild("./manifests/runnerpool2")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 		kubectlSafeWithInput(stdout, "apply", "-n", runner2NS, "-f", "-")
 
 		By("confirming all runner1 pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady("runnerpool-sample", runner1NS, numRunners)
+			return isDeploymentReady(runnerPool1Name, runner1NS, numRunners)
 		}).ShouldNot(HaveOccurred())
 
 		By("confirming all runner2 pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady("runnerpool-sample", runner2NS, numRunners)
+			return isDeploymentReady(runnerPool2Name, runner2NS, numRunners)
 		}).ShouldNot(HaveOccurred())
 	})
 
@@ -42,14 +47,14 @@ func testRunner() {
 		Expect(runner2Pods.Items).Should(HaveLen(numRunners))
 		runner2PodNames := getPodNames(runner2Pods)
 
-		By("confirming runners on GitHub Actions: " + runner1NS + "/" + runnerPoolName)
+		By("confirming runners on GitHub Actions: " + runner1NS + "/" + runnerPool1Name)
 		Eventually(func() error {
-			return compareExistingRunners(runner1NS+"/"+runnerPoolName, runner1PodNames)
+			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, runner1PodNames)
 		}).ShouldNot(HaveOccurred())
 
-		By("confirming runners on GitHub Actions: " + runner2NS + "/" + runnerPoolName)
+		By("confirming runners on GitHub Actions: " + runner2NS + "/" + runnerPool2Name)
 		Eventually(func() error {
-			return compareExistingRunners(runner2NS+"/"+runnerPoolName, runner2PodNames)
+			return compareExistingRunners(runner2NS+"/"+runnerPool2Name, runner2PodNames)
 		}).ShouldNot(HaveOccurred())
 	})
 
@@ -60,7 +65,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "success" workflow`)
-		pushWorkflowFile("job-success.tmpl.yaml", runner1NS, runnerPoolName)
+		pushWorkflowFile("job-success.tmpl.yaml", runner1NS, runnerPool1Name)
 
 		By("confirming one Pod is recreated")
 		var delPodNames []string
@@ -97,7 +102,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "failure" workflow`)
-		pushWorkflowFile("job-failure.tmpl.yaml", runner2NS, runnerPoolName)
+		pushWorkflowFile("job-failure.tmpl.yaml", runner2NS, runnerPool2Name)
 
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var shouldBeDeletedAt string
@@ -146,7 +151,7 @@ func testRunner() {
 		Expect(before.Items).Should(HaveLen(numRunners))
 
 		By(`running "check-env" workflow that makes sure invisible environment variables.`)
-		pushWorkflowFile("check-env.tmpl.yaml", runner1NS, runnerPoolName)
+		pushWorkflowFile("check-env.tmpl.yaml", runner1NS, runnerPool1Name)
 
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var shouldBeDeletedAt string
@@ -190,11 +195,11 @@ func testRunner() {
 
 	It("should delete RunnerPool properly", func() {
 		By("deleting runner1")
-		stdout, stderr, err := kubectl("delete", "runnerpools", "-n", runner1NS, runnerPoolName)
+		stdout, stderr, err := kubectl("delete", "runnerpools", "-n", runner1NS, runnerPool1Name)
 		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
 
 		Eventually(func() error {
-			_, _, err := kubectl("get", "deployment", "-n", runner1NS, runnerPoolName)
+			_, _, err := kubectl("get", "deployment", "-n", runner1NS, runnerPool1Name)
 			if err == nil {
 				return errors.New("deployment is not deleted yet")
 			}
@@ -203,7 +208,7 @@ func testRunner() {
 
 		By("confirming runners are deleted from GitHub Actions")
 		Eventually(func() error {
-			runnerNames, err := fetchRunnerNames(runner1NS + "/" + runnerPoolName)
+			runnerNames, err := fetchRunnerNames(runner1NS + "/" + runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -221,7 +226,7 @@ func testRunner() {
 
 		By("counting the number of self-hosted runners fetched via GitHub Actions API")
 		Eventually(func() error {
-			runner2Names, err := fetchRunnerNames(runner2NS + "/" + runnerPoolName)
+			runner2Names, err := fetchRunnerNames(runner2NS + "/" + runnerPool2Name)
 			if err != nil {
 				return err
 			}
@@ -232,11 +237,11 @@ func testRunner() {
 		}).ShouldNot(HaveOccurred())
 
 		By("deleting runner2")
-		stdout, stderr, err = kubectl("delete", "runnerpools", "-n", runner2NS, runnerPoolName)
+		stdout, stderr, err = kubectl("delete", "runnerpools", "-n", runner2NS, runnerPool2Name)
 		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
 
 		Eventually(func() error {
-			_, _, err := kubectl("get", "deployment", "-n", runner2NS, runnerPoolName)
+			_, _, err := kubectl("get", "deployment", "-n", runner2NS, runnerPool2Name)
 			if err == nil {
 				return errors.New("deployment is not deleted yet")
 			}
@@ -245,7 +250,7 @@ func testRunner() {
 
 		By("confirming runners are deleted from GitHub Actions")
 		Eventually(func() error {
-			runnerNames, err := fetchRunnerNames(runner2NS + "/" + runnerPoolName)
+			runnerNames, err := fetchRunnerNames(runner2NS + "/" + runnerPool2Name)
 			if err != nil {
 				return err
 			}

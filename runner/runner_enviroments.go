@@ -1,23 +1,34 @@
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
 )
 
+// Omittable options
+type Option struct {
+	SetupCommand          []string `json:"setup_command,omitempty"`
+	SlackAgentServiceName string   `json:"slack_agent_service_name,omitempty"`
+	SlackChannel          string   `json:"slack_channel,omitempty"`
+}
+
 type environments struct {
 	// Environments
-	podName           string
-	podNamespace      string
-	runnerToken       string
-	runnerOrg         string
-	runnerRepo        string
-	runnerPoolName    string
-	extendDuration    string
-	slackAgentSvcName string
+	podName        string
+	podNamespace   string
+	runnerToken    string
+	runnerOrg      string
+	runnerRepo     string
+	runnerPoolName string
+	extendDuration string
+
+	// Options
+	option Option
 
 	// Directory/File Paths
 	runnerDir string
@@ -32,18 +43,35 @@ type environments struct {
 	listenerCommand string
 }
 
-func newRunnerEnvs() environments {
-	envs := environments{
-		podName:           os.Getenv(constants.PodNameEnvName),
-		podNamespace:      os.Getenv(constants.PodNamespaceEnvName),
-		runnerToken:       os.Getenv(constants.RunnerTokenEnvName),
-		runnerOrg:         os.Getenv(constants.RunnerOrgEnvName),
-		runnerRepo:        os.Getenv(constants.RunnerRepoEnvName),
-		runnerPoolName:    os.Getenv(constants.RunnerPoolNameEnvName),
-		extendDuration:    os.Getenv(constants.ExtendDurationEnvName),
-		slackAgentSvcName: os.Getenv(constants.SlackAgentEnvName),
+func newRunnerEnvs() (*environments, error) {
+	envs := &environments{
+		podName:        os.Getenv(constants.PodNameEnvName),
+		podNamespace:   os.Getenv(constants.PodNamespaceEnvName),
+		runnerToken:    os.Getenv(constants.RunnerTokenEnvName),
+		runnerOrg:      os.Getenv(constants.RunnerOrgEnvName),
+		runnerRepo:     os.Getenv(constants.RunnerRepoEnvName),
+		runnerPoolName: os.Getenv(constants.RunnerPoolNameEnvName),
 	}
-	// Directory/File Paths
+	if err := envs.checkRequiredEnvs(); err != nil {
+		return nil, err
+	}
+
+	str := os.Getenv(constants.ExtendDurationEnvName)
+	if len(str) != 0 {
+		_, err := time.ParseDuration(str)
+		if err != nil {
+			return nil, fmt.Errorf("failed to perse %s; %w", constants.ExtendDurationEnvName, err)
+		}
+		envs.extendDuration = str
+	} else {
+		envs.extendDuration = "20m"
+	}
+
+	optionRaw := os.Getenv(constants.RunnerOptionEnvName)
+	if err := json.Unmarshal([]byte(optionRaw), &envs.option); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal %s; %w", constants.RunnerOptionEnvName, err)
+	}
+
 	envs.runnerDir = filepath.Join("/runner")
 	envs.workDir = filepath.Join(envs.runnerDir, "_work")
 
@@ -54,10 +82,11 @@ func newRunnerEnvs() environments {
 
 	envs.configCommand = filepath.Join(envs.runnerDir, "config.sh")
 	envs.listenerCommand = filepath.Join(envs.runnerDir, "bin", "Runner.Listener")
-	return envs
+
+	return envs, nil
 }
 
-func (e *environments) CheckEnvs() error {
+func (e *environments) checkRequiredEnvs() error {
 	if len(e.podName) == 0 {
 		return fmt.Errorf("%s must be set", constants.PodNameEnvName)
 	}
@@ -76,11 +105,5 @@ func (e *environments) CheckEnvs() error {
 	if len(e.runnerPoolName) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerPoolNameEnvName)
 	}
-	if len(e.extendDuration) == 0 {
-		e.extendDuration = "20m"
-	}
-
-	// SLACK_AGENT_SERVICE_NAME is optional
-
 	return nil
 }

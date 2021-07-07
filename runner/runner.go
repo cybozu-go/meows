@@ -18,22 +18,22 @@ import (
 )
 
 type Runner struct {
-	envs       environments
-	listenAddr string
-
+	envs         *environments
+	listenAddr   string
 	deletionTime atomic.Value
 }
 
 func NewRunner(listenAddr string) (*Runner, error) {
-	r := Runner{
-		envs:       newRunnerEnvs(),
-		listenAddr: listenAddr,
-	}
-
-	r.deletionTime.Store(time.Time{})
-	if err := r.envs.CheckEnvs(); err != nil {
+	envs, err := newRunnerEnvs()
+	if err != nil {
 		return nil, err
 	}
+
+	r := Runner{
+		envs:       envs,
+		listenAddr: listenAddr,
+	}
+	r.deletionTime.Store(time.Time{})
 	if err := os.MkdirAll(r.envs.workDir, 0755); err != nil {
 		return nil, err
 	}
@@ -67,6 +67,12 @@ func (r *Runner) Run(ctx context.Context) error {
 
 func (r *Runner) runListener(ctx context.Context) error {
 	metrics.UpdatePodState(metrics.Initializing)
+	if len(r.envs.option.SetupCommand) != 0 {
+		if _, err := runCommand(ctx, r.envs.runnerDir, r.envs.option.SetupCommand[0], r.envs.option.SetupCommand[1:]...); err != nil {
+			return err
+		}
+	}
+
 	configArgs := []string{
 		"--unattended",
 		"--replace",
@@ -159,9 +165,9 @@ func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
 	default:
 		jobResult = agent.JobResultUnknown
 	}
-	if len(r.envs.slackAgentSvcName) != 0 {
+	if len(r.envs.option.SlackAgentServiceName) != 0 {
 		fmt.Println("Send an notification to slack jobResult = ", jobResult)
-		c, err := agent.NewClient(fmt.Sprintf("http://%s", r.envs.slackAgentSvcName))
+		c, err := agent.NewClient(fmt.Sprintf("http://%s", r.envs.option.SlackAgentServiceName))
 		if err != nil {
 			return err
 		}
@@ -169,9 +175,9 @@ func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
 		if err != nil {
 			return err
 		}
-		return c.PostResult(ctx, "", jobResult, extend, r.envs.podNamespace, r.envs.podName, jobInfo)
+		return c.PostResult(ctx, r.envs.option.SlackChannel, jobResult, extend, r.envs.podNamespace, r.envs.podName, jobInfo)
 	} else {
-		fmt.Println("Skip sending an notification to slack because SLACK_AGENT_SERVICE_NAME is blank")
+		fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
 	}
 	return nil
 }

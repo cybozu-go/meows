@@ -18,8 +18,8 @@ var reservedEnvNames = map[string]bool{
 	constants.RunnerOrgEnvName:      true,
 	constants.RunnerRepoEnvName:     true,
 	constants.RunnerPoolNameEnvName: true,
-	constants.SlackAgentEnvName:     true,
 	constants.RunnerTokenEnvName:    true,
+	constants.RunnerOptionEnvName:   true,
 }
 
 // RunnerPoolSpec defines the desired state of RunnerPool
@@ -27,18 +27,33 @@ type RunnerPoolSpec struct {
 	// RepositoryName describes repository name to register Pods as self-hosted runners.
 	RepositoryName string `json:"repositoryName"`
 
-	// SlackAgentServiceName is a Service name of Slack agent.
-	// +optional
-	SlackAgentServiceName string `json:"slackAgentServiceName,omitempty"`
-
 	// Number of desired runner pods. Defaults to 1.
 	// +kubebuilder:default=1
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
 
+	// Command that runs when the runner pods will be created.
+	// +optional
+	SetupCommand []string `json:"setupCommand,omitempty"`
+
+	// Configuration of a Slack agent.
+	// +optional
+	SlackAgent SlackAgentConfig `json:"slackAgent,omitempty"`
+
 	// Template describes the runner pods that will be created.
 	// +optional
 	Template RunnerPodTemplateSec `json:"template,omitempty"`
+}
+
+type SlackAgentConfig struct {
+	// ServiceName is a Service name of Slack agent.
+	// +optional
+	ServiceName string `json:"serviceName,omitempty"`
+
+	// Slack channel which the job results are reported.
+	// If this field is omitted, the default channel specified in slack-agent options will be used.
+	// +optional
+	Channel string `json:"channel,omitempty"`
 }
 
 type RunnerPodTemplateSec struct {

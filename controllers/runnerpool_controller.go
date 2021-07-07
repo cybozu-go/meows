@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	constants "github.com/cybozu-go/github-actions-controller"
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
+	"github.com/cybozu-go/github-actions-controller/runner"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
@@ -194,10 +196,15 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 			runnerContainer.ImagePullPolicy = rp.Spec.Template.ImagePullPolicy
 		}
 		runnerContainer.SecurityContext = rp.Spec.Template.SecurityContext
-		runnerContainer.Env = r.makeRunnerContainerEnv(rp)
 		runnerContainer.Resources = rp.Spec.Template.Resources
 		runnerContainer.Ports = r.makeRunnerContainerPorts()
 		runnerContainer.VolumeMounts = rp.Spec.Template.VolumeMounts
+
+		env, err := r.makeRunnerContainerEnv(rp)
+		if err != nil {
+			return err
+		}
+		runnerContainer.Env = env
 
 		updated = d.Spec.DeepCopy()
 		return ctrl.SetControllerReference(rp, d, r.scheme)
@@ -241,7 +248,17 @@ func (r *RunnerPoolReconciler) addRunnerContainerIfNotExists(d *appsv1.Deploymen
 	d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, c)
 }
 
-func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *actionsv1alpha1.RunnerPool) []corev1.EnvVar {
+func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *actionsv1alpha1.RunnerPool) ([]corev1.EnvVar, error) {
+	option := runner.Option{
+		SetupCommand:          rp.Spec.SetupCommand,
+		SlackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
+		SlackChannel:          rp.Spec.SlackAgent.Channel,
+	}
+	optionJson, err := json.Marshal(&option)
+	if err != nil {
+		return nil, err
+	}
+
 	envs := []corev1.EnvVar{
 		{
 			Name: constants.PodNameEnvName,
@@ -273,13 +290,10 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *actionsv1alpha1.Runner
 			Name:  constants.RunnerPoolNameEnvName,
 			Value: rp.ObjectMeta.Name,
 		},
-	}
-
-	if rp.Spec.SlackAgentServiceName != "" {
-		envs = append(envs, corev1.EnvVar{
-			Name:  constants.SlackAgentEnvName,
-			Value: rp.Spec.SlackAgentServiceName,
-		})
+		{
+			Name:  constants.RunnerOptionEnvName,
+			Value: string(optionJson),
+		},
 	}
 
 	// NOTE:
@@ -287,7 +301,7 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *actionsv1alpha1.Runner
 	// Since the reserved environment variables are checked in the validating webhook.
 	envs = append(envs, rp.Spec.Template.Env...)
 
-	return envs
+	return envs, nil
 }
 
 func (r *RunnerPoolReconciler) makeRunnerContainerPorts() []corev1.ContainerPort {

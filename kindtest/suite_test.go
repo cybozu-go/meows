@@ -16,11 +16,12 @@ import (
 )
 
 const (
-	controllerNS   = "actions-system"
-	runnerPoolName = "runnerpool-sample"
-	numRunners     = 3
-	orgName        = "neco-test"
-	repoName       = "github-actions-controller-ci"
+	controllerNS    = "actions-system"
+	runnerPool1Name = "runnerpool1"
+	runnerPool2Name = "runnerpool2"
+	numRunners      = 3
+	orgName         = "neco-test"
+	repoName        = "github-actions-controller-ci"
 )
 
 var (

@@ -1,0 +1,20 @@
+apiVersion: actions.cybozu.com/v1alpha1
+kind: RunnerPool
+metadata:
+  name: runnerpool2
+spec:
+  repositoryName: github-actions-controller-ci
+  replicas: 3
+  setupCommand:
+  - "bash"
+  - "-c"
+  - "date > /tmp/test"
+  slackAgent:
+    serviceName: slack-agent.actions-system.svc
+    channel: "#test2"
+  template:
+    image: actions-runner:kindtest
+    imagePullPolicy: Never
+    env:
+    - name: EXTEND_DURATION
+      value: "30s"
