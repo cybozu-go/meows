@@ -114,7 +114,7 @@ func testRunner() {
 				}
 			}
 			return errors.New("one pod should have annotation " + constants.PodDeletionTimeKey)
-		}, time.Minute, time.Second).ShouldNot(HaveOccurred())
+		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
 		now := time.Now().UTC()
 		fmt.Println("====== Current time is " + now.Format(time.RFC3339))
 
@@ -159,7 +159,7 @@ func testRunner() {
 				}
 			}
 			return errors.New("one pod should have annotation " + constants.PodDeletionTimeKey)
-		}, time.Minute, time.Second).ShouldNot(HaveOccurred())
+		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
 		now := time.Now().UTC()
 		fmt.Println("====== Current time is " + now.Format(time.RFC3339))
 
