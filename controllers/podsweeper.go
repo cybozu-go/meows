@@ -92,7 +92,7 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			r.log.Error(err, "skipped deleting pod because failed to parse annotation with "+v, "name", name)
+			r.log.Error(err, "skipped deleting pod because failed to parse annotation with "+v, "pod", name)
 			return err
 		}
 		if t.After(now) {
@@ -101,7 +101,7 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 		err = r.k8sClient.Delete(ctx, &po)
 		if err != nil {
-			r.log.Error(err, "failed to delete pod", "name", name)
+			r.log.Error(err, "failed to delete pod", "pod", name)
 			return err
 		}
 	}

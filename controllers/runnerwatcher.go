@@ -22,8 +22,8 @@ const (
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
-// RunnerSweeper sweeps unregistered GitHub Actions Token periodically
-type RunnerSweeper struct {
+// RunnerWatcher watches registered self-hosted runners periodically
+type RunnerWatcher struct {
 	k8sClient client.Client
 	log       logr.Logger
 	interval  time.Duration
@@ -32,15 +32,15 @@ type RunnerSweeper struct {
 	repositoryNames []string
 }
 
-// NewRunnerSweeper returns RunnerSweeper
-func NewRunnerSweeper(
+// NewRunnerWatcher returns RunnerWatcher
+func NewRunnerWatcher(
 	k8sClient client.Client,
 	log logr.Logger,
 	interval time.Duration,
 	githubClient github.RegistrationTokenGenerator,
 	repositoryNames []string,
 ) manager.Runnable {
-	return &RunnerSweeper{
+	return &RunnerWatcher{
 		k8sClient:       k8sClient,
 		log:             log,
 		interval:        interval,
@@ -50,7 +50,7 @@ func NewRunnerSweeper(
 }
 
 // Start starts loop to update Actions runner token
-func (r *RunnerSweeper) Start(ctx context.Context) error {
+func (r *RunnerWatcher) Start(ctx context.Context) error {
 	ticker := time.NewTicker(r.interval)
 
 	defer ticker.Stop()
@@ -59,16 +59,16 @@ func (r *RunnerSweeper) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			r.log.Info("run a sweeping loop")
+			r.log.Info("run a watching loop")
 			err := r.run(ctx)
 			if err != nil {
-				r.log.Error(err, "failed to run a sweeping loop")
+				r.log.Error(err, "failed to run a watching loop")
 			}
 		}
 	}
 }
 
-func (r *RunnerSweeper) run(ctx context.Context) error {
+func (r *RunnerWatcher) run(ctx context.Context) error {
 	selector, err := metav1.LabelSelectorAsSelector(
 		&metav1.LabelSelector{
 			MatchLabels: map[string]string{
@@ -91,7 +91,7 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 	}
 
 	podSets := make(map[string]map[string]struct{})
-	// This ensures that the sweeper sweeps runners on the certain repositories
+	// This ensures that the watcher sweeps runners on the certain repositories
 	// even if there is no Pod existing.
 	for _, repo := range r.repositoryNames {
 		podSets[repo] = make(map[string]struct{})
@@ -102,12 +102,12 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 
 		repo, ok := po.Labels[constants.RunnerRepoLabelKey]
 		if !ok {
-			r.log.Info(fmt.Sprintf("pod does not have %s label, so skip", constants.RunnerRepoLabelKey), "name", name)
+			r.log.Info(fmt.Sprintf("pod does not have %s label, so skip", constants.RunnerRepoLabelKey), "pod", name)
 			continue
 		}
 
 		if podSets[repo] == nil {
-			r.log.Info(fmt.Sprintf("pod has an unregistered repository name %s, so skip", repo), "name", name)
+			r.log.Info(fmt.Sprintf("pod has an unregistered repository name %s, so skip", repo), "pod", name)
 			continue
 		}
 		podSets[repo][po.Name] = struct{}{}
@@ -129,16 +129,16 @@ func (r *RunnerSweeper) run(ctx context.Context) error {
 			}
 			if _, ok := podSet[*runner.Name]; !ok {
 				if *runner.Status == statusOnline {
-					r.log.Info(fmt.Sprintf("skipped deleting online runner %s (id: %d)", *runner.Name, *runner.ID))
+					r.log.Info("skipped deleting online runner", "runner", *runner.Name, "runner_id", *runner.ID)
 					continue
 				}
 
 				err := r.githubClient.RemoveRunner(ctx, repo, *runner.ID)
 				if err != nil {
-					r.log.Error(err, fmt.Sprintf("failed to remove runner %s (id: %d)", *runner.Name, *runner.ID))
+					r.log.Error(err, "failed to remove runner", "runner", *runner.Name, "runner_id", *runner.ID)
 					return err
 				}
-				r.log.Info(fmt.Sprintf("removed runner %s (id: %d)", *runner.Name, *runner.ID))
+				r.log.Info("removed runner", "runner", *runner.Name, "runner_id", *runner.ID)
 			}
 		}
 	}

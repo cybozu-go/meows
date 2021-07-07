@@ -17,9 +17,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var _ = Describe("RunnerSweeper runner", func() {
-	organizationName := "runnersweep-org"
-	repositoryName := "runnersweep-repo"
+var _ = Describe("RunnerWarcher runner", func() {
+	organizationName := "runnerwatch-org"
+	repositoryName := "runnerwatch-repo"
 	githubClient := github.NewFakeClient(organizationName)
 
 	ctx := context.Background()
@@ -34,14 +34,14 @@ var _ = Describe("RunnerSweeper runner", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		sweeper := NewRunnerSweeper(
+		watcher := NewRunnerWatcher(
 			mgr.GetClient(),
-			ctrl.Log.WithName("runner-sweeper"),
+			ctrl.Log.WithName("runner-watcher"),
 			time.Second,
 			githubClient,
 			[]string{repositoryName},
 		)
-		Expect(mgr.Add(sweeper)).To(Succeed())
+		Expect(mgr.Add(watcher)).To(Succeed())
 
 		mgrCtx, mgrCancel = context.WithCancel(context.Background())
 		go func() {

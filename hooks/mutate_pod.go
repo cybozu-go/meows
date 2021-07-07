@@ -46,7 +46,7 @@ func NewPodMutator(
 
 // Handle implements admission.Handler interface.
 func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	log := m.log.WithValues("name", types.NamespacedName{
+	log := m.log.WithValues("pod", types.NamespacedName{
 		Name:      req.Name,
 		Namespace: req.Namespace,
 	})
