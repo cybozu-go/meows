@@ -9,8 +9,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"text/template"
 
+	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/gomega"
@@ -150,6 +152,19 @@ func getRecretedPods(before, after *corev1.PodList) ([]string, []string) {
 		}
 	}
 	return delPodNames, addPodNames
+}
+
+func getDeletionTime(po corev1.Pod) (string, error) {
+	stdout, stderr, err := kubectl(
+		"exec", po.Name,
+		"-n", po.Namespace,
+		"--",
+		"curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerListenPort, constants.DeletionTimeEndpoint),
+	)
+	if err != nil {
+		return "", fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+	}
+	return strings.TrimRight(string(stdout), "\n"), nil
 }
 
 func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) error {

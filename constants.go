@@ -40,11 +40,17 @@ const (
 
 // Container ports
 const (
-	// RunnerMetricsPort is the port number for runner container.
-	RunnerMetricsPort = 8080
+	// RunnerListenPort is the port number for runner container.
+	RunnerListenPort = 8080
 
 	// RunnerMetricsPortName is the port name for runner container.
 	RunnerMetricsPortName = "metrics"
+)
+
+// Container endpoints
+const (
+	// DeletionTimeEndpoint is the endpoint to get deletion time for runner container.
+	DeletionTimeEndpoint = "deletion_time"
 )
 
 // Environment variables

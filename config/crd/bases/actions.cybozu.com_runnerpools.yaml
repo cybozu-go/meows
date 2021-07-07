@@ -351,6 +351,10 @@ spec:
                             type: string
                         type: object
                     type: object
+                  serviceAccountName:
+                    default: default
+                    description: Name of the service account that the Pod use.
+                    type: string
                   volumeMounts:
                     description: Pod volumes to mount into the runner container's
                       filesystem.

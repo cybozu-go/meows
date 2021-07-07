@@ -177,7 +177,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		d.Spec.Template.Labels = labelSetForRunnerPod(rp, r.organizationName)
 
 		d.Spec.Replicas = pointer.Int32Ptr(rp.Spec.Replicas)
-		d.Spec.Template.Spec.ServiceAccountName = rp.GetRunnerServiceAccountName()
+		d.Spec.Template.Spec.ServiceAccountName = rp.Spec.Template.ServiceAccountName
 		d.Spec.Template.Spec.ImagePullSecrets = rp.Spec.Template.ImagePullSecrets
 		d.Spec.Template.Spec.Volumes = rp.Spec.Template.Volumes
 
@@ -295,7 +295,7 @@ func (r *RunnerPoolReconciler) makeRunnerContainerPorts() []corev1.ContainerPort
 		{
 			Protocol:      corev1.ProtocolTCP,
 			Name:          constants.RunnerMetricsPortName,
-			ContainerPort: constants.RunnerMetricsPort,
+			ContainerPort: constants.RunnerListenPort,
 		},
 	}
 }

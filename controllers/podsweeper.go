@@ -5,6 +5,7 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
+	"github.com/cybozu-go/github-actions-controller/runner"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +23,7 @@ type PodSweeper struct {
 	interval  time.Duration
 
 	organizationName string
+	runnerPodClient  runner.Client
 }
 
 // NewPodSweeper returns PodSweeper
@@ -29,7 +31,6 @@ func NewPodSweeper(
 	k8sClient client.Client,
 	log logr.Logger,
 	interval time.Duration,
-
 	organizationName string,
 ) manager.Runnable {
 	return &PodSweeper{
@@ -37,6 +38,7 @@ func NewPodSweeper(
 		log:              log,
 		interval:         interval,
 		organizationName: organizationName,
+		runnerPodClient:  runner.NewClient(),
 	}
 }
 
@@ -87,6 +89,14 @@ func (r *PodSweeper) run(ctx context.Context) error {
 
 		v, ok := po.Annotations[constants.PodDeletionTimeKey]
 		if !ok {
+			v, err = r.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+			if err != nil {
+				r.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API")
+				continue
+			}
+		}
+
+		if v == "" {
 			continue
 		}
 

@@ -138,11 +138,6 @@ The controller is mainly responsible for:
 
 You are responsible for:
 
-- A `Pod` created with `RunnerPool` annotates itself with what time to delete the
-  `Pod` when CI finishes and needs the `patch` role for `Pod`. The corresponding
-  `ServiceAccount` is not created by the controller for now, so please create it
-  by yourself.  Please refer to the manifest `config/runnerpool/manifests.yaml` for
-  detail.
 - `slackAgentServiceName` is a `Service` name that can be resolved inside a
   Kubernetes cluster, so a `Service` name is acceptable. If `slackAgentServiceName`
   is omitted, the `Pod`s do not send notifications to Slack.

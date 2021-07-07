@@ -73,6 +73,11 @@ type RunnerPodTemplateSec struct {
 	// List of volumes that can be mounted by containers belonging to the pod.
 	// +optional
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// Name of the service account that the Pod use.
+	// +kubebuilder:default="default"
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 }
 
 // RunnerPoolStatus defines status of RunnerPool
@@ -147,10 +152,5 @@ func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
 
 // GetRunnerDeploymentName returns the Deployment name for runners.
 func (r *RunnerPool) GetRunnerDeploymentName() string {
-	return r.Name
-}
-
-// GetRunnerServiceAccountName returns the ServiceAccount name for runners.
-func (r *RunnerPool) GetRunnerServiceAccountName() string {
 	return r.Name
 }

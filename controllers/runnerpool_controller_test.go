@@ -30,6 +30,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 	deploymentName := "runnerpool-1"
 	slackAgentServiceName := "slack-agent"
 	defaultRunnerImage := "sample:latest"
+	serviceAccountName := "customized-sa"
 	wait := 10 * time.Second
 
 	ctx := context.Background()
@@ -123,7 +124,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		// deployment/pod spec
 		Expect(d.Spec.Replicas).To(PointTo(BeNumerically("==", 1)))
 		Expect(d.Spec.Template.Spec).To(MatchFields(IgnoreExtras, Fields{
-			"ServiceAccountName": Equal(runnerPoolName),
+			"ServiceAccountName": Equal("default"),
 			"ImagePullSecrets":   BeEmpty(),
 			"Volumes":            BeEmpty(),
 		}))
@@ -173,7 +174,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Protocol":      Equal(corev1.ProtocolTCP),
 					"Name":          Equal(constants.RunnerMetricsPortName),
-					"ContainerPort": BeNumerically("==", constants.RunnerMetricsPort),
+					"ContainerPort": BeNumerically("==", constants.RunnerListenPort),
 				}),
 			}),
 			"VolumeMounts": BeEmpty(),
@@ -218,6 +219,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			{Name: "volume1", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			{Name: "volume2", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
+		rp.Spec.Template.ServiceAccountName = serviceAccountName
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		By("wating the RunnerPool become Bound")
@@ -248,7 +250,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		// deployment/pod spec
 		Expect(d.Spec.Replicas).To(PointTo(BeNumerically("==", 3)))
 		Expect(d.Spec.Template.Spec).To(MatchFields(IgnoreExtras, Fields{
-			"ServiceAccountName": Equal(runnerPoolName),
+			"ServiceAccountName": Equal(serviceAccountName),
 			"ImagePullSecrets": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("image-pull-secret1"),
@@ -321,7 +323,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Protocol":      Equal(corev1.ProtocolTCP),
 					"Name":          Equal(constants.RunnerMetricsPortName),
-					"ContainerPort": BeNumerically("==", constants.RunnerMetricsPort),
+					"ContainerPort": BeNumerically("==", constants.RunnerListenPort),
 				}),
 			}),
 			"VolumeMounts": MatchAllElementsWithIndex(IndexIdentity, Elements{

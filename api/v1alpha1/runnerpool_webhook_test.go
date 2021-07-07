@@ -66,6 +66,7 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 		Expect(rp.ObjectMeta.Finalizers).To(HaveLen(1))
 		Expect(rp.ObjectMeta.Finalizers[0]).To(Equal(constants.RunnerPoolFinalizer))
 		Expect(rp.Spec.Replicas).To(BeNumerically("==", 1))
+		Expect(rp.Spec.Template.ServiceAccountName).To(Equal("default"))
 
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, name, namespace)
