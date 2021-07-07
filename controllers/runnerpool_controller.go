@@ -295,7 +295,7 @@ func (r *RunnerPoolReconciler) makeRunnerContainerPorts() []corev1.ContainerPort
 		{
 			Protocol:      corev1.ProtocolTCP,
 			Name:          constants.RunnerMetricsPortName,
-			ContainerPort: constants.RunnerMetricsPort,
+			ContainerPort: constants.RunnerListenPort,
 		},
 	}
 }

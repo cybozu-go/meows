@@ -159,7 +159,7 @@ func getDeletionTime(po corev1.Pod) (string, error) {
 		"exec", po.Name,
 		"-n", po.Namespace,
 		"--",
-		"curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerMetricsPort, constants.DeletionTimeEndpoint),
+		"curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerListenPort, constants.DeletionTimeEndpoint),
 	)
 	if err != nil {
 		return "", fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)

@@ -17,7 +17,7 @@ type Client interface {
 type ClientImpl struct{}
 
 func (c *ClientImpl) GetDeletionTime(ctx context.Context, ip string) (string, error) {
-	url := fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerMetricsPort, constants.DeletionTimeEndpoint)
+	url := fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerListenPort, constants.DeletionTimeEndpoint)
 
 	client := &http.Client{}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

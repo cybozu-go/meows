@@ -11,7 +11,7 @@ import (
 )
 
 var config struct {
-	metricsAddress string
+	listenAddr string
 }
 
 var rootCmd = &cobra.Command{
@@ -19,7 +19,7 @@ var rootCmd = &cobra.Command{
 	Short: "GitHub Actions runner Entrypoint",
 	Long:  "GitHub Actions runner Entrypoint",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		r, err := runner.NewRunner(config.metricsAddress)
+		r, err := runner.NewRunner(config.listenAddr)
 		if err != nil {
 			return err
 		}
@@ -41,5 +41,5 @@ func Execute() {
 
 func init() {
 	fs := rootCmd.Flags()
-	fs.StringVar(&config.metricsAddress, "metrics-address", fmt.Sprintf(":%d", constants.RunnerMetricsPort), "Listening address and port for metrics.")
+	fs.StringVar(&config.listenAddr, "listen-address", fmt.Sprintf(":%d", constants.RunnerListenPort), "Listening address and port.")
 }

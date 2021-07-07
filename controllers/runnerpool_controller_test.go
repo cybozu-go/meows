@@ -174,7 +174,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Protocol":      Equal(corev1.ProtocolTCP),
 					"Name":          Equal(constants.RunnerMetricsPortName),
-					"ContainerPort": BeNumerically("==", constants.RunnerMetricsPort),
+					"ContainerPort": BeNumerically("==", constants.RunnerListenPort),
 				}),
 			}),
 			"VolumeMounts": BeEmpty(),
@@ -323,7 +323,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Protocol":      Equal(corev1.ProtocolTCP),
 					"Name":          Equal(constants.RunnerMetricsPortName),
-					"ContainerPort": BeNumerically("==", constants.RunnerMetricsPort),
+					"ContainerPort": BeNumerically("==", constants.RunnerListenPort),
 				}),
 			}),
 			"VolumeMounts": MatchAllElementsWithIndex(IndexIdentity, Elements{

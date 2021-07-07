@@ -18,16 +18,16 @@ import (
 )
 
 type Runner struct {
-	envs           environments
-	metricsAddress string
+	envs       environments
+	listenAddr string
 
 	deletionTime atomic.Value
 }
 
-func NewRunner(metricsAddress string) (*Runner, error) {
+func NewRunner(listenAddr string) (*Runner, error) {
 	r := Runner{
-		envs:           newRunnerEnvs(),
-		metricsAddress: metricsAddress,
+		envs:       newRunnerEnvs(),
+		listenAddr: listenAddr,
 	}
 
 	r.deletionTime.Store(time.Time{})
@@ -47,14 +47,14 @@ func (r *Runner) Run(ctx context.Context) error {
 	env := well.NewEnvironment(ctx)
 	env.Go(r.runListener)
 
-	metricsMux := http.NewServeMux()
-	metricsMux.Handle("/metrics", promhttp.Handler())
-	metricsMux.Handle("/"+constants.DeletionTimeEndpoint, http.HandlerFunc(r.deletionTimeHandler))
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/"+constants.DeletionTimeEndpoint, http.HandlerFunc(r.deletionTimeHandler))
 	serv := &well.HTTPServer{
 		Env: env,
 		Server: &http.Server{
-			Addr:    r.metricsAddress,
-			Handler: metricsMux,
+			Addr:    r.listenAddr,
+			Handler: mux,
 		},
 	}
 	if err := serv.ListenAndServe(); err != nil {
