@@ -102,12 +102,12 @@ func (r *RunnerWatcher) run(ctx context.Context) error {
 
 		repo, ok := po.Labels[constants.RunnerRepoLabelKey]
 		if !ok {
-			r.log.Info(fmt.Sprintf("pod does not have %s label, so skip", constants.RunnerRepoLabelKey), "name", name)
+			r.log.Info(fmt.Sprintf("pod does not have %s label, so skip", constants.RunnerRepoLabelKey), "pod", name)
 			continue
 		}
 
 		if podSets[repo] == nil {
-			r.log.Info(fmt.Sprintf("pod has an unregistered repository name %s, so skip", repo), "name", name)
+			r.log.Info(fmt.Sprintf("pod has an unregistered repository name %s, so skip", repo), "pod", name)
 			continue
 		}
 		podSets[repo][po.Name] = struct{}{}
@@ -129,16 +129,16 @@ func (r *RunnerWatcher) run(ctx context.Context) error {
 			}
 			if _, ok := podSet[*runner.Name]; !ok {
 				if *runner.Status == statusOnline {
-					r.log.Info(fmt.Sprintf("skipped deleting online runner %s (id: %d)", *runner.Name, *runner.ID))
+					r.log.Info("skipped deleting online runner", "runner", *runner.Name, "runner_id", *runner.ID)
 					continue
 				}
 
 				err := r.githubClient.RemoveRunner(ctx, repo, *runner.ID)
 				if err != nil {
-					r.log.Error(err, fmt.Sprintf("failed to remove runner %s (id: %d)", *runner.Name, *runner.ID))
+					r.log.Error(err, "failed to remove runner", "runner", *runner.Name, "runner_id", *runner.ID)
 					return err
 				}
-				r.log.Info(fmt.Sprintf("removed runner %s (id: %d)", *runner.Name, *runner.ID))
+				r.log.Info("removed runner", "runner", *runner.Name, "runner_id", *runner.ID)
 			}
 		}
 	}

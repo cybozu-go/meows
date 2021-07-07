@@ -48,7 +48,7 @@ func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runt
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.log.WithValues("name", req.NamespacedName)
+	log := r.log.WithValues("runnerpool", req.NamespacedName)
 	log.Info("start reconciliation loop")
 
 	rp := &actionsv1alpha1.RunnerPool{}
