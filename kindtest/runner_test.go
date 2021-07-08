@@ -42,7 +42,7 @@ func testRunner() {
 		runner1PodNames := getPodNames(runner1Pods)
 
 		By("getting runner2 pods name")
-		runner2Pods, err := fetchRunnerPods(runner1NS, runner2PoolName)
+		runner2Pods, err := fetchRunnerPods(runner2NS, runner2PoolName)
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(runner2Pods.Items).Should(HaveLen(numRunners))
 		runner2PodNames := getPodNames(runner2Pods)
