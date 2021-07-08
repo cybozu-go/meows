@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,6 +17,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+type DeletionTimePayload struct {
+	DeletionTime time.Time `json:"deletion_time"`
+}
 
 type Runner struct {
 	envs         *environments
@@ -33,7 +38,9 @@ func NewRunner(listenAddr string) (*Runner, error) {
 		envs:       envs,
 		listenAddr: listenAddr,
 	}
-	r.deletionTime.Store(time.Time{})
+	r.deletionTime.Store(DeletionTimePayload{
+		DeletionTime: time.Time{},
+	})
 	if err := os.MkdirAll(r.envs.workDir, 0755); err != nil {
 		return nil, err
 	}
@@ -145,10 +152,14 @@ func (r *Runner) updateDeletionTime(extend bool) error {
 			return err
 		}
 		fmt.Printf("Annotate pod with the time %s later\n", r.envs.extendDuration)
-		r.deletionTime.Store(time.Now().UTC().Add(dur))
+		r.deletionTime.Store(DeletionTimePayload{
+			DeletionTime: time.Now().UTC().Add(dur),
+		})
 	} else {
 		fmt.Println("Annotate pod with current time")
-		r.deletionTime.Store(time.Now().UTC())
+		r.deletionTime.Store(DeletionTimePayload{
+			DeletionTime: time.Now().UTC(),
+		})
 	}
 	return nil
 }
@@ -182,11 +193,31 @@ func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
 	return nil
 }
 
-func (r *Runner) deletionTimeHandler(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	if dt, ok := r.deletionTime.Load().(time.Time); ok {
-		if !dt.IsZero() {
-			fmt.Fprintln(w, dt.UTC().Format(time.RFC3339))
+func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodGet:
+		if dt, ok := r.deletionTime.Load().(DeletionTimePayload); ok {
+			res, err := json.Marshal(dt)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(res)
 		}
+		return
+	case http.MethodPut:
+		var dt DeletionTimePayload
+		err := json.NewDecoder(req.Body).Decode(&dt)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 }

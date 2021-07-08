@@ -87,25 +87,23 @@ func (r *PodSweeper) run(ctx context.Context) error {
 	for _, po := range podList.Items {
 		name := types.NamespacedName{Name: po.GetName(), Namespace: po.GetNamespace()}
 
+		var dt runner.DeletionTimePayload
 		v, ok := po.Annotations[constants.PodDeletionTimeKey]
 		if !ok {
-			v, err = r.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+			dt, err = r.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
 			if err != nil {
 				r.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API")
 				continue
 			}
+		} else {
+			dt.DeletionTime, err = time.Parse(time.RFC3339, v)
+			if err != nil {
+				r.log.Error(err, "skipped deleting pod because failed to parse annotation with "+v, "pod", name)
+				return err
+			}
 		}
 
-		if v == "" {
-			continue
-		}
-
-		t, err := time.Parse(time.RFC3339, v)
-		if err != nil {
-			r.log.Error(err, "skipped deleting pod because failed to parse annotation with "+v, "pod", name)
-			return err
-		}
-		if t.After(now) {
+		if dt.DeletionTime.IsZero() || dt.DeletionTime.After(now) {
 			continue
 		}
 

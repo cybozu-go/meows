@@ -5,6 +5,7 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
+	"github.com/cybozu-go/github-actions-controller/runner"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +32,7 @@ var _ = Describe("PodSweeper runner", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		runnerPodClient = NewRunnerPodClientMock("")
+		runnerPodClient = NewRunnerPodClientMock(time.Time{})
 
 		sweeper := &PodSweeper{
 			k8sClient:        mgr.GetClient(),
@@ -65,7 +66,7 @@ var _ = Describe("PodSweeper runner", func() {
 		testCases := []struct {
 			name         string
 			input        corev1.Pod
-			deletionTime string
+			deletionTime time.Time
 		}{
 			{
 				"with annotation and without API",
@@ -89,7 +90,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				"",
+				time.Time{},
 			},
 			{
 				"with annotation and with API that return future time",
@@ -113,7 +114,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
+				time.Now().Add(24 * time.Hour).UTC(),
 			},
 			{
 				"without annotation and with API",
@@ -135,7 +136,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				time.Now().Add(1 * time.Second).UTC().Format(time.RFC3339),
+				time.Now().Add(1 * time.Second).UTC(),
 			},
 		}
 		for _, tt := range testCases {
@@ -157,7 +158,7 @@ var _ = Describe("PodSweeper runner", func() {
 		testCases := []struct {
 			name         string
 			input        corev1.Pod
-			deletionTime string
+			deletionTime time.Time
 		}{
 			{
 				"without labels",
@@ -178,7 +179,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				"",
+				time.Time{},
 			},
 			{
 				"without annotation and without API",
@@ -199,7 +200,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				"",
+				time.Time{},
 			},
 			{
 				"without annotation and with API that return future time",
@@ -220,7 +221,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+				time.Now().Add(24 * time.Hour).UTC(),
 			},
 			{
 				"with future time annotation and without API",
@@ -244,7 +245,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				"",
+				time.Time{},
 			},
 			{
 				"with future time annotation and with API that return time already past",
@@ -268,7 +269,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				time.Now().UTC().Format(time.RFC3339),
+				time.Now().UTC(),
 			},
 		}
 
@@ -294,14 +295,21 @@ var _ = Describe("PodSweeper runner", func() {
 })
 
 type RunnerPodClientMock struct {
-	deletionTime string
+	deletionTime time.Time
 }
 
-func (c *RunnerPodClientMock) GetDeletionTime(ctx context.Context, ip string) (string, error) {
-	return c.deletionTime, nil
+func (c *RunnerPodClientMock) GetDeletionTime(ctx context.Context, ip string) (runner.DeletionTimePayload, error) {
+	return runner.DeletionTimePayload{
+		DeletionTime: c.deletionTime,
+	}, nil
 }
 
-func NewRunnerPodClientMock(deletionTime string) *RunnerPodClientMock {
+func (c *RunnerPodClientMock) PutDeletionTime(ctx context.Context, ip string, dt runner.DeletionTimePayload) error {
+	c.deletionTime = dt.DeletionTime
+	return nil
+}
+
+func NewRunnerPodClientMock(deletionTime time.Time) *RunnerPodClientMock {
 	return &RunnerPodClientMock{
 		deletionTime: deletionTime,
 	}
