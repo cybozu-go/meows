@@ -96,7 +96,7 @@ var _ = Describe("PodSweeper runner", func() {
 			Expect(k8sClient.Create(ctx, &pod)).To(Succeed())
 			nsn := types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
 
-			By("cofirming Pod is deleted eventually")
+			By("confirming Pod is deleted eventually")
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, nsn, &corev1.Pod{})
 				return apierrors.IsNotFound(err)
@@ -179,7 +179,7 @@ var _ = Describe("PodSweeper runner", func() {
 			Expect(k8sClient.Create(ctx, &pod)).To(Succeed())
 			nsn := types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
 
-			By("cofirming test pod is not deleted")
+			By("confirming test pod is not deleted")
 			time.Sleep(5 * time.Second)
 			Expect(k8sClient.Get(ctx, nsn, &corev1.Pod{})).To(Succeed())
 
