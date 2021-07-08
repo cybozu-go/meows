@@ -13,14 +13,11 @@ import (
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/cybozu-go/github-actions-controller/agent"
 	"github.com/cybozu-go/github-actions-controller/metrics"
+	"github.com/cybozu-go/github-actions-controller/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
-
-type DeletionTimePayload struct {
-	DeletionTime time.Time `json:"deletion_time"`
-}
 
 type Runner struct {
 	envs         *environments
@@ -38,7 +35,8 @@ func NewRunner(listenAddr string) (*Runner, error) {
 		envs:       envs,
 		listenAddr: listenAddr,
 	}
-	r.deletionTime.Store(DeletionTimePayload{
+
+	r.deletionTime.Store(client.DeletionTimePayload{
 		DeletionTime: time.Time{},
 	})
 	if err := os.MkdirAll(r.envs.workDir, 0755); err != nil {
@@ -152,12 +150,12 @@ func (r *Runner) updateDeletionTime(extend bool) error {
 			return err
 		}
 		fmt.Printf("Annotate pod with the time %s later\n", r.envs.extendDuration)
-		r.deletionTime.Store(DeletionTimePayload{
+		r.deletionTime.Store(client.DeletionTimePayload{
 			DeletionTime: time.Now().UTC().Add(dur),
 		})
 	} else {
 		fmt.Println("Annotate pod with current time")
-		r.deletionTime.Store(DeletionTimePayload{
+		r.deletionTime.Store(client.DeletionTimePayload{
 			DeletionTime: time.Now().UTC(),
 		})
 	}
@@ -196,7 +194,7 @@ func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
 func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodGet:
-		if dt, ok := r.deletionTime.Load().(DeletionTimePayload); ok {
+		if dt, ok := r.deletionTime.Load().(client.DeletionTimePayload); ok {
 			res, err := json.Marshal(dt)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -208,7 +206,7 @@ func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	case http.MethodPut:
-		var dt DeletionTimePayload
+		var dt client.DeletionTimePayload
 		err := json.NewDecoder(req.Body).Decode(&dt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)

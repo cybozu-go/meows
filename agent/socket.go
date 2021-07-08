@@ -9,8 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cybozu-go/github-actions-controller/runner/client"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 // runSocket makes a connection with Slack over WebSocket.
@@ -153,9 +157,9 @@ func getTimeFromCallbackEvent(cb *slack.InteractionCallback, baseTime time.Time)
 func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, tm time.Time) error {
 	success := true
 	if !s.devMood {
-		err := AnnotateDeletionTime(ctx, pod, namespace, tm)
+		err := updateDeletionTime(ctx, pod, namespace, tm)
 		if err != nil {
-			s.log.Error(err, "failed to annotate deletion time",
+			s.log.Error(err, "failed to update deletion time",
 				"name", pod,
 				"namespace", namespace,
 				"time", tm,
@@ -163,7 +167,7 @@ func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, 
 			success = false
 		}
 	} else {
-		s.log.Info("skip to annotate deletion time",
+		s.log.Info("skip to update deletion time",
 			"name", pod,
 			"namespace", namespace,
 			"time", tm,
@@ -189,4 +193,24 @@ func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, 
 		return err
 	}
 	return nil
+}
+
+func updateDeletionTime(ctx context.Context, namespace, pod string, tm time.Time) error {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	po, err := clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	runnerClient := client.NewClient()
+	return runnerClient.PutDeletionTime(ctx, po.Status.PodIP, tm)
 }

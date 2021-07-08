@@ -9,11 +9,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"text/template"
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
+	"github.com/cybozu-go/github-actions-controller/runner/client"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/gomega"
@@ -132,7 +132,13 @@ func getDeletionTime(po *corev1.Pod) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 	}
-	return time.Parse(time.RFC3339, strings.TrimRight(string(stdout), "\n"))
+	dt := &client.DeletionTimePayload{}
+	err = json.Unmarshal(stdout, dt)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return dt.DeletionTime, nil
 }
 
 func findPodToBeDeleted(pods *corev1.PodList) (string, time.Time) {

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/runner"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -69,31 +68,7 @@ var _ = Describe("PodSweeper runner", func() {
 			deletionTime time.Time
 		}{
 			{
-				"with annotation and without API",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample0",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(time.Second).UTC().Format(time.RFC3339),
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				time.Time{},
-			},
-			{
-				"with annotation and with API that return future time",
+				"API return time aleready past",
 				corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample1",
@@ -101,9 +76,6 @@ var _ = Describe("PodSweeper runner", func() {
 						Labels: map[string]string{
 							constants.RunnerOrgLabelKey: organizationName,
 						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(time.Second).UTC().Format(time.RFC3339),
-						},
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -114,29 +86,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				time.Now().Add(24 * time.Hour).UTC(),
-			},
-			{
-				"without annotation and with API",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample1",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				time.Now().Add(1 * time.Second).UTC(),
+				time.Now().UTC(),
 			},
 		}
 		for _, tt := range testCases {
@@ -166,9 +116,6 @@ var _ = Describe("PodSweeper runner", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample2",
 						Namespace: namespace,
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().UTC().Format(time.RFC3339),
-						},
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -182,7 +129,7 @@ var _ = Describe("PodSweeper runner", func() {
 				time.Time{},
 			},
 			{
-				"without annotation and without API",
+				"API return time that is zero",
 				corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample3",
@@ -203,7 +150,7 @@ var _ = Describe("PodSweeper runner", func() {
 				time.Time{},
 			},
 			{
-				"without annotation and with API that return future time",
+				"API return future time",
 				corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample4",
@@ -222,54 +169,6 @@ var _ = Describe("PodSweeper runner", func() {
 					},
 				},
 				time.Now().Add(24 * time.Hour).UTC(),
-			},
-			{
-				"with future time annotation and without API",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample5",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				time.Time{},
-			},
-			{
-				"with future time annotation and with API that return time already past",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample6",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				time.Now().UTC(),
 			},
 		}
 
@@ -298,14 +197,12 @@ type RunnerPodClientMock struct {
 	deletionTime time.Time
 }
 
-func (c *RunnerPodClientMock) GetDeletionTime(ctx context.Context, ip string) (runner.DeletionTimePayload, error) {
-	return runner.DeletionTimePayload{
-		DeletionTime: c.deletionTime,
-	}, nil
+func (c *RunnerPodClientMock) GetDeletionTime(ctx context.Context, ip string) (time.Time, error) {
+	return c.deletionTime, nil
 }
 
-func (c *RunnerPodClientMock) PutDeletionTime(ctx context.Context, ip string, dt runner.DeletionTimePayload) error {
-	c.deletionTime = dt.DeletionTime
+func (c *RunnerPodClientMock) PutDeletionTime(ctx context.Context, ip string, tm time.Time) error {
+	c.deletionTime = tm
 	return nil
 }
 

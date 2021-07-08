@@ -5,7 +5,7 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/runner"
+	rc "github.com/cybozu-go/github-actions-controller/runner/client"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +23,7 @@ type PodSweeper struct {
 	interval  time.Duration
 
 	organizationName string
-	runnerPodClient  runner.Client
+	runnerPodClient  rc.Client
 }
 
 // NewPodSweeper returns PodSweeper
@@ -38,7 +38,7 @@ func NewPodSweeper(
 		log:              log,
 		interval:         interval,
 		organizationName: organizationName,
-		runnerPodClient:  runner.NewClient(),
+		runnerPodClient:  rc.NewClient(),
 	}
 }
 
@@ -87,23 +87,13 @@ func (r *PodSweeper) run(ctx context.Context) error {
 	for _, po := range podList.Items {
 		name := types.NamespacedName{Name: po.GetName(), Namespace: po.GetNamespace()}
 
-		var dt runner.DeletionTimePayload
-		v, ok := po.Annotations[constants.PodDeletionTimeKey]
-		if !ok {
-			dt, err = r.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
-			if err != nil {
-				r.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API")
-				continue
-			}
-		} else {
-			dt.DeletionTime, err = time.Parse(time.RFC3339, v)
-			if err != nil {
-				r.log.Error(err, "skipped deleting pod because failed to parse annotation with "+v, "pod", name)
-				return err
-			}
+		t, err := r.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+		if err != nil {
+			r.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", name)
+			continue
 		}
 
-		if dt.DeletionTime.IsZero() || dt.DeletionTime.After(now) {
+		if t.IsZero() || t.After(now) {
 			continue
 		}
 
