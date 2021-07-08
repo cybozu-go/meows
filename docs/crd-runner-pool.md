@@ -26,10 +26,10 @@ RunnerPoolSpec
 SlackAgentConfig
 ----------------
 
-| Field         | Type   | Description                                                                                                                                    |
-| ------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `serviceName` | string | Service name of Slack agent.                                                                                                                   |
-| `channel`     | string | Slack channel which the job results are reported. If this field is omitted, the default channel specified in slack-agent options will be used. |
+| Field         | Type   | Description                                                                                                                                                                    |
+| ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `serviceName` | string | Service name of Slack agent.                                                                                                                                                   |
+| `channel`     | string | Slack channel which the job results are reported. If this field is omitted, the default channel specified in the `--channel`(`-c`) option of slack-agent command will be used. |
 
 RunnerPodTemplateSpec
 ---------------------
