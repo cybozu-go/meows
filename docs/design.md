@@ -44,12 +44,12 @@ Components
      registration token to `Pod` `env`.
   - Runner watcher: A component to watch registered information about runners
     on GitHub periodically.
-  - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time available from annotation or Runner Pod API periodically.
+  - `Pod` sweeper: A component to sweep Pods which exceeds the deletion time available from [Runner Pod API](runner-pod-api.md#getdeletiontime) periodically.
 - Slack agent
   - Notifier: HTTP Server which accepts requests from runner `Pod`s and notify user
     whether jobs are failed or not via Slack Webhook.
   - Extender: WebSocket client which watches Slack button events and extends the
-    lifetime of a `Pod` by annotating the `Pod` with the extended deletion time.
+    lifetime of a `Pod` by requesting the `Pod` with the extended deletion time via [API](runner-pod-api.md#putdeletiontime).
 
 ![Diagram](./images/architecture.png)
 
@@ -160,11 +160,10 @@ github-actions-controller sets the namespaced name of a `RunnerPool` as a custom
 1. The Slack agent notifies the result of the job on a Slack channel.
 1. Users can extend the failed runner if they want to by clicking a button on Slack.
 1. The Slack agent is running a WebSocket process to watch extending messages
-  from Slack. If it receives a message, it annotates the `Pod` manifest with the
+  from Slack. If it receives a message, it requests the `Pod` to update the
   designated time.
-1. `Pod` sweeper periodically checks if there are `Pod`s published or annotated
-   with the old timestamp, and if any, it deletes `Pod`s. As for the deletion 
-   timestamp, annotation given by the Slack agent has priority.
+1. `Pod` sweeper periodically checks if there are `Pod`s published with the old
+   timestamp, and if any, it deletes `Pod`s.
 
 ### How Runner's state is managed
 
