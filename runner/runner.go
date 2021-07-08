@@ -203,10 +203,17 @@ func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(res)
+			return
+		} else {
+			http.Error(w, "Failed to load the deletion time", http.StatusInternalServerError)
+			return
 		}
-		return
 	case http.MethodPut:
 		var dt client.DeletionTimePayload
+		if req.Header.Get("Content-Type") != "application/json" {
+			w.WriteHeader(http.StatusUnsupportedMediaType)
+			return
+		}
 		err := json.NewDecoder(req.Body).Decode(&dt)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -215,7 +222,7 @@ func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	default:
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 }

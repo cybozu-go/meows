@@ -1,12 +1,13 @@
 Runner Pod API
 ==============
 
-* [GET /deletion_time](#getdeletiontime)
-* [PUT /deletion_time](#putdeletiontime)
+* [`GET /deletion_time`](#get-deletion_time)
+* [`PUT /deletion_time`](#put-deletion_time)
 
-## <a name="getdeletiontime" />`GET /deletion_time`
+## `GET /deletion_time`
 
-Used by Podsweeper to check the deletion time of pods.
+This API indicates the pod's deletion time.
+Used by `Pod` sweeper to check the deletion time of pods.
 Not set if the deletion_time value is zero (UTC time "0001-01-01T00: 00: 00Z" in RFC3339 format).
 When the value is other than that, the deletion is judged based on whether
 or not the time has passed. 
@@ -29,9 +30,10 @@ $ curl -s -XGET localhost:8080/deletion_time
 }
 ```
 
-## <a name="putdeletiontime" />`PUT /deletion_time`
+## `PUT /deletion_time`
 
-Used to update the pod deletion time from slack-agent. The time format is RFC 3339
+This API updates the pod's deletion time.
+Used to update the pod deletion time from Extender in Slack agent. The time format is RFC 3339
 for UTC time.
 
 **Successful response**

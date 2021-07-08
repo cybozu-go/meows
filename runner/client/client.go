@@ -43,7 +43,7 @@ func (c *clientImpl) GetDeletionTime(ctx context.Context, ip string) (time.Time,
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return time.Time{}, fmt.Errorf("runner pod (%s) return not %d", ip, http.StatusOK)
+		return time.Time{}, fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
 	}
 
 	dt := DeletionTimePayload{}
@@ -74,7 +74,7 @@ func (c *clientImpl) PutDeletionTime(ctx context.Context, ip string, tm time.Tim
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("runner pod (%s) return not %d, send data is %v", ip, http.StatusNoContent, string(b))
+		return fmt.Errorf("runner pod (%s) return %d, send data is %v", ip, res.StatusCode, string(b))
 	}
 	return nil
 }
