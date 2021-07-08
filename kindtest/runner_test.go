@@ -107,6 +107,10 @@ func testRunner() {
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var shouldBeDeletedAt string
 		Eventually(func() error {
+			stdout, _, _ := kubectl("get", "pods", "-A")
+			fmt.Println("=== kubectl get pod -A")
+			fmt.Println(string(stdout))
+
 			after, err := fetchPods(runner1NS, runnerSelector)
 			if err != nil {
 				return err
@@ -156,6 +160,10 @@ func testRunner() {
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var shouldBeDeletedAt string
 		Eventually(func() error {
+			stdout, _, _ := kubectl("get", "pods", "-A")
+			fmt.Println("=== kubectl get pod -A")
+			fmt.Println(string(stdout))
+
 			after, err := fetchPods(runner1NS, runnerSelector)
 			if err != nil {
 				return err
@@ -205,6 +213,10 @@ func testRunner() {
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var shouldBeDeletedAt string
 		Eventually(func() error {
+			stdout, _, _ := kubectl("get", "pods", "-A")
+			fmt.Println("=== kubectl get pod -A")
+			fmt.Println(string(stdout))
+
 			after, err := fetchPods(runner2NS, runnerSelector)
 			if err != nil {
 				return err
