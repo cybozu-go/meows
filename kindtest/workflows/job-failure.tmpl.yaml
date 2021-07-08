@@ -7,6 +7,4 @@ jobs:
     runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
     steps:
       - run: job-started
-      # /tmp/test is created by a setup command in runnerpool2.
-      - run: cat /tmp/test
       - run: job-failure
