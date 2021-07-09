@@ -4,7 +4,8 @@ metadata:
   name: runnerpool-sample
 spec:
   repositoryName: repository-sample
-  slackAgentServiceName: slack-agent
   replicas: 3
+  slackAgent:
+    serviceName: slack-agent
   template:
     image: actions-runner:latest

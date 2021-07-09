@@ -1,5 +1,0 @@
-bases:
-- ../../../config/runnerpool
-
-patchesStrategicMerge:
-- patch.yaml

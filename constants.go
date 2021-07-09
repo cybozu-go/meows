@@ -70,11 +70,11 @@ const (
 	// RunnerPoolNameEnvName is a env field key for RUNNER_POOL_NAME.
 	RunnerPoolNameEnvName = "RUNNER_POOL_NAME"
 
-	// SlackAgentEnvName is a env field key for SLACK_AGENT_SERVICE_NAME.
-	SlackAgentEnvName = "SLACK_AGENT_SERVICE_NAME"
-
 	// RunnerTokenEnvName is a env field key for RUNNER_TOKEN.
 	RunnerTokenEnvName = "RUNNER_TOKEN"
+
+	// RunnerOptionEnvName is a env field key for RUNNER_OPTION
+	RunnerOptionEnvName = "RUNNER_OPTION"
 
 	// ExtendDurationEnvName is a env field key for EXTEND_DURATION
 	ExtendDurationEnvName = "EXTEND_DURATION"

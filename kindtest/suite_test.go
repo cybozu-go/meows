@@ -9,31 +9,26 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 const (
-	controllerNS   = "actions-system"
-	runnerPoolName = "runnerpool-sample"
-	numRunners     = 3
-	orgName        = "neco-test"
-	repoName       = "github-actions-controller-ci"
+	controllerNS = "actions-system"
+	numRunners   = 3
+	orgName      = "neco-test"
+	repoName     = "github-actions-controller-ci"
 )
 
 var (
-	testID         = time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
-	testBranch     = "test-branch-" + testID
-	runner1NS      = "test-runner1-" + testID
-	runner2NS      = "test-runner2-" + testID
-	githubClient   *github.Client
-	runnerSelector = fmt.Sprintf(
-		"%s=%s,%s=%s",
-		constants.RunnerOrgLabelKey, orgName,
-		constants.RunnerRepoLabelKey, repoName,
-	)
+	testID          = "kindtest-" + time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
+	testBranch      = "test-branch-" + testID
+	runner1NS       = testID + "-test-runner1"
+	runner2NS       = testID + "-test-runner2"
+	runner1PoolName = "runnerpool1"
+	runner2PoolName = "runnerpool2"
+	githubClient    *github.Client
 )
 
 // Env variables.

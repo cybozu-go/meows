@@ -1,10 +1,12 @@
 apiVersion: actions.cybozu.com/v1alpha1
 kind: RunnerPool
 metadata:
-  name: runnerpool-sample
+  name: runnerpool1
 spec:
   repositoryName: github-actions-controller-ci
-  slackAgentServiceName: slack-agent.actions-system.svc
+  replicas: 3
+  slackAgent:
+    serviceName: slack-agent.actions-system.svc
   template:
     image: actions-runner:kindtest
     imagePullPolicy: Never

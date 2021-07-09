@@ -28,7 +28,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 	namespace := "runnerpool-ns"
 	runnerPoolName := "runnerpool-1"
 	deploymentName := "runnerpool-1"
-	slackAgentServiceName := "slack-agent"
 	defaultRunnerImage := "sample:latest"
 	serviceAccountName := "customized-sa"
 	wait := 10 * time.Second
@@ -165,6 +164,10 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Name":  Equal(constants.RunnerPoolNameEnvName),
 					"Value": Equal(runnerPoolName),
 				}),
+				"5": MatchFields(IgnoreExtras, Fields{
+					"Name":  Equal(constants.RunnerOptionEnvName),
+					"Value": Equal("{}"),
+				}),
 			}),
 			"Resources": MatchAllFields(Fields{
 				"Limits":   BeEmpty(),
@@ -193,8 +196,10 @@ var _ = Describe("RunnerPool reconciler", func() {
 	It("should create Deployment from maximum RunnerPool", func() {
 		By("deploying RunnerPool resource")
 		rp := makeRunnerPoolTemplate(runnerPoolName, namespace, repositoryNames[1])
-		rp.Spec.SlackAgentServiceName = slackAgentServiceName
 		rp.Spec.Replicas = 3
+		rp.Spec.SetupCommand = []string{"command", "arg1", "args2"}
+		rp.Spec.SlackAgent.ServiceName = "slack-agent"
+		rp.Spec.SlackAgent.Channel = "#test"
 		rp.Spec.Template.Image = "sample:devel"
 		rp.Spec.Template.ImagePullPolicy = corev1.PullIfNotPresent
 		rp.Spec.Template.ImagePullSecrets = []corev1.LocalObjectReference{
@@ -204,7 +209,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			Privileged: pointer.BoolPtr(true),
 		}
 		rp.Spec.Template.Env = []corev1.EnvVar{
-			{Name: "EXTEND_DURATION", Value: "30s"},
+			{Name: "ENV_VAR", Value: "value"},
 		}
 		rp.Spec.Template.Resources = corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
@@ -305,12 +310,12 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Value": Equal(runnerPoolName),
 				}),
 				"5": MatchFields(IgnoreExtras, Fields{
-					"Name":  Equal(constants.SlackAgentEnvName),
-					"Value": Equal("slack-agent"),
+					"Name":  Equal(constants.RunnerOptionEnvName),
+					"Value": Equal("{\"setup_command\":[\"command\",\"arg1\",\"args2\"],\"slack_agent_service_name\":\"slack-agent\",\"slack_channel\":\"#test\"}"),
 				}),
 				"6": MatchFields(IgnoreExtras, Fields{
-					"Name":  Equal("EXTEND_DURATION"),
-					"Value": Equal("30s"),
+					"Name":  Equal("ENV_VAR"),
+					"Value": Equal("value"),
 				}),
 			}),
 			"Resources": MatchAllFields(Fields{

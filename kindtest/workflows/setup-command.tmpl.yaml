@@ -1,0 +1,18 @@
+name: setup-command
+on: push
+
+jobs:
+  build:
+    name: Check setup command
+    runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
+    steps:
+    - run: job-started
+    - run: |
+        # /tmp/test is created by a setup command in runnerpool2.
+        cat /tmp/test
+    - if: success()
+      run: job-success
+    - if: cancelled()
+      run: job-cancelled
+    - if: failure()
+      run: job-failure

@@ -45,9 +45,23 @@ spec:
                 description: RepositoryName describes repository name to register
                   Pods as self-hosted runners.
                 type: string
-              slackAgentServiceName:
-                description: SlackAgentServiceName is a Service name of Slack agent.
-                type: string
+              setupCommand:
+                description: Command that runs when the runner pods will be created.
+                items:
+                  type: string
+                type: array
+              slackAgent:
+                description: Configuration of a Slack agent.
+                properties:
+                  channel:
+                    description: Slack channel which the job results are reported.
+                      If this field is omitted, the default channel specified in slack-agent
+                      options will be used.
+                    type: string
+                  serviceName:
+                    description: ServiceName is a Service name of Slack agent.
+                    type: string
+                type: object
               template:
                 description: Template describes the runner pods that will be created.
                 properties:

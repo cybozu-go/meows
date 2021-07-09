@@ -135,8 +135,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _, err = s.apiClient.PostMessageContext(ctx, channel, msg)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
-		s.log.Error(err, "failed to send slack message", "pod", payload.Pod)
+		s.log.Error(err, "failed to send slack message", "pod", payload.Pod, "channel", channel)
 		return
 	}
-	s.log.Info("success to send slack message", "pod", payload.Pod)
+	s.log.Info("success to send slack message", "pod", payload.Pod, "channel", channel)
 }

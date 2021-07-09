@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"time"
 
 	constants "github.com/cybozu-go/github-actions-controller"
 	"github.com/google/go-cmp/cmp"
@@ -73,22 +74,27 @@ func createNamespace(ns string) {
 	}).Should(Succeed())
 }
 
-func getPodNames(pods *corev1.PodList) []string {
-	l := make([]string, len(pods.Items))
-	for i, v := range pods.Items {
-		l[i] = v.Name
+func isDeploymentReady(name, namespace string, replicas int) error {
+	stdout, stderr, err := kubectl("get", "deployment", name, "-n", namespace, "-o", "json")
+	if err != nil {
+		return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 	}
-	sort.Strings(l)
-	return l
+
+	d := new(appsv1.Deployment)
+	err = json.Unmarshal(stdout, d)
+	if err != nil {
+		return err
+	}
+
+	if int(d.Status.AvailableReplicas) != replicas {
+		return fmt.Errorf("AvailableReplicas is not %d: %d", replicas, int(d.Status.AvailableReplicas))
+	}
+	return nil
 }
 
-func fetchPods(namespace, selector string) (*corev1.PodList, error) {
-	stdout, stderr, err := kubectl(
-		"get", "pods",
-		"-n", namespace,
-		"-l", selector,
-		"-o", "json",
-	)
+func fetchRunnerPods(namespace, runnerpool string) (*corev1.PodList, error) {
+	selector := fmt.Sprintf("%s=%s", constants.AppInstanceLabelKey, runnerpool)
+	stdout, stderr, err := kubectl("get", "pods", "-n", namespace, "-l", selector, "-o", "json")
 	if err != nil {
 		return nil, fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 	}
@@ -101,70 +107,76 @@ func fetchPods(namespace, selector string) (*corev1.PodList, error) {
 	return pods, nil
 }
 
-func isDeploymentReady(name, namespace string, replicas int) error {
-	stdout, stderr, err := kubectl(
-		"get", "deployment", name,
-		"-n", namespace,
-		"-o", "json",
-	)
-	if err != nil {
-		return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+func getPodNames(pods *corev1.PodList) []string {
+	l := make([]string, len(pods.Items))
+	for i := range pods.Items {
+		l[i] = pods.Items[i].Name
 	}
+	sort.Strings(l)
+	return l
+}
 
-	d := new(appsv1.Deployment)
-	err = json.Unmarshal(stdout, d)
-	if err != nil {
-		return err
+func isPodReady(po *corev1.Pod) bool {
+	for i := range po.Status.Conditions {
+		cond := &po.Status.Conditions[i]
+		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			return true
+		}
 	}
+	return false
+}
 
-	if int(d.Status.AvailableReplicas) != replicas {
-		return fmt.Errorf(
-			"AvailableReplicas is not %d: %d",
-			replicas, int(d.Status.AvailableReplicas),
-		)
+func getDeletionTime(po *corev1.Pod) (time.Time, error) {
+	stdout, stderr, err := kubectl("exec", po.Name, "-n", po.Namespace,
+		"--", "curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerListenPort, constants.DeletionTimeEndpoint))
+	if err != nil {
+		return time.Time{}, fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 	}
-	return nil
+	return time.Parse(time.RFC3339, strings.TrimRight(string(stdout), "\n"))
+}
+
+func findPodToBeDeleted(pods *corev1.PodList) (string, time.Time) {
+	for i := range pods.Items {
+		po := &pods.Items[i]
+		if !isPodReady(po) {
+			continue
+		}
+		tm, err := getDeletionTime(po)
+		if err != nil || tm.IsZero() {
+			// TODO: output logs
+			continue
+		}
+		return po.Namespace + "/" + po.Name, tm
+	}
+	return "", time.Time{}
 }
 
 func getRecretedPods(before, after *corev1.PodList) ([]string, []string) {
 	delPodNames := make([]string, 0)
 	addPodNames := make([]string, 0)
 
-	beforeMap := make(map[string]struct{})
-	for _, v := range before.Items {
-		beforeMap[v.Name] = struct{}{}
+	beforeMap := make(map[string]bool)
+	for i := range before.Items {
+		beforeMap[before.Items[i].Name] = true
 	}
 
-	afterMap := make(map[string]struct{})
-	for _, v := range after.Items {
-		afterMap[v.Name] = struct{}{}
+	afterMap := make(map[string]bool)
+	for i := range after.Items {
+		afterMap[after.Items[i].Name] = true
 	}
 
-	for _, v := range before.Items {
-		if _, ok := afterMap[v.Name]; !ok {
-			delPodNames = append(delPodNames, v.Name)
+	for i := range before.Items {
+		if !afterMap[before.Items[i].Name] {
+			delPodNames = append(delPodNames, before.Items[i].Name)
 		}
 	}
 
-	for _, v := range after.Items {
-		if _, ok := beforeMap[v.Name]; !ok {
-			addPodNames = append(addPodNames, v.Name)
+	for i := range after.Items {
+		if _, ok := beforeMap[after.Items[i].Name]; !ok {
+			addPodNames = append(addPodNames, after.Items[i].Name)
 		}
 	}
 	return delPodNames, addPodNames
-}
-
-func getDeletionTime(po corev1.Pod) (string, error) {
-	stdout, stderr, err := kubectl(
-		"exec", po.Name,
-		"-n", po.Namespace,
-		"--",
-		"curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerListenPort, constants.DeletionTimeEndpoint),
-	)
-	if err != nil {
-		return "", fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-	}
-	return strings.TrimRight(string(stdout), "\n"), nil
 }
 
 func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) error {
