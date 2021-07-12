@@ -141,6 +141,17 @@ func getDeletionTime(po *corev1.Pod) (time.Time, error) {
 	return dt.DeletionTime, nil
 }
 
+func putDeletionTime(po *corev1.Pod, tm time.Time) error {
+	stdout, stderr, err := kubectl("exec", po.Name, "-n", po.Namespace,
+		"--", "curl", "-s", "-XPUT", fmt.Sprintf("localhost:%d/%s", constants.RunnerListenPort, constants.DeletionTimeEndpoint),
+		"-H", "Content-Type: application/json",
+		"-d", fmt.Sprintf("{\"deletion_time\":\"%s\"}", tm.Format(time.RFC3339)))
+	if err != nil {
+		return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+	}
+	return nil
+}
+
 func findPodToBeDeleted(pods *corev1.PodList) (string, time.Time) {
 	for i := range pods.Items {
 		po := &pods.Items[i]

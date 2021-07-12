@@ -36,9 +36,7 @@ func NewRunner(listenAddr string) (*Runner, error) {
 		listenAddr: listenAddr,
 	}
 
-	r.deletionTime.Store(client.DeletionTimePayload{
-		DeletionTime: time.Time{},
-	})
+	r.deletionTime.Store(time.Time{})
 	if err := os.MkdirAll(r.envs.workDir, 0755); err != nil {
 		return nil, err
 	}
@@ -149,15 +147,11 @@ func (r *Runner) updateDeletionTime(extend bool) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Annotate pod with the time %s later\n", r.envs.extendDuration)
-		r.deletionTime.Store(client.DeletionTimePayload{
-			DeletionTime: time.Now().UTC().Add(dur),
-		})
+		fmt.Printf("Update pod's deletion time with the time %s later\n", r.envs.extendDuration)
+		r.deletionTime.Store(time.Now().UTC().Add(dur))
 	} else {
-		fmt.Println("Annotate pod with current time")
-		r.deletionTime.Store(client.DeletionTimePayload{
-			DeletionTime: time.Now().UTC(),
-		})
+		fmt.Println("Update pod's deletion time with current time")
+		r.deletionTime.Store(time.Now().UTC())
 	}
 	return nil
 }
@@ -194,20 +188,22 @@ func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
 func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodGet:
-		if dt, ok := r.deletionTime.Load().(client.DeletionTimePayload); ok {
-			res, err := json.Marshal(dt)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(res)
-			return
-		} else {
+		tm, ok := r.deletionTime.Load().(time.Time)
+		if !ok {
 			http.Error(w, "Failed to load the deletion time", http.StatusInternalServerError)
 			return
 		}
+		res, err := json.Marshal(client.DeletionTimePayload{
+			DeletionTime: tm,
+		})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(res)
+		return
 	case http.MethodPut:
 		var dt client.DeletionTimePayload
 		if req.Header.Get("Content-Type") != "application/json" {
@@ -219,6 +215,9 @@ func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
+		r.deletionTime.Store(dt.DeletionTime)
+
 		w.WriteHeader(http.StatusNoContent)
 		return
 	default:

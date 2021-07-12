@@ -6,11 +6,15 @@ Runner Pod API
 
 ## `GET /deletion_time`
 
-This API indicates the pod's deletion time.
-Used by `Pod` sweeper to check the deletion time of pods.
-If the value is zero(`0001-01-01T00: 00: 00Z`), the deletion time is treated as not set.
-If the value is other than that, the deletion is judged based on whether
-or not the time has passed. 
+This API returns a pod's deletion time in UTC using RFC 3339 format.
+
+When the pod state is `initializing` or `running`, it returns the zero value of 
+type `Time` of Go(`0001-01-01T00:00:00Z`) (cf. [Time.IsZero](https://golang.org/pkg/time/#Time.IsZero)).
+When the state is `debugging` or a time is set by the [`PUT /deletion_time`](#put-deletion_time),
+it returns a non-zero time.
+
+If the deletion time returned by this API has passed,
+the `Pod` sweeper will delete the pod.
 
 **Successful response**
 
@@ -32,9 +36,7 @@ $ curl -s -XGET localhost:8080/deletion_time
 
 ## `PUT /deletion_time`
 
-This API updates the pod's deletion time.
-Used to update a pod deletion time from Extender in Slack agent.
-The time format is RFC 3339 in UTC.
+This API updates a pod's deletion time. The time format is RFC 3339 in UTC.
 
 **Successful response**
 
@@ -44,9 +46,11 @@ The time format is RFC 3339 in UTC.
 
 - If the request body is invalid 
   HTTP status code: 400 Bad Request
+- If `Content-Type` is not `application/json`
+  HTTP status code: 415 Unsupported Media Type
 
 ```console
- curl -s -XPUT localhost:8080/deletion_time -d '
+ curl -s -XPUT localhost:8080/deletion_time -H "Content-Type: application/json" -d '
 {
 	"deletion_time":"0001-01-01T00:00:00Z"
 }'
