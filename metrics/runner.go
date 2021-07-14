@@ -17,12 +17,14 @@ const (
 	Initializing = runnerPodState("initializing")
 	Running      = runnerPodState("running")
 	Debugging    = runnerPodState("debugging")
+	Stale        = runnerPodState("stale")
 )
 
 var AllRunnerPodState = []runnerPodState{
 	Initializing,
 	Running,
 	Debugging,
+	Stale,
 }
 
 type listenerExitState string

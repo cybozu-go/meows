@@ -34,6 +34,7 @@ type environments struct {
 	runnerDir string
 	workDir   string
 
+	startedFlagFile   string
 	extendFlagFile    string
 	failureFlagFile   string
 	cancelledFlagFile string
@@ -75,10 +76,11 @@ func newRunnerEnvs() (*environments, error) {
 	envs.runnerDir = filepath.Join("/runner")
 	envs.workDir = filepath.Join(envs.runnerDir, "_work")
 
-	envs.extendFlagFile = filepath.Join(os.TempDir(), "extend")
-	envs.failureFlagFile = filepath.Join(os.TempDir(), "failure")
-	envs.cancelledFlagFile = filepath.Join(os.TempDir(), "cancelled")
-	envs.successFlagFile = filepath.Join(os.TempDir(), "success")
+	envs.startedFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "started")
+	envs.extendFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "extend")
+	envs.failureFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "failure")
+	envs.cancelledFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "cancelled")
+	envs.successFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "success")
 
 	envs.configCommand = filepath.Join(envs.runnerDir, "config.sh")
 	envs.listenerCommand = filepath.Join(envs.runnerDir, "bin", "Runner.Listener")

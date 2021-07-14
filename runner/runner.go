@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"sync/atomic"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 type Runner struct {
 	envs         *environments
 	listenAddr   string
+	executer     Executer
 	deletionTime atomic.Value
 }
 
@@ -34,18 +34,19 @@ func NewRunner(listenAddr string) (*Runner, error) {
 	r := Runner{
 		envs:       envs,
 		listenAddr: listenAddr,
+		executer:   NewExecuter(envs.runnerDir, envs.configCommand, envs.listenerCommand),
 	}
 
 	r.deletionTime.Store(time.Time{})
-	if err := os.MkdirAll(r.envs.workDir, 0755); err != nil {
-		return nil, err
-	}
 	return &r, nil
 }
 
 func (r *Runner) Run(ctx context.Context) error {
-	registry := prometheus.DefaultRegisterer
+	registry := prometheus.NewRegistry()
 	metrics.InitRunnerPodMetrics(registry, r.envs.runnerPoolName)
+	if err := os.MkdirAll(r.envs.workDir, 0755); err != nil {
+		return err
+	}
 
 	env := well.NewEnvironment(ctx)
 	env.Go(r.runListener)
@@ -69,6 +70,17 @@ func (r *Runner) Run(ctx context.Context) error {
 }
 
 func (r *Runner) runListener(ctx context.Context) error {
+	if isFileExists(r.envs.startedFlagFile) {
+		metrics.UpdateRunnerPodState(metrics.Stale)
+		r.deletionTime.Store(time.Now())
+		<-ctx.Done()
+		return nil
+	}
+
+	if _, err := os.Create(r.envs.startedFlagFile); err != nil {
+		return err
+	}
+
 	metrics.UpdateRunnerPodState(metrics.Initializing)
 	if len(r.envs.option.SetupCommand) != 0 {
 		if _, err := runCommand(ctx, r.envs.runnerDir, r.envs.option.SetupCommand[0], r.envs.option.SetupCommand[1:]...); err != nil {
@@ -85,12 +97,12 @@ func (r *Runner) runListener(ctx context.Context) error {
 		"--token", r.envs.runnerToken,
 		"--work", r.envs.workDir,
 	}
-	if _, err := runCommand(ctx, r.envs.runnerDir, r.envs.configCommand, configArgs...); err != nil {
+	if err := r.executer.RunConfigure(ctx, configArgs); err != nil {
 		return err
 	}
 
 	metrics.UpdateRunnerPodState(metrics.Running)
-	if err := r.runService(ctx); err != nil {
+	if err := r.executer.RunService(ctx); err != nil {
 		return err
 	}
 
@@ -106,39 +118,6 @@ func (r *Runner) runListener(ctx context.Context) error {
 
 	<-ctx.Done()
 	return nil
-}
-
-func (r *Runner) runService(ctx context.Context) error {
-	for {
-		code, err := runCommand(ctx, r.envs.runnerDir, r.envs.listenerCommand, "run", "--startuptype", "service", "--once")
-		if _, ok := err.(*exec.ExitError); !ok {
-			return err
-		}
-
-		// This logic is based on the following code.
-		// ref: https://github.com/actions/runner/blob/v2.278.0/src/Misc/layoutbin/RunnerService.js
-		fmt.Println("Runner listener exited with error code", code)
-		switch code {
-		case 0:
-			fmt.Println("Runner listener exit with 0 return code, stop the service, no retry needed.")
-			return nil
-		case 1:
-			fmt.Println("Runner listener exit with terminated error, stop the service, no retry needed.")
-			return fmt.Errorf("runner listener exit with terminated error: %v", err)
-		case 2:
-			fmt.Println("Runner listener exit with retryable error, re-launch runner in 5 seconds.")
-			metrics.IncrementListenerExitState(metrics.RetryableError)
-		case 3:
-			fmt.Println("Runner listener exit because of updating, re-launch runner in 5 seconds.")
-			metrics.IncrementListenerExitState(metrics.Updating)
-		default:
-			fmt.Println("Runner listener exit with undefined return code, re-launch runner in 5 seconds.")
-			metrics.IncrementListenerExitState(metrics.Undefined)
-		}
-
-		// Sleep 5 seconds to wait for the update process finish.
-		time.Sleep(5 * time.Second)
-	}
 }
 
 func (r *Runner) updateDeletionTime(extend bool) error {

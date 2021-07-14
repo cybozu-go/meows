@@ -145,7 +145,11 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(d.Spec.Template.Spec).To(MatchFields(IgnoreExtras, Fields{
 			"ServiceAccountName": Equal("default"),
 			"ImagePullSecrets":   BeEmpty(),
-			"Volumes":            BeEmpty(),
+			"Volumes": MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": MatchFields(IgnoreExtras, Fields{
+					"Name": Equal("actions-directory"),
+				}),
+			}),
 		}))
 
 		// runner container spec
@@ -200,7 +204,12 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"ContainerPort": BeNumerically("==", constants.RunnerListenPort),
 				}),
 			}),
-			"VolumeMounts": BeEmpty(),
+			"VolumeMounts": MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": MatchFields(IgnoreExtras, Fields{
+					"Name":      Equal("actions-directory"),
+					"MountPath": Equal("/var/actions"),
+				}),
+			}),
 		}))
 
 		By("checking a manager is started")
@@ -294,6 +303,9 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"1": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("volume2"),
 				}),
+				"2": MatchFields(IgnoreExtras, Fields{
+					"Name": Equal("actions-directory"),
+				}),
 			}),
 		}))
 
@@ -365,6 +377,10 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"1": MatchFields(IgnoreExtras, Fields{
 					"Name":      Equal("volume2"),
 					"MountPath": Equal("/volume2"),
+				}),
+				"2": MatchFields(IgnoreExtras, Fields{
+					"Name":      Equal("actions-directory"),
+					"MountPath": Equal("/var/actions"),
 				}),
 			}),
 		}))
