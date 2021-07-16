@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cybozu-go/github-actions-controller/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
 	"github.com/slack-go/slack"
@@ -38,6 +39,7 @@ type Server struct {
 	apiClient      *slack.Client
 	smClient       *socketmode.Client
 	devMood        bool
+	runnerClient   client.Client
 }
 
 // NewServer creates slack agent server.
@@ -60,6 +62,7 @@ func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, app
 		apiClient:      apiClient,
 		smClient:       smClient,
 		devMood:        devMode,
+		runnerClient:   client.NewClient(),
 	}
 }
 
