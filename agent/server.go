@@ -10,10 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cybozu-go/github-actions-controller/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -38,10 +41,12 @@ type Server struct {
 	apiClient      *slack.Client
 	smClient       *socketmode.Client
 	devMood        bool
+	clientset      *kubernetes.Clientset
+	runnerClient   client.Client
 }
 
 // NewServer creates slack agent server.
-func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, appToken, botToken string, devMode bool, verbose bool) *Server {
+func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, appToken, botToken string, devMode bool, verbose bool) (*Server, error) {
 	apiClient := slack.New(
 		botToken,
 		slack.OptionAppLevelToken(appToken),
@@ -53,6 +58,16 @@ func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, app
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
 
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Server{
 		log:            logger,
 		listenAddr:     listenAddr,
@@ -60,7 +75,9 @@ func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, app
 		apiClient:      apiClient,
 		smClient:       smClient,
 		devMood:        devMode,
-	}
+		clientset:      clientset,
+		runnerClient:   client.NewClient(),
+	}, nil
 }
 
 // Run starts the slack agent server.

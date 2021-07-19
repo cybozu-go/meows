@@ -31,7 +31,7 @@ var _ = Describe("PodSweeper runner", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		runnerPodClient = NewRunnerPodClientMock("")
+		runnerPodClient = NewRunnerPodClientMock(time.Time{})
 
 		sweeper := &PodSweeper{
 			k8sClient:        mgr.GetClient(),
@@ -65,34 +65,10 @@ var _ = Describe("PodSweeper runner", func() {
 		testCases := []struct {
 			name         string
 			input        corev1.Pod
-			deletionTime string
+			deletionTime time.Time
 		}{
 			{
-				"with annotation and without API",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample0",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(time.Second).UTC().Format(time.RFC3339),
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				"",
-			},
-			{
-				"with annotation and with API that return future time",
+				"API return time aleready past",
 				corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample1",
@@ -100,9 +76,6 @@ var _ = Describe("PodSweeper runner", func() {
 						Labels: map[string]string{
 							constants.RunnerOrgLabelKey: organizationName,
 						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(time.Second).UTC().Format(time.RFC3339),
-						},
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -113,29 +86,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
-			},
-			{
-				"without annotation and with API",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample1",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				time.Now().Add(1 * time.Second).UTC().Format(time.RFC3339),
+				time.Now().UTC(),
 			},
 		}
 		for _, tt := range testCases {
@@ -145,7 +96,7 @@ var _ = Describe("PodSweeper runner", func() {
 			Expect(k8sClient.Create(ctx, &pod)).To(Succeed())
 			nsn := types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
 
-			By("cofirming Pod is deleted eventually")
+			By("confirming Pod is deleted eventually")
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, nsn, &corev1.Pod{})
 				return apierrors.IsNotFound(err)
@@ -157,7 +108,7 @@ var _ = Describe("PodSweeper runner", func() {
 		testCases := []struct {
 			name         string
 			input        corev1.Pod
-			deletionTime string
+			deletionTime time.Time
 		}{
 			{
 				"without labels",
@@ -165,9 +116,6 @@ var _ = Describe("PodSweeper runner", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample2",
 						Namespace: namespace,
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().UTC().Format(time.RFC3339),
-						},
 					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
@@ -178,10 +126,10 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				"",
+				time.Time{},
 			},
 			{
-				"without annotation and without API",
+				"API return time that is zero",
 				corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample3",
@@ -199,10 +147,10 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				"",
+				time.Time{},
 			},
 			{
-				"without annotation and with API that return future time",
+				"API return future time",
 				corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "sample4",
@@ -220,55 +168,7 @@ var _ = Describe("PodSweeper runner", func() {
 						},
 					},
 				},
-				time.Now().Add(24 * time.Hour).Format(time.RFC3339),
-			},
-			{
-				"with future time annotation and without API",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample5",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				"",
-			},
-			{
-				"with future time annotation and with API that return time already past",
-				corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "sample6",
-						Namespace: namespace,
-						Labels: map[string]string{
-							constants.RunnerOrgLabelKey: organizationName,
-						},
-						Annotations: map[string]string{
-							constants.PodDeletionTimeKey: time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "sample",
-								Image: "sample:latest",
-							},
-						},
-					},
-				},
-				time.Now().UTC().Format(time.RFC3339),
+				time.Now().Add(24 * time.Hour).UTC(),
 			},
 		}
 
@@ -279,7 +179,7 @@ var _ = Describe("PodSweeper runner", func() {
 			Expect(k8sClient.Create(ctx, &pod)).To(Succeed())
 			nsn := types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}
 
-			By("cofirming test pod is not deleted")
+			By("confirming test pod is not deleted")
 			time.Sleep(5 * time.Second)
 			Expect(k8sClient.Get(ctx, nsn, &corev1.Pod{})).To(Succeed())
 
@@ -294,14 +194,19 @@ var _ = Describe("PodSweeper runner", func() {
 })
 
 type RunnerPodClientMock struct {
-	deletionTime string
+	deletionTime time.Time
 }
 
-func (c *RunnerPodClientMock) GetDeletionTime(ctx context.Context, ip string) (string, error) {
+func (c *RunnerPodClientMock) GetDeletionTime(ctx context.Context, ip string) (time.Time, error) {
 	return c.deletionTime, nil
 }
 
-func NewRunnerPodClientMock(deletionTime string) *RunnerPodClientMock {
+func (c *RunnerPodClientMock) PutDeletionTime(ctx context.Context, ip string, tm time.Time) error {
+	c.deletionTime = tm
+	return nil
+}
+
+func NewRunnerPodClientMock(deletionTime time.Time) *RunnerPodClientMock {
 	return &RunnerPodClientMock{
 		deletionTime: deletionTime,
 	}

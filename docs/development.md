@@ -22,7 +22,7 @@ What kindtest covers is:
 - GitHub Actions workflows run on the `Pod`s.
 - Runner `Pod`s send messages to Slack agent.
 - Slack agent sends messages to Slack.
-- The controller can delete runner `Pod`s with deletion time annotations.
+- The controller can delete runner `Pod`s with deletion time exposed by API.
 - The controller can delete runner registrations of unexisting `Pod`s from GitHub Actions.
 
 What kindtest does not cover is:

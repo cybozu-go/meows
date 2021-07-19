@@ -109,9 +109,9 @@ func testRunner() {
 		var deletionTime time.Time
 		Eventually(func() error {
 			// DEBUG
-			stdout, _, _ := kubectl("get", "pods", "-A")
-			fmt.Println("=== kubectl get pod -A")
-			fmt.Println(string(stdout))
+			// stdout, _, _ := kubectl("get", "pods", "-A")
+			// fmt.Println("=== kubectl get pod -A")
+			// fmt.Println(string(stdout))
 
 			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
 			if err != nil {
@@ -158,9 +158,9 @@ func testRunner() {
 		var deletionTime time.Time
 		Eventually(func() error {
 			// DEBUG
-			stdout, _, _ := kubectl("get", "pods", "-A")
-			fmt.Println("=== kubectl get pod -A")
-			fmt.Println(string(stdout))
+			// stdout, _, _ := kubectl("get", "pods", "-A")
+			// fmt.Println("=== kubectl get pod -A")
+			// fmt.Println(string(stdout))
 
 			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
 			if err != nil {
@@ -207,9 +207,9 @@ func testRunner() {
 		var deletionTime time.Time
 		Eventually(func() error {
 			// DEBUG
-			stdout, _, _ := kubectl("get", "pods", "-A")
-			fmt.Println("=== kubectl get pod -A")
-			fmt.Println(string(stdout))
+			// stdout, _, _ := kubectl("get", "pods", "-A")
+			// fmt.Println("=== kubectl get pod -A")
+			// fmt.Println(string(stdout))
 
 			after, err := fetchRunnerPods(runner2NS, runner2PoolName)
 			if err != nil {
@@ -234,6 +234,51 @@ func testRunner() {
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
 			after, err := fetchRunnerPods(runner2NS, runner2PoolName)
+			if err != nil {
+				return err
+			}
+			return equalNumRecreatedPods(before, after, 1)
+		}).ShouldNot(HaveOccurred())
+		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
+	})
+
+	It("should delete after PUT request to a Pod", func() {
+		By("getting pods list before API request")
+		before, err := fetchRunnerPods(runner1NS, runner1PoolName)
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(before.Items).Should(HaveLen(numRunners))
+
+		By("PUT request to one Pod")
+		fmt.Println("PUT request to ", before.Items[0].Name)
+		putDeletionTime(&before.Items[0], time.Now().UTC())
+
+		By("confirming PUT request and get deletion time from API of one Pod")
+		var podName string
+		var deletionTime time.Time
+		Eventually(func() error {
+			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			if err != nil {
+				return err
+			}
+			podName, deletionTime = findPodToBeDeleted(after)
+			if podName == "" {
+				return errors.New("one pod should get deletion time from /" + constants.DeletionTimeEndpoint)
+			}
+			return nil
+		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
+
+		now := time.Now().UTC()
+		fmt.Println("====== Pod: " + podName)
+		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
+		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
+
+		By("confirming the timestamp value is now")
+		Expect(deletionTime.After(now.Add(-5 * time.Second))).To(BeTrue())
+		Expect(deletionTime.Before(now.Add(5 * time.Second))).To(BeTrue())
+
+		By("confirming one Pod is recreated")
+		Eventually(func() error {
+			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
 			if err != nil {
 				return err
 			}
