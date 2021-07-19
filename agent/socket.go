@@ -12,8 +12,6 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 // runSocket makes a connection with Slack over WebSocket.
@@ -195,17 +193,7 @@ func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, 
 }
 
 func (s *Server) updateDeletionTime(ctx context.Context, namespace, pod string, tm time.Time) error {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	po, err := clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
+	po, err := s.clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

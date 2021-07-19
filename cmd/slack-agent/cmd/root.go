@@ -49,7 +49,10 @@ var rootCmd = &cobra.Command{
 		}
 		log := zapr.NewLogger(zapLog)
 
-		s := agent.NewServer(log, listenAddr, defaultChannel, appToken, botToken, devMode, verbose)
+		s, err := agent.NewServer(log, listenAddr, defaultChannel, appToken, botToken, devMode, verbose)
+		if err != nil {
+			return err
+		}
 		well.Go(s.Run)
 		well.Stop()
 		return well.Wait()
