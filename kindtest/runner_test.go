@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func testRunner() {
@@ -35,34 +36,48 @@ func testRunner() {
 	})
 
 	It("should register self-hosted runners to GitHub Actions", func() {
-		By("getting runner1 pods name")
-		runner1Pods, err := fetchRunnerPods(runner1NS, runner1PoolName)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(runner1Pods.Items).Should(HaveLen(numRunners))
-		runner1PodNames := getPodNames(runner1Pods)
-
-		By("getting runner2 pods name")
-		runner2Pods, err := fetchRunnerPods(runner2NS, runner2PoolName)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(runner2Pods.Items).Should(HaveLen(numRunners))
-		runner2PodNames := getPodNames(runner2Pods)
-
 		By("confirming runners on GitHub Actions: " + runner1NS + "/" + runner1PoolName)
 		Eventually(func() error {
+			runner1Pods, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			if err != nil {
+				return err
+			}
+			if len(runner1Pods.Items) != numRunners {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(runner1Pods.Items))
+			}
+			runner1PodNames := getPodNames(runner1Pods)
 			return compareExistingRunners(runner1NS+"/"+runner1PoolName, runner1PodNames)
 		}).ShouldNot(HaveOccurred())
 
 		By("confirming runners on GitHub Actions: " + runner2NS + "/" + runner2PoolName)
 		Eventually(func() error {
+			runner2Pods, err := fetchRunnerPods(runner2NS, runner2PoolName)
+			if err != nil {
+				return err
+			}
+			if len(runner2Pods.Items) != numRunners {
+				return fmt.Errorf("runner2Pods length expected %d, actual %d", numRunners, len(runner2Pods.Items))
+			}
+			runner2PodNames := getPodNames(runner2Pods)
 			return compareExistingRunners(runner2NS+"/"+runner2PoolName, runner2PodNames)
 		}).ShouldNot(HaveOccurred())
 	})
 
 	It("should run the job-success on a self-hosted runner Pod and delete the Pod immediately", func() {
 		By("getting pods list before running workflow")
-		before, err := fetchRunnerPods(runner1NS, runner1PoolName)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(before.Items).Should(HaveLen(numRunners))
+		var before *corev1.PodList
+		Eventually(func() error {
+			var err error
+			before, err = fetchRunnerPods(runner1NS, runner1PoolName)
+			if err != nil {
+				return err
+			}
+			if len(before.Items) != numRunners {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			}
+			beforeNames := getPodNames(before)
+			return compareExistingRunners(runner1NS+"/"+runner1PoolName, beforeNames)
+		}).ShouldNot(HaveOccurred())
 
 		By(`running "job-success" workflow`)
 		pushWorkflowFile("job-success.tmpl.yaml", runner1NS, runner1PoolName)
@@ -97,9 +112,19 @@ func testRunner() {
 
 	It("should run the job-failure on a self-hosted runner Pod and delete the Pod after a while", func() {
 		By("getting pods list before running workflow")
-		before, err := fetchRunnerPods(runner1NS, runner1PoolName)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(before.Items).Should(HaveLen(numRunners))
+		var before *corev1.PodList
+		Eventually(func() error {
+			var err error
+			before, err = fetchRunnerPods(runner1NS, runner1PoolName)
+			if err != nil {
+				return err
+			}
+			if len(before.Items) != numRunners {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			}
+			beforeNames := getPodNames(before)
+			return compareExistingRunners(runner1NS+"/"+runner1PoolName, beforeNames)
+		}).ShouldNot(HaveOccurred())
 
 		By(`running "job-failure" workflow`)
 		pushWorkflowFile("job-failure.tmpl.yaml", runner1NS, runner1PoolName)
@@ -146,9 +171,19 @@ func testRunner() {
 
 	It("should be successful the job that makes sure invisible environment variables", func() {
 		By("getting pods list before running workflow")
-		before, err := fetchRunnerPods(runner1NS, runner1PoolName)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(before.Items).Should(HaveLen(numRunners))
+		var before *corev1.PodList
+		Eventually(func() error {
+			var err error
+			before, err = fetchRunnerPods(runner1NS, runner1PoolName)
+			if err != nil {
+				return err
+			}
+			if len(before.Items) != numRunners {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			}
+			beforeNames := getPodNames(before)
+			return compareExistingRunners(runner1NS+"/"+runner1PoolName, beforeNames)
+		}).ShouldNot(HaveOccurred())
 
 		By(`running "check-env" workflow that makes sure invisible environment variables`)
 		pushWorkflowFile("check-env.tmpl.yaml", runner1NS, runner1PoolName)
@@ -178,9 +213,8 @@ func testRunner() {
 		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
 		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
 
-		By("confirming the timestamp value is now")
-		Expect(deletionTime.After(now.Add(-5 * time.Second))).To(BeTrue())
-		Expect(deletionTime.Before(now.Add(5 * time.Second))).To(BeTrue())
+		By("confirming the timestamp value before now")
+		Expect(deletionTime.Before(now)).To(BeTrue())
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
@@ -195,9 +229,19 @@ func testRunner() {
 
 	It("should run a setup command", func() {
 		By("getting pods list before running workflow")
-		before, err := fetchRunnerPods(runner2NS, runner2PoolName)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(before.Items).Should(HaveLen(numRunners))
+		var before *corev1.PodList
+		Eventually(func() error {
+			var err error
+			before, err = fetchRunnerPods(runner2NS, runner2PoolName)
+			if err != nil {
+				return err
+			}
+			if len(before.Items) != numRunners {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			}
+			beforeNames := getPodNames(before)
+			return compareExistingRunners(runner2NS+"/"+runner2PoolName, beforeNames)
+		}).ShouldNot(HaveOccurred())
 
 		By(`running "setup-command" workflow`)
 		pushWorkflowFile("setup-command.tmpl.yaml", runner2NS, runner2PoolName)
@@ -227,9 +271,8 @@ func testRunner() {
 		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
 		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
 
-		By("confirming the timestamp value is now")
-		Expect(deletionTime.After(now.Add(-5 * time.Second))).To(BeTrue())
-		Expect(deletionTime.Before(now.Add(5 * time.Second))).To(BeTrue())
+		By("confirming the timestamp value before now")
+		Expect(deletionTime.Before(now)).To(BeTrue())
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
@@ -247,6 +290,18 @@ func testRunner() {
 		before, err := fetchRunnerPods(runner1NS, runner1PoolName)
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(before.Items).Should(HaveLen(numRunners))
+		Eventually(func() error {
+			next, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			if err != nil {
+				return err
+			}
+			err = equalNumRecreatedPods(before, next, 0)
+			if err != nil {
+				before = next
+				return err
+			}
+			return nil
+		}).ShouldNot(HaveOccurred())
 
 		By("PUT request to one Pod")
 		fmt.Println("PUT request to ", before.Items[0].Name)
@@ -272,9 +327,8 @@ func testRunner() {
 		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
 		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
 
-		By("confirming the timestamp value is now")
-		Expect(deletionTime.After(now.Add(-5 * time.Second))).To(BeTrue())
-		Expect(deletionTime.Before(now.Add(5 * time.Second))).To(BeTrue())
+		By("confirming the timestamp value before now")
+		Expect(deletionTime.Before(now)).To(BeTrue())
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {

@@ -172,6 +172,9 @@ A Runner `Pod` has the following state as a GitHub Actions job runner.
     for example, booting a couple of VMs needed in a job before the job is assigned.
 - `running`: `Pod` is running. Registered in GitHub Actions.
 - `debugging`: The job has finished with failure and Users can enter `Pod` to debug.
+- `stale`: The environment in the `Pod` is dirty. If a runner restarts before completing a job, 
+    the environment in the `Pod` may be dirty. This state means waiting for the Pod
+    to be removed to prevent Job execution with that stale Pod.
 
 In addition, it has the following states as the exit state of the execution result of `Runner.Listener`.
 

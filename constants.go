@@ -50,6 +50,11 @@ const (
 	DeletionTimeEndpoint = "deletion_time"
 )
 
+const (
+	// Container Mount Path
+	RunnerEmptyDirPath = "/var/actions"
+)
+
 // Environment variables
 const (
 	// PodNameEnvName is a env field key for POD_NAME.

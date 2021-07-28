@@ -14,7 +14,7 @@ ENTRYPOINT ["github-actions-controller"]
 
 FROM quay.io/cybozu/ubuntu:20.04 as runner
 
-ARG RUNNER_VERSION=2.277.1
+ARG RUNNER_VERSION=2.278.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y \

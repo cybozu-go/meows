@@ -1,4 +1,4 @@
 #!/bin/sh
 
-touch /tmp/failure
-touch /tmp/extend
+touch /var/actions/failure
+touch /var/actions/extend

@@ -187,7 +187,15 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		d.Spec.Replicas = pointer.Int32Ptr(rp.Spec.Replicas)
 		d.Spec.Template.Spec.ServiceAccountName = rp.Spec.Template.ServiceAccountName
 		d.Spec.Template.Spec.ImagePullSecrets = rp.Spec.Template.ImagePullSecrets
-		d.Spec.Template.Spec.Volumes = rp.Spec.Template.Volumes
+
+		actionsDir := "actions-directory"
+		volumes := append(rp.Spec.Template.Volumes, corev1.Volume{
+			Name: actionsDir,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
+		d.Spec.Template.Spec.Volumes = volumes
 
 		r.addRunnerContainerIfNotExists(d)
 		runnerContainer := r.findRunnerContainer(d)
@@ -204,7 +212,12 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		runnerContainer.SecurityContext = rp.Spec.Template.SecurityContext
 		runnerContainer.Resources = rp.Spec.Template.Resources
 		runnerContainer.Ports = r.makeRunnerContainerPorts()
-		runnerContainer.VolumeMounts = rp.Spec.Template.VolumeMounts
+
+		volumeMounts := append(rp.Spec.Template.VolumeMounts, corev1.VolumeMount{
+			Name:      actionsDir,
+			MountPath: constants.RunnerEmptyDirPath,
+		})
+		runnerContainer.VolumeMounts = volumeMounts
 
 		env, err := r.makeRunnerContainerEnv(rp)
 		if err != nil {
