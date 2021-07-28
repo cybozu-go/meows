@@ -25,6 +25,10 @@ type clientImpl struct {
 	client http.Client
 }
 
+func NewClient() Client {
+	return &clientImpl{}
+}
+
 func (c *clientImpl) GetDeletionTime(ctx context.Context, ip string) (time.Time, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getDeletionTimeURL(ip), nil)
 	if err != nil {
@@ -83,6 +87,26 @@ func getDeletionTimeURL(ip string) string {
 	return fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerListenPort, constants.DeletionTimeEndpoint)
 }
 
-func NewClient() Client {
-	return &clientImpl{}
+// FakeClient is a fake client
+type FakeClient struct {
+	deletionTimes map[string]time.Time
+}
+
+func NewFakeClient() *FakeClient {
+	return &FakeClient{
+		deletionTimes: map[string]time.Time{},
+	}
+}
+
+func (c *FakeClient) GetDeletionTime(ctx context.Context, ip string) (time.Time, error) {
+	return c.deletionTimes[ip], nil
+}
+
+func (c *FakeClient) PutDeletionTime(ctx context.Context, ip string, tm time.Time) error {
+	c.deletionTimes[ip] = tm
+	return nil
+}
+
+func (c *FakeClient) SetDeletionTimes(ip string, tm time.Time) {
+	c.deletionTimes[ip] = tm
 }

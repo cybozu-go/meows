@@ -1,8 +1,8 @@
 Runner Pod API
 ==============
 
-* [`GET /deletion_time`](#get-deletion_time)
-* [`PUT /deletion_time`](#put-deletion_time)
+- [`GET /deletion_time`](#get-deletion_time)
+- [`PUT /deletion_time`](#put-deletion_time)
 
 ## `GET /deletion_time`
 
@@ -13,8 +13,7 @@ type `Time` of Go(`0001-01-01T00:00:00Z`) (cf. [Time.IsZero](https://golang.org/
 When the state is `debugging` or a time is set by the [`PUT /deletion_time`](#put-deletion_time),
 it returns a non-zero time.
 
-If the deletion time returned by this API has passed,
-the `Pod` sweeper will delete the pod.
+If the deletion time returned by this API has passed, a controller manager will delete the pod.
 
 **Successful response**
 

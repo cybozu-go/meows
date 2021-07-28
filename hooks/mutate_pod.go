@@ -24,7 +24,7 @@ type PodMutator struct {
 	log       logr.Logger
 	decoder   *admission.Decoder
 
-	githubClient github.RegistrationTokenGenerator
+	githubClient github.Client
 }
 
 // NewPodMutator creates a mutating webhook for Pods.
@@ -32,7 +32,7 @@ func NewPodMutator(
 	k8sClient client.Client,
 	log logr.Logger,
 	decoder *admission.Decoder,
-	githubClient github.RegistrationTokenGenerator,
+	githubClient github.Client,
 ) http.Handler {
 	return &webhook.Admission{
 		Handler: PodMutator{

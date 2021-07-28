@@ -16,11 +16,29 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+type runnerManagerMock struct {
+	started map[string]bool
+}
+
+func newRunnerManagerMock() *runnerManagerMock {
+	return &runnerManagerMock{
+		started: map[string]bool{},
+	}
+}
+
+func (m *runnerManagerMock) StartOrUpdate(rp *actionsv1alpha1.RunnerPool) {
+	rpNamespacedName := rp.Namespace + "/" + rp.Name
+	m.started[rpNamespacedName] = true
+}
+
+func (m *runnerManagerMock) Stop(rpNamespacedName string) {
+	delete(m.started, rpNamespacedName)
+}
 
 var _ = Describe("RunnerPool reconciler", func() {
 	organizationName := "runnerpool-org"
@@ -31,6 +49,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 	defaultRunnerImage := "sample:latest"
 	serviceAccountName := "customized-sa"
 	wait := 10 * time.Second
+	mockManager := newRunnerManagerMock()
 
 	ctx := context.Background()
 	var mgrCtx context.Context
@@ -51,6 +70,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			repositoryNames,
 			organizationName,
 			defaultRunnerImage,
+			RunnerManager(mockManager),
 		)
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
@@ -75,7 +95,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	It("should create Deployment from minimal RunnerPool", func() {
 		By("deploying RunnerPool resource")
-		rp := makeRunnerPoolTemplate(runnerPoolName, namespace, repositoryNames[0])
+		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[0])
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		By("wating the RunnerPool become Bound")
@@ -183,6 +203,9 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"VolumeMounts": BeEmpty(),
 		}))
 
+		By("checking a manager is started")
+		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
+
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
@@ -191,11 +214,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: deploymentName, Namespace: namespace}, &appsv1.Deployment{})
 			return apierrors.IsNotFound(err)
 		}).Should(BeTrue())
+
+		By("checking a manager is stopped")
+		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 	})
 
 	It("should create Deployment from maximum RunnerPool", func() {
 		By("deploying RunnerPool resource")
-		rp := makeRunnerPoolTemplate(runnerPoolName, namespace, repositoryNames[1])
+		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[1])
 		rp.Spec.Replicas = 3
 		rp.Spec.SetupCommand = []string{"command", "arg1", "args2"}
 		rp.Spec.SlackAgent.ServiceName = "slack-agent"
@@ -343,6 +369,9 @@ var _ = Describe("RunnerPool reconciler", func() {
 			}),
 		}))
 
+		By("checking a manager is started")
+		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
+
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
@@ -351,11 +380,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: deploymentName, Namespace: namespace}, &appsv1.Deployment{})
 			return apierrors.IsNotFound(err)
 		}).Should(BeTrue())
+
+		By("checking a manager is stopped")
+		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 	})
 
 	It("should not create Deployment with an invalid repository name", func() {
 		By("deploying RunnerPool resource")
-		rp := makeRunnerPoolTemplate(runnerPoolName, namespace, "bad-runnerpool-repo")
+		rp := makeRunnerPool(runnerPoolName, namespace, "bad-runnerpool-repo")
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		By("confirming the Deployment is not created")
@@ -363,32 +395,10 @@ var _ = Describe("RunnerPool reconciler", func() {
 			return k8sClient.Get(ctx, types.NamespacedName{Name: deploymentName, Namespace: namespace}, &appsv1.Deployment{})
 		}).ShouldNot(Succeed())
 
+		By("checking a manager is not started")
+		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
+
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 	})
 })
-
-func makeRunnerPoolTemplate(name, namespace, repoName string) *actionsv1alpha1.RunnerPool {
-	return &actionsv1alpha1.RunnerPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			// Add a finalizer manually, because a webhook is not working in this test.
-			Finalizers: []string{constants.RunnerPoolFinalizer},
-		},
-		Spec: actionsv1alpha1.RunnerPoolSpec{
-			RepositoryName: repoName,
-		},
-	}
-}
-
-func deleteRunnerPool(ctx context.Context, name, namespace string) {
-	rp := &actionsv1alpha1.RunnerPool{}
-	rp.Name = name
-	rp.Namespace = namespace
-	ExpectWithOffset(1, k8sClient.Delete(ctx, rp)).To(Succeed())
-	EventuallyWithOffset(1, func() bool {
-		err := k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &actionsv1alpha1.RunnerPool{})
-		return apierrors.IsNotFound(err)
-	}).Should(BeTrue())
-}
