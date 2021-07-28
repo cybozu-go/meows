@@ -239,13 +239,13 @@ func (m *managerLoop) updateMetrics(ctx context.Context, podList *corev1.PodList
 
 	// Sometimes, offline runners will be deleted from github automatically.
 	// Therefore, compare the past runners with the current runners and remove the metrics for the deleted runners.
-	for _, removedRunnerName := range removed(m.prevRunnerNames, currentRunnerNames) {
+	for _, removedRunnerName := range difference(m.prevRunnerNames, currentRunnerNames) {
 		metrics.DeleteRunnerMetrics(m.rpNamespacedName(), removedRunnerName)
 	}
 	m.prevRunnerNames = currentRunnerNames
 }
 
-func removed(prev, current []string) []string {
+func difference(prev, current []string) []string {
 	set := map[string]bool{}
 	for _, val := range current {
 		set[val] = true
