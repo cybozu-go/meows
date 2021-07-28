@@ -20,7 +20,7 @@ import (
 var _ = Describe("Runner", func() {
 	actionsDir := filepath.Join("..", "tmp", "actions")
 	startedFlagFile := filepath.Join(actionsDir, "started")
-	executerMock := newExecuterMock()
+	listenerMock := newlistenerMock()
 	runnerClient := client.NewClient()
 	var r *Runner
 	var ctx context.Context
@@ -42,7 +42,7 @@ var _ = Describe("Runner", func() {
 		os.Setenv(constants.RunnerOptionEnvName, "{}")
 		r, err = NewRunner(fmt.Sprintf(":%d", constants.RunnerListenPort))
 		Expect(err).ToNot(HaveOccurred())
-		r.executer = executerMock
+		r.listener = listenerMock
 		r.envs.startedFlagFile = startedFlagFile
 		r.envs.workDir = filepath.Join(actionsDir, "_work")
 		reg := prometheus.NewRegistry()
@@ -115,18 +115,18 @@ func TestRunner(t *testing.T) {
 	RunSpecs(t, "Runner Suite")
 }
 
-type ExecuterMock struct {
+type listenerMock struct {
 }
 
-func (e *ExecuterMock) RunConfigure(ctx context.Context, configArgs []string) error {
+func (e *listenerMock) configure(ctx context.Context, configArgs []string) error {
 	return nil
 }
 
-func (e *ExecuterMock) RunService(ctx context.Context) error {
+func (e *listenerMock) listen(ctx context.Context) error {
 	<-ctx.Done()
 	return nil
 }
 
-func newExecuterMock() Executer {
-	return &ExecuterMock{}
+func newlistenerMock() listener {
+	return &listenerMock{}
 }

@@ -21,7 +21,7 @@ import (
 type Runner struct {
 	envs         *environments
 	listenAddr   string
-	executer     Executer
+	listener     listener
 	deletionTime atomic.Value
 }
 
@@ -34,7 +34,7 @@ func NewRunner(listenAddr string) (*Runner, error) {
 	r := Runner{
 		envs:       envs,
 		listenAddr: listenAddr,
-		executer:   NewExecuter(envs.runnerDir, envs.configCommand, envs.listenerCommand),
+		listener:   newListener(envs.runnerDir, envs.configCommand, envs.listenerCommand),
 	}
 
 	r.deletionTime.Store(time.Time{})
@@ -97,12 +97,12 @@ func (r *Runner) runListener(ctx context.Context) error {
 		"--token", r.envs.runnerToken,
 		"--work", r.envs.workDir,
 	}
-	if err := r.executer.RunConfigure(ctx, configArgs); err != nil {
+	if err := r.listener.configure(ctx, configArgs); err != nil {
 		return err
 	}
 
 	metrics.UpdateRunnerPodState(metrics.Running)
-	if err := r.executer.RunService(ctx); err != nil {
+	if err := r.listener.listen(ctx); err != nil {
 		return err
 	}
 

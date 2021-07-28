@@ -9,31 +9,31 @@ import (
 	"github.com/cybozu-go/github-actions-controller/metrics"
 )
 
-type Executer interface {
-	RunConfigure(ctx context.Context, configArgs []string) error
-	RunService(ctx context.Context) error
+type listener interface {
+	configure(ctx context.Context, configArgs []string) error
+	listen(ctx context.Context) error
 }
 
-type ExecuterImpl struct {
+type listenerImpl struct {
 	runnerDir       string
 	configCommand   string
 	listenerCommand string
 }
 
-func NewExecuter(runnerDir, configCommand, listenerCommand string) Executer {
-	return &ExecuterImpl{
+func newListener(runnerDir, configCommand, listenerCommand string) listener {
+	return &listenerImpl{
 		runnerDir:       runnerDir,
 		configCommand:   configCommand,
 		listenerCommand: listenerCommand,
 	}
 }
 
-func (e *ExecuterImpl) RunConfigure(ctx context.Context, configArgs []string) error {
+func (e *listenerImpl) configure(ctx context.Context, configArgs []string) error {
 	_, err := runCommand(ctx, e.runnerDir, e.configCommand, configArgs...)
 	return err
 }
 
-func (e *ExecuterImpl) RunService(ctx context.Context) error {
+func (e *listenerImpl) listen(ctx context.Context) error {
 	for {
 		code, err := runCommand(ctx, e.runnerDir, e.listenerCommand, "run", "--startuptype", "service", "--once")
 		if _, ok := err.(*exec.ExitError); !ok {
