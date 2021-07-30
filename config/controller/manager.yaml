@@ -3,17 +3,17 @@ kind: Deployment
 metadata:
   name: controller-manager
   namespace: system
-  labels:
-    app.kubernetesl.io/component: actions-controller
 spec:
   selector:
     matchLabels:
-      app.kubernetesl.io/component: actions-controller
+      app.kubernetes.io/name: actions
+      app.kubernetes.io/component: controller
   replicas: 1
   template:
     metadata:
       labels:
-        app.kubernetesl.io/component: actions-controller
+        app.kubernetes.io/name: actions
+        app.kubernetes.io/component: controller
     spec:
       securityContext:
         runAsNonRoot: true

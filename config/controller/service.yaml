@@ -9,4 +9,5 @@ spec:
     - port: 443
       targetPort: 9443
   selector:
-    app.kubernetesl.io/component: actions-controller
+    app.kubernetes.io/name: actions
+    app.kubernetes.io/component: controller

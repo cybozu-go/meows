@@ -1,5 +1,8 @@
 namespace: actions-system
 
+commonLabels:
+  app.kubernetes.io/name: actions
+  app.kubernetes.io/component: slack-agent
+
 resources:
 - manifests.yaml
-
