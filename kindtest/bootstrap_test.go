@@ -17,18 +17,22 @@ func testBootstrap() {
 
 	It("create namespaces", func() {
 		createNamespace(controllerNS)
+		kubectlSafe("label", "ns", controllerNS, "actions.cybozu.com/pod-mutate=ignore")
 		createNamespace(runner1NS)
 		kubectlSafe("label", "ns", runner1NS, "runner-test=true")
-		kubectlSafe("label", "ns", runner1NS, "actions.cybozu.com/pod-mutate=true")
-		kubectlSafe("label", "ns", runner1NS, "actions.cybozu.com/runnerpool-validate=true")
 		createNamespace(runner2NS)
 		kubectlSafe("label", "ns", runner2NS, "runner-test=true")
-		kubectlSafe("label", "ns", runner2NS, "actions.cybozu.com/pod-mutate=true")
-		kubectlSafe("label", "ns", runner2NS, "actions.cybozu.com/runnerpool-validate=true")
+	})
+
+	It("should deploy CRD", func() {
+		By("applying manifests")
+		stdout, stderr, err := kustomizeBuild("../config/crd")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		kubectlSafeWithInput(stdout, "apply", "-f", "-")
 	})
 
 	It("should deploy controller successfully", func() {
-		By("creating namespace and secret for controller")
+		By("creating secret for controller")
 		kubectlSafe("create", "secret", "generic", "github-app-secret",
 			"-n", controllerNS,
 			"--from-literal=app-id="+githubAppID,
@@ -36,7 +40,7 @@ func testBootstrap() {
 			"--from-file=app-private-key="+githubAppPrivateKeyPath,
 		)
 
-		By("apply manifests")
+		By("applying manifests")
 		stdout, stderr, err := kustomizeBuild("./manifests/controller")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 		kubectlSafeWithInput(stdout, "apply", "-f", "-")
@@ -48,7 +52,7 @@ func testBootstrap() {
 	})
 
 	It("should deploy slack-agent successfully", func() {
-		By("creating namespace and secret for slack-agent")
+		By("creating secret for slack-agent")
 		kubectlSafe("create", "secret", "generic", "slack-app-secret",
 			"-n", controllerNS,
 			"--from-literal=SLACK_CHANNEL="+slackChannel,
@@ -56,7 +60,7 @@ func testBootstrap() {
 			"--from-literal=SLACK_BOT_TOKEN="+slackBotToken,
 		)
 
-		By("apply manifests")
+		By("applying manifests")
 		stdout, stderr, err := kustomizeBuild("./manifests/slack-agent")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 		kubectlSafeWithInput(stdout, "apply", "-n", controllerNS, "-f", "-")

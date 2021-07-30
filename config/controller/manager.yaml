@@ -39,6 +39,10 @@ spec:
                 key: app-installation-id
         securityContext:
           allowPrivilegeEscalation: false
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
         livenessProbe:
           httpGet:
             path: /healthz
@@ -52,15 +56,15 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
           requests:
             cpu: 100m
             memory: 20Mi
         volumeMounts:
           - name: github-app
             mountPath: "/etc/github"
+            readOnly: true
+          - name: cert
+            mountPath: /tmp/k8s-webhook-server/serving-certs
             readOnly: true
       terminationGracePeriodSeconds: 10
       volumes:
@@ -70,3 +74,7 @@ spec:
             items:
               - key: app-private-key
                 path: app.pem
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: webhook-server-cert
