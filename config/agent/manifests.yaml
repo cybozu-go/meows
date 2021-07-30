@@ -34,6 +34,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: slack-agent
+  namespace: system
 spec:
   replicas: 2
   selector:
@@ -62,6 +63,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: slack-agent
+  namespace: system
   labels:
     app: slack-agent
 spec:

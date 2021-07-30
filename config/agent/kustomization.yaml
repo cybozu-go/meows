@@ -1,3 +1,5 @@
+namespace: actions-system
+
 resources:
 - manifests.yaml
 
