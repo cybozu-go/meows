@@ -1,16 +1,23 @@
-# permissions for end users to view runnerpools.
+# permissions for end users to edit runnerpools.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: runnerpool-viewer-role
+  name: runnerpool-editor-role
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
 rules:
 - apiGroups:
   - actions.cybozu.com
   resources:
   - runnerpools
   verbs:
+  - create
+  - delete
+  - deletecollection
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - actions.cybozu.com

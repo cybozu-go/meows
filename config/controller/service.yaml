@@ -9,4 +9,5 @@ spec:
     - port: 443
       targetPort: 9443
   selector:
-    control-plane: controller-manager
+    app.kubernetes.io/name: actions
+    app.kubernetes.io/component: controller

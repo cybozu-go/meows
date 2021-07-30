@@ -1,3 +1,12 @@
+namespace: actions-system
+
+images:
+- name: quay.io/cybozu/actions-controller
+  newTag: 0.2.0-rc.4
+
+commonLabels:
+  app.kubernetes.io/name: actions
+  app.kubernetes.io/component: slack-agent
+
 resources:
 - manifests.yaml
-

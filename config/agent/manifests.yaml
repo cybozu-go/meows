@@ -38,15 +38,17 @@ spec:
   replicas: 2
   selector:
     matchLabels:
-      app: slack-agent
+      app.kubernetes.io/name: actions
+      app.kubernetes.io/component: slack-agent
   template:
     metadata:
       labels:
-        app: slack-agent
+        app.kubernetes.io/name: actions
+        app.kubernetes.io/component: slack-agent
     spec:
       containers:
       - name: agent
-        image: actions-controller:latest
+        image: quay.io/cybozu/actions-controller:latest
         command:
           - "slack-agent"
         envFrom:
@@ -62,12 +64,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: slack-agent
-  labels:
-    app: slack-agent
 spec:
   ports:
     - name: notifier
       port: 80
       targetPort: notifier
   selector:
-    app: slack-agent
+    app.kubernetes.io/name: actions
+    app.kubernetes.io/component: slack-agent

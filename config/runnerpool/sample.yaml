@@ -8,4 +8,4 @@ spec:
   slackAgent:
     serviceName: slack-agent
   template:
-    image: actions-runner:latest
+    image: quay.io/cybozu/actions-runner:latest
