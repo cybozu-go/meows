@@ -2,14 +2,19 @@ package controllers
 
 import (
 	"context"
+	"net/http"
 	"sort"
 	"time"
 
 	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
 	"github.com/cybozu-go/github-actions-controller/github"
+	"github.com/cybozu-go/github-actions-controller/metrics"
 	rc "github.com/cybozu-go/github-actions-controller/runner/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
+	gomegatypes "github.com/onsi/gomega/types"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -17,6 +22,8 @@ import (
 
 var _ = Describe("RunnerManager", func() {
 	ctx := context.Background()
+	metricsPort := ":12345"
+	metricsURL := "http://localhost" + metricsPort
 
 	It("should create namespace", func() {
 		createNamespaces(ctx, "test-ns1", "test-ns2")
@@ -179,4 +186,389 @@ var _ = Describe("RunnerManager", func() {
 			time.Sleep(500 * time.Millisecond)
 		}
 	})
+
+	It("should expose metrics about runnerpools", func() {
+		By("preparing fake clients")
+		runnerPodClient := rc.NewFakeClient()
+		githubClient := github.NewFakeClient("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+
+		By("starting metrics server")
+		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
+		go func() {
+			server.ListenAndServe()
+		}()
+		defer server.Shutdown(context.Background())
+		time.Sleep(1 * time.Second)
+
+		By("checking metrics are not exposed")
+		MetricsShouldNotExist(metricsURL, "actions_runnerpool_replicas")
+		MetricsShouldNotExist(metricsURL, "actions_runner_online")
+		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+
+		By("creating rp1")
+		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
+		rp1.Spec.Replicas = 1
+		runnerManager.StartOrUpdate(rp1)
+		time.Sleep(2 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+
+		By("updating rp1")
+		rp1.Spec.Replicas = 2
+		runnerManager.StartOrUpdate(rp1)
+		time.Sleep(2 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
+					"Value": BeNumerically("==", 2.0),
+				})),
+			}),
+		)
+
+		By("creating rp2")
+		rp2 := makeRunnerPool("rp2", "test-ns2", "repo1")
+		rp2.Spec.Replicas = 1
+		runnerManager.StartOrUpdate(rp2)
+		time.Sleep(2 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
+					"Value": BeNumerically("==", 2.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns2/rp2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+
+		By("deleting rp1")
+		runnerManager.Stop("test-ns1/rp1")
+		time.Sleep(2 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns2/rp2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+
+		By("deleting rp2")
+		runnerManager.Stop("test-ns2/rp2")
+		time.Sleep(2 * time.Second)
+		MetricsShouldNotExist(metricsURL, "actions_runnerpool_replicas")
+	})
+
+	It("should expose metrics about runners (single runnerpool)", func() {
+		By("preparing fake clients")
+		runnerPodClient := rc.NewFakeClient()
+		githubClient := github.NewFakeClient("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+
+		By("starting metrics server")
+		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
+		go func() {
+			server.ListenAndServe()
+		}()
+		defer server.Shutdown(context.Background())
+		time.Sleep(1 * time.Second)
+
+		By("creating a runnerpool")
+		runnerManager.StartOrUpdate(makeRunnerPool("rp1", "test-ns1", "repo1"))
+		time.Sleep(2 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
+				})),
+			}),
+		)
+		MetricsShouldNotExist(metricsURL, "actions_runner_online")
+		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+
+		By("creating runner pods")
+		dummyPods := []*corev1.Pod{
+			makePod("pod1", "test-ns1", "rp1"),
+			makePod("pod2", "test-ns1", "rp1"),
+		}
+		for _, po := range dummyPods {
+			Expect(k8sClient.Create(ctx, po)).To(Succeed())
+		}
+
+		By("creating runners")
+		runenrs := map[string][]*github.Runner{
+			"repo1": {
+				{Name: "pod1", ID: 1, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
+			},
+		}
+		githubClient.SetRunners(runenrs)
+		time.Sleep(3 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+
+		By("updating runners")
+		runenrs = map[string][]*github.Runner{
+			"repo1": {
+				{Name: "pod1", ID: 1, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod2", ID: 2, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod3", ID: 3, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}}, // metrics should not exist. "Offline" AND "Runner pod is not exist".
+			},
+		}
+		githubClient.SetRunners(runenrs)
+		time.Sleep(3 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+
+		By("deleting runnerpool")
+		runnerManager.Stop("test-ns1/rp1")
+		time.Sleep(2 * time.Second)
+		MetricsShouldNotExist(metricsURL, "actions_runnerpool_replicas")
+		MetricsShouldNotExist(metricsURL, "actions_runner_online")
+		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+
+		By("tearing down")
+		for _, po := range dummyPods {
+			Expect(k8sClient.Delete(ctx, po)).To(Succeed())
+		}
+	})
+
+	It("should expose metrics about runners (some runnerpools)", func() {
+		By("preparing fake clients")
+		runnerPodClient := rc.NewFakeClient()
+		githubClient := github.NewFakeClient("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+
+		By("starting metrics server")
+		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
+		go func() {
+			server.ListenAndServe()
+		}()
+		defer server.Shutdown(context.Background())
+		time.Sleep(1 * time.Second)
+
+		By("creating runnerpools")
+		runnerManager.StartOrUpdate(makeRunnerPool("rp1", "test-ns1", "repo1"))
+		runnerManager.StartOrUpdate(makeRunnerPool("rp2", "test-ns1", "repo1"))
+		runnerManager.StartOrUpdate(makeRunnerPool("rp3", "test-ns2", "repo2"))
+		time.Sleep(2 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
+				})),
+				"1": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2")}),
+				})),
+				"2": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns2/rp3")}),
+				})),
+			}),
+		)
+		MetricsShouldNotExist(metricsURL, "actions_runner_online")
+		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+
+		By("creating runners")
+		runenrs := map[string][]*github.Runner{
+			"repo1": {
+				{Name: "pod1", ID: 1, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod2", ID: 2, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp2"}},
+			},
+			"repo2": {
+				{Name: "pod4", ID: 4, Online: true, Busy: true, Labels: []string{"test-ns2/rp3"}},
+				{Name: "pod5", ID: 5, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}}, // metrics should not exist.
+				{Name: "pod6", ID: 6, Online: true, Busy: true, Labels: []string{}},               // metrics should not exist.
+			},
+		}
+		githubClient.SetRunners(runenrs)
+		time.Sleep(3 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns2/rp3"), "runner": Equal("pod4")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns2/rp3"), "runner": Equal("pod4")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+
+		By("updating runners")
+		runenrs = map[string][]*github.Runner{
+			"repo1": {
+				{Name: "pod1", ID: 1, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod3", ID: 3, Online: true, Busy: true, Labels: []string{"test-ns1/rp2"}},
+			},
+		}
+		githubClient.SetRunners(runenrs)
+		time.Sleep(3 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+
+		By("deleting runnerpool (1)")
+		runnerManager.Stop("test-ns1/rp1")
+		time.Sleep(3 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2")}),
+				})),
+				"1": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns2/rp3")}),
+				})),
+			}),
+		)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+	})
 })
+
+func MetricsShouldNotExist(url, name string) {
+	_, err := metrics.FetchGauge(context.Background(), url, name)
+	ExpectWithOffset(1, err).Should(MatchError(metrics.ErrNotExist))
+}
+
+func MetricsShouldHaveValue(url, name string, matcher gomegatypes.GomegaMatcher) {
+	m, err := metrics.FetchGauge(context.Background(), url, name)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+	ExpectWithOffset(1, m).To(matcher)
+}
