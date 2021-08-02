@@ -49,7 +49,9 @@ clean: ## Clean files
 
 .PHONY: manifests
 manifests:
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook crd paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) crd paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) webhook paths="./..." output:stdout > config/controller/webhook.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:rbac:artifacts:config=config/controller
 
 .PHONY: generate
 generate:

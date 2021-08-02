@@ -14,7 +14,7 @@ Here are the minimal changes from the default setting on the registration page:
 - Fill **GitHub Apps Name**
 - Fill **Homepage URL**
 - Uncheck `Active` under **Webhook** section
-- Set **Administration** `Read & Write` permission to the repository scope
+- Set **Actions** and **Administration** `Read & Write` permission to the repository scope
 
 Then, you are redirected to the **General** page and what you should do is:
 
@@ -119,8 +119,9 @@ metadata:
   name: runnerpool-sample
 spec:
   repositoryName: repository-sample
-  slackAgentServiceName: slack-agent
   replicas: 3
+  slackAgent:
+    serviceName: slack-agent
   template:
     image: quay.io/cybozu/actions-runner:latest
 ```
@@ -138,8 +139,8 @@ The controller is mainly responsible for:
 
 You are responsible for:
 
-- `slackAgentServiceName` is a `Service` name that can be resolved inside a
-  Kubernetes cluster, so a `Service` name is acceptable. If `slackAgentServiceName`
+- `spec/slackAgent/serviceName` is a `Service` name that can be resolved inside a
+  Kubernetes cluster, so a `Service` name is acceptable. If `spec/slackAgent/serviceName`
   is omitted, the `Pod`s do not send notifications to Slack.
 
 After running `Pod`s, you can check if the runners are actually registered to

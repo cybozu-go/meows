@@ -41,15 +41,21 @@ Bump version
     ```
 
 3. Edit `CHANGELOG.md` for the new version ([example][]).
-4. Commit the change and push it.
+4. Bump image version.
+
+    ```console
+    $ sed -i -E "s/newTag:.*/newTag: ${VERSION}/" config/controller/kustomization.yaml config/agent/kustomization.yaml
+    ```
+
+5. Commit the change and push it.
 
     ```console
     $ git commit -a -m "Bump version to $VERSION"
     $ git neco review
     ```
 
-5. Merge this branch.
-6. Add a git tag to the main HEAD, then push it.
+6. Merge this branch.
+7. Add a git tag to the main HEAD, then push it.
 
     ```console
     $ git checkout main

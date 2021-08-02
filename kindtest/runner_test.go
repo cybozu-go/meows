@@ -99,7 +99,7 @@ func testRunner() {
 			stdout, stderr, err := execAtLocal(
 				"sh", nil,
 				"-c", fmt.Sprintf(
-					"kubectl logs -n %s -l app=slack-agent | grep \"success to send slack message\" | grep -q %s",
+					"kubectl logs -n %s -l app.kubernetes.io/component=slack-agent | grep \"success to send slack message\" | grep -q %s",
 					controllerNS, delPodNames[0],
 				),
 			)
