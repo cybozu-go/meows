@@ -145,7 +145,7 @@ You are responsible for:
 
 After running `Pod`s, you can check if the runners are actually registered to
 GitHub on the **Actions** page under each repository's **Settings**
-(e.g. https://github.com/cybozu-go/github-actions-controller/settings/actions).
+(e.g. https://github.com/cybozu-go/meows/settings/actions).
 
 How to use self-hosted runners
 ------------------------------
