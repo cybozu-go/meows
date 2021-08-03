@@ -1,4 +1,4 @@
 #!/bin/sh
 
-touch /var/actions/failure
-touch /var/actions/extend
+touch /var/meows/failure
+touch /var/meows/extend

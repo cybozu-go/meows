@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	constants "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/meows"
 )
 
 func runCommand(ctx context.Context, workDir, commandStr string, args ...string) (int, error) {

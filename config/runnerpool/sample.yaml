@@ -1,4 +1,4 @@
-apiVersion: actions.cybozu.com/v1alpha1
+apiVersion: meows.cybozu.com/v1alpha1
 kind: RunnerPool
 metadata:
   name: runnerpool-sample
@@ -8,4 +8,4 @@ spec:
   slackAgent:
     serviceName: slack-agent
   template:
-    image: quay.io/cybozu/actions-runner:latest
+    image: quay.io/cybozu/meows-runner:latest

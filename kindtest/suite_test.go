@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	controllerNS = "actions-system"
+	controllerNS = "meows"
 	numRunners   = 3
 	orgName      = "neco-test"
 	repoName     = "github-actions-controller-ci"
@@ -88,7 +88,7 @@ var _ = BeforeSuite(func() {
 	pushWorkflowFile("blank.yaml", "", "")
 })
 
-var _ = Describe("github-actions-controller", func() {
+var _ = Describe("meows", func() {
 	Context("bootstrap", testBootstrap)
 	Context("runner", testRunner)
 })

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cybozu-go/github-actions-controller/runner/client"
+	"github.com/cybozu-go/meows/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
 	"github.com/slack-go/slack"

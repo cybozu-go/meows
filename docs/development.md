@@ -112,7 +112,7 @@ $ go run ./cmd/slack-agent-client pod failure --extend
 Then, click the button on the Slack message, and check if a receiving log appears
 on the terminal.
 
-How to run GitHub Actions controller for development
+How to run meows for development
 ----------------------------------------------------
 
 If you need to run the controller on your local environment, this is the easiest way to do that.

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/meows"
 )
 
 type DeletionTimePayload struct {

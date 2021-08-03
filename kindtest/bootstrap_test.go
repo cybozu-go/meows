@@ -17,7 +17,7 @@ func testBootstrap() {
 
 	It("create namespaces", func() {
 		createNamespace(controllerNS)
-		kubectlSafe("label", "ns", controllerNS, "actions.cybozu.com/pod-mutate=ignore")
+		kubectlSafe("label", "ns", controllerNS, "meows.cybozu.com/pod-mutate=ignore")
 		createNamespace(runner1NS)
 		kubectlSafe("label", "ns", runner1NS, "runner-test=true")
 		createNamespace(runner2NS)

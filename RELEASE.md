@@ -1,7 +1,7 @@
 Release procedure
 =================
 
-This document describes how to release a new version of github-actions-controller.
+This document describes how to release a new version of meows.
 
 Versioning
 ----------

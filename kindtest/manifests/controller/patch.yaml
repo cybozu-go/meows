@@ -2,14 +2,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller-manager
-  namespace: actions-system
+  namespace: meows
 spec:
   replicas: 2
   template:
     spec:
       containers:
       - name: manager
-        image: actions-controller:kindtest
+        image: meows-controller:kindtest
         imagePullPolicy: Never
         args:
         - "--organization-name=neco-test"

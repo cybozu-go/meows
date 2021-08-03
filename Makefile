@@ -59,7 +59,7 @@ generate:
 
 .PHONY: build
 build: generate ## Build all binaries.
-	go build -o $(BIN_DIR)/github-actions-controller -trimpath ./cmd/controller
+	go build -o $(BIN_DIR)/ -trimpath ./cmd/controller
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/entrypoint
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/job-started
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/slack-agent
@@ -67,18 +67,18 @@ build: generate ## Build all binaries.
 
 .PHONY: image
 image: ## Build container images.
-	docker build --target controller -t actions-controller:devel .
-	docker build --target runner -t actions-runner:devel .
+	docker build --target controller -t meows-controller:devel .
+	docker build --target runner -t meows-runner:devel .
 
 .PHONY: tag
 tag: ## Tag container images.
-	docker tag actions-controller:devel $(IMAGE_PREFIX)actions-controller:$(IMAGE_TAG)
-	docker tag actions-runner:devel $(IMAGE_PREFIX)actions-runner:$(IMAGE_TAG)
+	docker tag meows-controller:devel $(IMAGE_PREFIX)meows-controller:$(IMAGE_TAG)
+	docker tag meows-runner:devel $(IMAGE_PREFIX)meows-runner:$(IMAGE_TAG)
 
 .PHONY: push
 push: ## Push container images.
-	docker push $(IMAGE_PREFIX)actions-controller:$(IMAGE_TAG)
-	docker push $(IMAGE_PREFIX)actions-runner:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX)meows-controller:$(IMAGE_TAG)
+	docker push $(IMAGE_PREFIX)meows-runner:$(IMAGE_TAG)
 
 ##@ Test
 

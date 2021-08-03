@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-const defaultRunnerImage = "quay.io/cybozu/actions-runner:latest"
+const defaultRunnerImage = "quay.io/cybozu/meows-runner:latest"
 
 var config struct {
 	zapOpts zap.Options
@@ -32,7 +32,7 @@ var config struct {
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "GitHub Actions controller",
+	Use:   "controller",
 	Short: "Kubernetes controller for GitHub Actions self-hosted runner",
 	Long:  `Kubernetes controller for GitHub Actions self-hosted runner`,
 	RunE: func(cmd *cobra.Command, args []string) error {

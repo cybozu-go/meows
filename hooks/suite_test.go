@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cybozu-go/github-actions-controller/github"
+	"github.com/cybozu-go/meows/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -90,7 +90,7 @@ var _ = BeforeSuite(func() {
 	wh := mgr.GetWebhookServer()
 	wh.Register("/pod/mutate", NewPodMutator(
 		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-pod-mutator"),
+		ctrl.Log.WithName("meows-token-pod-mutator"),
 		dec,
 		github.NewFakeClient(organizationName),
 	))

@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/cybozu-go/github-actions-controller/metrics"
+	"github.com/cybozu-go/meows/metrics"
 )
 
 type listener interface {

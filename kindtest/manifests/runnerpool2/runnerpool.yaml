@@ -1,4 +1,4 @@
-apiVersion: actions.cybozu.com/v1alpha1
+apiVersion: meows.cybozu.com/v1alpha1
 kind: RunnerPool
 metadata:
   name: runnerpool2
@@ -10,10 +10,10 @@ spec:
   - "-c"
   - "date > /tmp/test"
   slackAgent:
-    serviceName: slack-agent.actions-system.svc
+    serviceName: slack-agent.meows.svc
     channel: "#test2"
   template:
-    image: actions-runner:kindtest
+    image: meows-runner:kindtest
     imagePullPolicy: Never
     env:
     - name: EXTEND_DURATION

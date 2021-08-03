@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cybozu-go/github-actions-controller/agent"
+	"github.com/cybozu-go/meows/agent"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/zapr"
 	"github.com/spf13/cobra"

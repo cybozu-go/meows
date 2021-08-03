@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	metricsNamespace    = "actions"
+	metricsNamespace    = "meows"
 	controllerSubsystem = "controller"
 	runnerPoolSubsystem = "runnerpool"
 	runnerSubsystem     = "runner"

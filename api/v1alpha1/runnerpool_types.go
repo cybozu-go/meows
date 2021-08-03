@@ -1,12 +1,12 @@
-// Package v1alpha1 contains API Schema definitions for the actions v1alpha1 API group
+// Package v1alpha1 contains API Schema definitions for the meows v1alpha1 API group
 //+kubebuilder:object:generate=true
-//+groupName=actions.cybozu.com
+//+groupName=meows.cybozu.com
 package v1alpha1
 
 import (
 	"fmt"
 
-	constants "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/meows"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"

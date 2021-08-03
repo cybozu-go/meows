@@ -1,11 +1,11 @@
-namespace: actions-system
+namespace: meows
 
 images:
-- name: quay.io/cybozu/actions-controller
+- name: quay.io/cybozu/meows-controller
   newTag: 0.2.0-rc.4
 
 commonLabels:
-  app.kubernetes.io/name: actions
+  app.kubernetes.io/name: meows
   app.kubernetes.io/component: controller
 
 resources:

@@ -6,10 +6,10 @@ import (
 	"sort"
 	"time"
 
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/github"
-	"github.com/cybozu-go/github-actions-controller/metrics"
-	rc "github.com/cybozu-go/github-actions-controller/runner/client"
+	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/github"
+	"github.com/cybozu-go/meows/metrics"
+	rc "github.com/cybozu-go/meows/runner/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -37,7 +37,7 @@ var _ = Describe("RunnerManager", func() {
 		}
 		testCases := []struct {
 			name                string
-			inputRunnerPools    []*actionsv1alpha1.RunnerPool
+			inputRunnerPools    []*meowsv1alpha1.RunnerPool
 			inputPods           []*inputPod
 			inputRunners        map[string][]*github.Runner // key: "<Repository name>"
 			expectedPodNames    []string                    // slice of "<Namespace>/<Pod name>"
@@ -45,7 +45,7 @@ var _ = Describe("RunnerManager", func() {
 		}{
 			{
 				name: "delete pods",
-				inputRunnerPools: []*actionsv1alpha1.RunnerPool{
+				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
 					makeRunnerPool("rp1", "test-ns1", "repo1"),
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
 				},
@@ -58,7 +58,7 @@ var _ = Describe("RunnerManager", func() {
 			},
 			{
 				name: "should not delete pods",
-				inputRunnerPools: []*actionsv1alpha1.RunnerPool{
+				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
 					makeRunnerPool("rp1", "test-ns1", "repo1"),
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
 				},
@@ -77,7 +77,7 @@ var _ = Describe("RunnerManager", func() {
 			},
 			{
 				name: "delete runners",
-				inputRunnerPools: []*actionsv1alpha1.RunnerPool{
+				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
 					makeRunnerPool("rp1", "test-ns1", "repo1"),
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
 				},
@@ -94,7 +94,7 @@ var _ = Describe("RunnerManager", func() {
 			},
 			{
 				name: "should not delete runners",
-				inputRunnerPools: []*actionsv1alpha1.RunnerPool{
+				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
 					makeRunnerPool("rp1", "test-ns1", "repo1"),
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
 				},
@@ -202,16 +202,16 @@ var _ = Describe("RunnerManager", func() {
 		time.Sleep(1 * time.Second)
 
 		By("checking metrics are not exposed")
-		MetricsShouldNotExist(metricsURL, "actions_runnerpool_replicas")
-		MetricsShouldNotExist(metricsURL, "actions_runner_online")
-		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
+		MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 
 		By("creating rp1")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp1.Spec.Replicas = 1
 		runnerManager.StartOrUpdate(rp1)
 		time.Sleep(2 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
@@ -224,7 +224,7 @@ var _ = Describe("RunnerManager", func() {
 		rp1.Spec.Replicas = 2
 		runnerManager.StartOrUpdate(rp1)
 		time.Sleep(2 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
@@ -238,7 +238,7 @@ var _ = Describe("RunnerManager", func() {
 		rp2.Spec.Replicas = 1
 		runnerManager.StartOrUpdate(rp2)
 		time.Sleep(2 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
@@ -254,7 +254,7 @@ var _ = Describe("RunnerManager", func() {
 		By("deleting rp1")
 		runnerManager.Stop("test-ns1/rp1")
 		time.Sleep(2 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns2/rp2")}),
@@ -266,7 +266,7 @@ var _ = Describe("RunnerManager", func() {
 		By("deleting rp2")
 		runnerManager.Stop("test-ns2/rp2")
 		time.Sleep(2 * time.Second)
-		MetricsShouldNotExist(metricsURL, "actions_runnerpool_replicas")
+		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 	})
 
 	It("should expose metrics about runners (single runnerpool)", func() {
@@ -286,15 +286,15 @@ var _ = Describe("RunnerManager", func() {
 		By("creating a runnerpool")
 		runnerManager.StartOrUpdate(makeRunnerPool("rp1", "test-ns1", "repo1"))
 		time.Sleep(2 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchFields(IgnoreExtras, Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
 				})),
 			}),
 		)
-		MetricsShouldNotExist(metricsURL, "actions_runner_online")
-		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+		MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 
 		By("creating runner pods")
 		dummyPods := []*corev1.Pod{
@@ -315,7 +315,7 @@ var _ = Describe("RunnerManager", func() {
 		}
 		githubClient.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -331,7 +331,7 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_busy",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -358,7 +358,7 @@ var _ = Describe("RunnerManager", func() {
 		}
 		githubClient.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -370,7 +370,7 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_busy",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -386,9 +386,9 @@ var _ = Describe("RunnerManager", func() {
 		By("deleting runnerpool")
 		runnerManager.Stop("test-ns1/rp1")
 		time.Sleep(2 * time.Second)
-		MetricsShouldNotExist(metricsURL, "actions_runnerpool_replicas")
-		MetricsShouldNotExist(metricsURL, "actions_runner_online")
-		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
+		MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 
 		By("tearing down")
 		for _, po := range dummyPods {
@@ -415,7 +415,7 @@ var _ = Describe("RunnerManager", func() {
 		runnerManager.StartOrUpdate(makeRunnerPool("rp2", "test-ns1", "repo1"))
 		runnerManager.StartOrUpdate(makeRunnerPool("rp3", "test-ns2", "repo2"))
 		time.Sleep(2 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchFields(IgnoreExtras, Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
@@ -428,8 +428,8 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
-		MetricsShouldNotExist(metricsURL, "actions_runner_online")
-		MetricsShouldNotExist(metricsURL, "actions_runner_busy")
+		MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 
 		By("creating runners")
 		runenrs := map[string][]*github.Runner{
@@ -446,7 +446,7 @@ var _ = Describe("RunnerManager", func() {
 		}
 		githubClient.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -466,7 +466,7 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_busy",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -497,7 +497,7 @@ var _ = Describe("RunnerManager", func() {
 		}
 		githubClient.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -513,7 +513,7 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_busy",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
@@ -533,7 +533,7 @@ var _ = Describe("RunnerManager", func() {
 		By("deleting runnerpool (1)")
 		runnerManager.Stop("test-ns1/rp1")
 		time.Sleep(3 * time.Second)
-		MetricsShouldHaveValue(metricsURL, "actions_runnerpool_replicas",
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchFields(IgnoreExtras, Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2")}),
@@ -543,7 +543,7 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_online",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),
@@ -551,7 +551,7 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
-		MetricsShouldHaveValue(metricsURL, "actions_runner_busy",
+		MetricsShouldHaveValue(metricsURL, "meows_runner_busy",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
 					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp2"), "runner": Equal("pod3")}),

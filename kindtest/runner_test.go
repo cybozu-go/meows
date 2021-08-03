@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
+	constants "github.com/cybozu-go/meows"
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
