@@ -13,7 +13,7 @@ spec:
         imagePullPolicy: Never
         args:
         - "--organization-name=neco-test"
-        - "--repository-names=github-actions-controller-ci"
+        - "--repository-names=meows-ci"
         - "--app-id=$(GITHUB_APP_ID)"
         - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
         - "--app-private-key-path=/etc/github/app.pem"

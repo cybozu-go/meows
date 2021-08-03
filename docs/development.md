@@ -18,7 +18,7 @@ difficult to test in some parts and some parts of the code are not tested intent
 What kindtest covers is:
 
 - Runner `Pod`s are registered to GitHub Actions on a test repository.
-    - At present, the test repository is a fixed one (`github.com/neco-test/github-actions-controller-ci`).
+    - At present, the test repository is a fixed one (`github.com/neco-test/meows-ci`).
 - GitHub Actions workflows run on the `Pod`s.
 - Runner `Pod`s send messages to Slack agent.
 - Slack agent sends messages to Slack.

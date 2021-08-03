@@ -3,7 +3,7 @@ kind: RunnerPool
 metadata:
   name: runnerpool2
 spec:
-  repositoryName: github-actions-controller-ci
+  repositoryName: meows-ci
   replicas: 3
   setupCommand:
   - "bash"

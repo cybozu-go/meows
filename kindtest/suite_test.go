@@ -18,7 +18,7 @@ const (
 	controllerNS = "meows"
 	numRunners   = 3
 	orgName      = "neco-test"
-	repoName     = "github-actions-controller-ci"
+	repoName     = "meows-ci"
 )
 
 var (
