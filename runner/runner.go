@@ -25,7 +25,7 @@ type Runner struct {
 	listener   Listener
 
 	// Directory/File Paths
-	rootDir           string
+	runnerDir         string
 	workDir           string
 	startedFlagFile   string
 	extendFlagFile    string
@@ -36,7 +36,7 @@ type Runner struct {
 	deletionTime atomic.Value
 }
 
-func NewRunner(listener Listener, listenAddr, rootDir, workDir, varDir string) (*Runner, error) {
+func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string) (*Runner, error) {
 	envs, err := newRunnerEnvs()
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func NewRunner(listener Listener, listenAddr, rootDir, workDir, varDir string) (
 		envs:              envs,
 		listenAddr:        listenAddr,
 		listener:          listener,
-		rootDir:           rootDir,
+		runnerDir:         runnerDir,
 		workDir:           workDir,
 		startedFlagFile:   filepath.Join(varDir, "started"),
 		extendFlagFile:    filepath.Join(varDir, "extend"),
@@ -97,7 +97,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 	}
 	metrics.UpdateRunnerPodState(metrics.Initializing)
 	if len(r.envs.option.SetupCommand) != 0 {
-		if _, err := runCommand(ctx, r.rootDir, r.envs.option.SetupCommand[0], r.envs.option.SetupCommand[1:]...); err != nil {
+		if _, err := runCommand(ctx, r.runnerDir, r.envs.option.SetupCommand[0], r.envs.option.SetupCommand[1:]...); err != nil {
 			return err
 		}
 	}

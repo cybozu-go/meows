@@ -19,14 +19,14 @@ import (
 )
 
 var (
-	testRootDir = filepath.Join("..", "tmp", "runner")
-	testWorkDir = filepath.Join("..", "tmp", "runner", "_work")
-	testVarDir  = filepath.Join("..", "tmp", "var", "meows")
+	testRunnerDir = filepath.Join("..", "tmp", "runner")
+	testWorkDir   = filepath.Join("..", "tmp", "runner", "_work")
+	testVarDir    = filepath.Join("..", "tmp", "var", "meows")
 )
 
 var _ = Describe("Runner", func() {
 	BeforeEach(func() {
-		Expect(os.MkdirAll(testRootDir, 0755)).To(Succeed())
+		Expect(os.MkdirAll(testRunnerDir, 0755)).To(Succeed())
 		Expect(os.MkdirAll(testWorkDir, 0755)).To(Succeed())
 		Expect(os.MkdirAll(testVarDir, 0755)).To(Succeed())
 
@@ -40,7 +40,7 @@ var _ = Describe("Runner", func() {
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(testRootDir)).To(Succeed())
+		Expect(os.RemoveAll(testRunnerDir)).To(Succeed())
 		Expect(os.RemoveAll(testWorkDir)).To(Succeed())
 		Expect(os.RemoveAll(testVarDir)).To(Succeed())
 		time.Sleep(time.Second)
@@ -260,7 +260,7 @@ var _ = Describe("Runner", func() {
 		defer cancel()
 
 		By("checking outputs")
-		_, err = os.Stat(filepath.Join(testRootDir, "dummy")) // setup command is run at runner root dir.
+		_, err = os.Stat(filepath.Join(testRunnerDir, "dummy")) // setup command is run at runner root dir.
 		Expect(err).ToNot(HaveOccurred())
 
 		flagFileShouldExist("started")
@@ -327,7 +327,7 @@ func (l *listenerMock) listen(ctx context.Context) error {
 }
 
 func startRunner(listener Listener) context.CancelFunc {
-	r, err := NewRunner(listener, fmt.Sprintf(":%d", constants.RunnerListenPort), testRootDir, testWorkDir, testVarDir)
+	r, err := NewRunner(listener, fmt.Sprintf(":%d", constants.RunnerListenPort), testRunnerDir, testWorkDir, testVarDir)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

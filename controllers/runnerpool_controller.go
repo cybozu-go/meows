@@ -188,9 +188,9 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		d.Spec.Template.Spec.ServiceAccountName = rp.Spec.Template.ServiceAccountName
 		d.Spec.Template.Spec.ImagePullSecrets = rp.Spec.Template.ImagePullSecrets
 
-		meowsDir := "meows-directory"
+		varDir := "var-dir"
 		volumes := append(rp.Spec.Template.Volumes, corev1.Volume{
-			Name: meowsDir,
+			Name: varDir,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -214,7 +214,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		runnerContainer.Ports = r.makeRunnerContainerPorts()
 
 		volumeMounts := append(rp.Spec.Template.VolumeMounts, corev1.VolumeMount{
-			Name:      meowsDir,
+			Name:      varDir,
 			MountPath: constants.RunnerVarDirPath,
 		})
 		runnerContainer.VolumeMounts = volumeMounts
