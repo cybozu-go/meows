@@ -8,9 +8,9 @@ Aside from [the standard Go runtime and process metrics][standard], it exposes m
 
 | Name                          | Description                            | Type  | Labels                 |
 | ----------------------------- | -------------------------------------- | ----- | ---------------------- |
-| `actions_runnerpool_replicas` | The number of the RunnerPool replicas. | Gauge | `runnerpool`           |
-| `actions_runner_online`       | 1 if the runner is online.             | Gauge | `runnerpool`, `runner` |
-| `actions_runner_busy`         | 1 if the runner is busy.               | Gauge | `runnerpool`, `runner` |
+| `meows_runnerpool_replicas` | The number of the RunnerPool replicas. | Gauge | `runnerpool`           |
+| `meows_runner_online`       | 1 if the runner is online.             | Gauge | `runnerpool`, `runner` |
+| `meows_runner_busy`         | 1 if the runner is busy.               | Gauge | `runnerpool`, `runner` |
 
 ## Runner Pod
 
@@ -19,8 +19,8 @@ Aside from [the standard Go runtime and process metrics][standard], it exposes m
 
 | Name                                 | Description                                                                  | Type    | Labels                |
 | ------------------------------------ | ---------------------------------------------------------------------------- | ------- | --------------------- |
-| `actions_runner_pod_state`           | 1 if the state of the runner pod is the state specified by the `state` label | Gauge   | `runnerpool`, `state` |
-| `actions_runner_listener_exit_state` | Counter for exit codes returned by the `Runner.Listener`                     | Counter | `runnerpool`, `state` |
+| `meows_runner_pod_state`           | 1 if the state of the runner pod is the state specified by the `state` label | Gauge   | `runnerpool`, `state` |
+| `meows_runner_listener_exit_state` | Counter for exit codes returned by the `Runner.Listener`                     | Counter | `runnerpool`, `state` |
 
 For more information, see [Design notes | How Runner's state is managed](design.md#how-runners-state-is-managed)
 

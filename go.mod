@@ -1,4 +1,4 @@
-module github.com/cybozu-go/github-actions-controller
+module github.com/cybozu-go/meows
 
 go 1.16
 

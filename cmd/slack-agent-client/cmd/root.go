@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/cybozu-go/github-actions-controller/agent"
+	"github.com/cybozu-go/meows/agent"
 	"github.com/spf13/cobra"
 )
 

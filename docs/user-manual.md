@@ -4,7 +4,7 @@ User Manual
 How to create GitHub App
 ------------------------
 
-GitHub Actions controller is responsible for the registering/deregistering `Pod`s
+meows is responsible for the registering/deregistering `Pod`s
 to/from a GitHub Actions runner and the controller requires to have a GitHub App
 secret.
 
@@ -31,7 +31,7 @@ Finally, you should get the installation ID from the URL of which page you are
 redicted to. The URL should look like `https://github.com/organizations/cybozu-go/settings/installations/12345`
 and `12345` is your installation ID.
 
-How to deploy GitHub Actions controller
+How to deploy meows
 ---------------------------------------
 
 You should deploy the controller `Deployment` with a `Secret` resource which
@@ -44,7 +44,7 @@ $ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
 $ GITHUB_APP_PRIVATE_KEY_PATH=<Path of a GitHub App private key file>
 
 $ kubectl create secret generic github-app-secret \
-    -n actions-system \
+    -n meows \
     --from-literal=app-id=${GITHUB_APP_ID} \
     --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
     --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
@@ -113,7 +113,7 @@ RunnerPool Custom Resource Example
 This is an example of the `RunnerPool` custom resource.
 
 ```yaml
-apiVersion: actions.cybozu.com/v1alpha1
+apiVersion: meows.cybozu.com/v1alpha1
 kind: RunnerPool
 metadata:
   name: runnerpool-sample
@@ -123,7 +123,7 @@ spec:
   slackAgent:
     serviceName: slack-agent
   template:
-    image: quay.io/cybozu/actions-runner:latest
+    image: quay.io/cybozu/meows-runner:latest
 ```
 
 The controller creates a `Deployment` based on `template` in `RunnerPool`.
@@ -145,12 +145,12 @@ You are responsible for:
 
 After running `Pod`s, you can check if the runners are actually registered to
 GitHub on the **Actions** page under each repository's **Settings**
-(e.g. https://github.com/cybozu-go/github-actions-controller/settings/actions).
+(e.g. https://github.com/cybozu-go/meows/settings/actions).
 
 How to use self-hosted runners
 ------------------------------
 
-GitHub Actions controller provides the following commands, you have to execute these commands in your workflow.
+meows provides the following commands, you have to execute these commands in your workflow.
 
 - `job-started`
     - Notify a runner pod that a workflow has been started.

@@ -5,10 +5,10 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
 webhooks:
-- name: pod-hook.actions.cybozu.com
+- name: pod-hook.meows.cybozu.com
   namespaceSelector:
     matchExpressions:
-    - key: actions.cybozu.com/pod-mutate
+    - key: meows.cybozu.com/pod-mutate
       operator: NotIn
       values:
       - ignore

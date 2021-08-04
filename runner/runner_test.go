@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/metrics"
-	"github.com/cybozu-go/github-actions-controller/runner/client"
+	constants "github.com/cybozu-go/meows"
+	"github.com/cybozu-go/meows/metrics"
+	"github.com/cybozu-go/meows/runner/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 var _ = Describe("Runner", func() {
-	actionsDir := filepath.Join("..", "tmp", "actions")
-	startedFlagFile := filepath.Join(actionsDir, "started")
+	meowsDir := filepath.Join("..", "tmp", "meows")
+	startedFlagFile := filepath.Join(meowsDir, "started")
 	listenerMock := newlistenerMock()
 	runnerClient := client.NewClient()
 	var r *Runner
@@ -27,7 +27,7 @@ var _ = Describe("Runner", func() {
 	var cancel context.CancelFunc
 
 	BeforeEach(func() {
-		err := os.MkdirAll(actionsDir, 0755)
+		err := os.MkdirAll(meowsDir, 0755)
 		Expect(err).ToNot(HaveOccurred())
 		if isFileExists(startedFlagFile) {
 			err := os.Remove(startedFlagFile)
@@ -44,7 +44,7 @@ var _ = Describe("Runner", func() {
 		Expect(err).ToNot(HaveOccurred())
 		r.listener = listenerMock
 		r.envs.startedFlagFile = startedFlagFile
-		r.envs.workDir = filepath.Join(actionsDir, "_work")
+		r.envs.workDir = filepath.Join(meowsDir, "_work")
 		reg := prometheus.NewRegistry()
 		metrics.InitRunnerPodMetrics(reg, r.envs.runnerPoolName)
 		ctx, cancel = context.WithCancel(context.Background())

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/metrics"
+	constants "github.com/cybozu-go/meows"
+	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/metrics"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus"
@@ -61,7 +61,7 @@ var _ = BeforeSuite(func() {
 
 	err = clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = actionsv1alpha1.AddToScheme(scheme)
+	err = meowsv1alpha1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
@@ -89,27 +89,27 @@ func createNamespaces(ctx context.Context, namespaces ...string) {
 	}
 }
 
-func makeRunnerPool(name, namespace, repoName string) *actionsv1alpha1.RunnerPool {
-	return &actionsv1alpha1.RunnerPool{
+func makeRunnerPool(name, namespace, repoName string) *meowsv1alpha1.RunnerPool {
+	return &meowsv1alpha1.RunnerPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			// Add a finalizer manually, because a webhook is not working in this test.
 			Finalizers: []string{constants.RunnerPoolFinalizer},
 		},
-		Spec: actionsv1alpha1.RunnerPoolSpec{
+		Spec: meowsv1alpha1.RunnerPoolSpec{
 			RepositoryName: repoName,
 		},
 	}
 }
 
 func deleteRunnerPool(ctx context.Context, name, namespace string) {
-	rp := &actionsv1alpha1.RunnerPool{}
+	rp := &meowsv1alpha1.RunnerPool{}
 	rp.Name = name
 	rp.Namespace = namespace
 	ExpectWithOffset(1, k8sClient.Delete(ctx, rp)).To(Succeed())
 	EventuallyWithOffset(1, func() bool {
-		err := k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &actionsv1alpha1.RunnerPool{})
+		err := k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &meowsv1alpha1.RunnerPool{})
 		return apierrors.IsNotFound(err)
 	}).Should(BeTrue())
 }

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/runner"
+	constants "github.com/cybozu-go/meows"
+	"github.com/cybozu-go/meows/runner"
 	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
 )

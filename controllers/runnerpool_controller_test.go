@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
+	constants "github.com/cybozu-go/meows"
+	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -31,7 +31,7 @@ func newRunnerManagerMock() *runnerManagerMock {
 	}
 }
 
-func (m *runnerManagerMock) StartOrUpdate(rp *actionsv1alpha1.RunnerPool) {
+func (m *runnerManagerMock) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	m.started[rpNamespacedName] = true
 }
@@ -100,7 +100,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 		By("wating the RunnerPool become Bound")
 		Eventually(func() error {
-			rp := new(actionsv1alpha1.RunnerPool)
+			rp := new(meowsv1alpha1.RunnerPool)
 			if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
 				return err
 			}
@@ -147,7 +147,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"ImagePullSecrets":   BeEmpty(),
 			"Volumes": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
-					"Name": Equal("actions-directory"),
+					"Name": Equal("meows-directory"),
 				}),
 			}),
 		}))
@@ -206,8 +206,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 			}),
 			"VolumeMounts": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
-					"Name":      Equal("actions-directory"),
-					"MountPath": Equal("/var/actions"),
+					"Name":      Equal("meows-directory"),
+					"MountPath": Equal("/var/meows"),
 				}),
 			}),
 		}))
@@ -264,7 +264,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 		By("wating the RunnerPool become Bound")
 		Eventually(func() error {
-			rp := new(actionsv1alpha1.RunnerPool)
+			rp := new(meowsv1alpha1.RunnerPool)
 			if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
 				return err
 			}
@@ -304,7 +304,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Name": Equal("volume2"),
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
-					"Name": Equal("actions-directory"),
+					"Name": Equal("meows-directory"),
 				}),
 			}),
 		}))
@@ -379,8 +379,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"MountPath": Equal("/volume2"),
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
-					"Name":      Equal("actions-directory"),
-					"MountPath": Equal("/var/actions"),
+					"Name":      Equal("meows-directory"),
+					"MountPath": Equal("/var/meows"),
 				}),
 			}),
 		}))

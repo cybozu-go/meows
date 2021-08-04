@@ -1,12 +1,12 @@
-[![GitHub release](https://img.shields.io/github/release/cybozu-go/github-actions-controller.svg?maxAge=60)][releases]
-[![CI](https://github.com/cybozu-go/github-actions-controller/workflows/main/badge.svg)](https://github.com/cybozu-go/github-actions-controller/actions)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/github-actions-controller?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/github-actions-controller?tab=overview)
-[![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/github-actions-controller)](https://goreportcard.com/report/github.com/cybozu-go/github-actions-controller)
+[![GitHub release](https://img.shields.io/github/release/cybozu-go/meows.svg?maxAge=60)][releases]
+[![CI](https://github.com/cybozu-go/meows/workflows/main/badge.svg)](https://github.com/cybozu-go/meows/actions)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/meows?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/meows?tab=overview)
+[![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/meows)](https://goreportcard.com/report/github.com/cybozu-go/meows)
 
-GitHub Actions controller
+meows
 =========================
 
-GitHub Actions controller is a Kubernetes controller for GitHub Actions [self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners).
+meows is a Kubernetes controller for GitHub Actions [self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners).
 It enables us to run GitHub Actions workflows on `Pod`s running on you Kubernetes
 clusters.
 
@@ -31,7 +31,7 @@ Docker images
 -------------
 
 Docker images are available on [Quay.io](https://quay.io/repository/cybozu)
-- [Controller](https://quay.io/repository/cybozu/actions-controller)
-- [Runner](https://quay.io/repository/cybozu/actions-runner)
+- [Controller](https://quay.io/repository/cybozu/meows-controller)
+- [Runner](https://quay.io/repository/cybozu/meows-runner)
 
-[releases]: https://github.com/cybozu-go/github-actions-controller/releases
+[releases]: https://github.com/cybozu-go/meows/releases

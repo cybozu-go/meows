@@ -9,13 +9,13 @@ const (
 // Metadata keys
 const (
 	// RunnerOrgLabelKey is a label key for organization name.
-	RunnerOrgLabelKey = "actions.cybozu.com/organization"
+	RunnerOrgLabelKey = "meows.cybozu.com/organization"
 
 	// RunnerRepoLabelKey is a label key for repository name.
-	RunnerRepoLabelKey = "actions.cybozu.com/repository"
+	RunnerRepoLabelKey = "meows.cybozu.com/repository"
 
 	// RunnerPoolFinalizer is a finalizer for runnerpool resource.
-	RunnerPoolFinalizer = "actions.cybozu.com/runnerpool"
+	RunnerPoolFinalizer = "meows.cybozu.com/runnerpool"
 
 	// AppNameLabelKey is a label key for application name.
 	AppNameLabelKey = "app.kubernetes.io/name"
@@ -29,7 +29,7 @@ const (
 
 const (
 	// AppName is the application name.
-	AppName = "actions"
+	AppName = "meows"
 
 	// AppComponentRunner is the component name for runner.
 	AppComponentRunner = "runner"
@@ -52,7 +52,7 @@ const (
 
 const (
 	// Container Mount Path
-	RunnerEmptyDirPath = "/var/actions"
+	RunnerEmptyDirPath = "/var/meows"
 )
 
 // Environment variables

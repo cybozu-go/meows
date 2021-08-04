@@ -7,11 +7,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/github"
-	"github.com/cybozu-go/github-actions-controller/metrics"
-	rc "github.com/cybozu-go/github-actions-controller/runner/client"
+	constants "github.com/cybozu-go/meows"
+	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/github"
+	"github.com/cybozu-go/meows/metrics"
+	rc "github.com/cybozu-go/meows/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +22,7 @@ import (
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete
 
 type RunnerManager interface {
-	StartOrUpdate(*actionsv1alpha1.RunnerPool)
+	StartOrUpdate(*meowsv1alpha1.RunnerPool)
 	Stop(string)
 }
 
@@ -51,7 +51,7 @@ func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.
 	}
 }
 
-func (m *RunnerManagerImpl) StartOrUpdate(rp *actionsv1alpha1.RunnerPool) {
+func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	rpNamespacedName := namespacedName(rp.Namespace, rp.Name)
 	if _, ok := m.loops[rpNamespacedName]; !ok {
 		loop := &managerLoop{
@@ -144,7 +144,7 @@ func (m *managerLoop) stop() error {
 	return nil
 }
 
-func (m *managerLoop) update(rp *actionsv1alpha1.RunnerPool) {
+func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
 	atomic.StoreInt32(&m.replicas, rp.Spec.Replicas)
 }
 

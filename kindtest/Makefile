@@ -19,7 +19,7 @@ SHELL = /bin/bash
 .SHELLFLAGS = -e -o pipefail -c
 
 # kind envs
-KIND_CLUSTER_NAME ?= kindtest-actions
+KIND_CLUSTER_NAME ?= kindtest-meows
 
 .PHONY: all
 all: help
@@ -69,14 +69,14 @@ logs:
 .PHONY: stop
 stop: ## Stop kind cluster
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
-	-docker image rm actions-controller:kindtest
-	-docker image rm actions-runner:kindtest
+	-docker image rm meows-controller:kindtest
+	-docker image rm meows-runner:kindtest
 
 .PHONY: load
 load: ## Load docker images onto kind cluster.
 	$(MAKE) -C $(PROJECT_DIR) image tag IMAGE_TAG=kindtest
-	$(KIND) load docker-image actions-controller:kindtest --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image actions-runner:kindtest --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image meows-controller:kindtest --name $(KIND_CLUSTER_NAME)
+	$(KIND) load docker-image meows-runner:kindtest --name $(KIND_CLUSTER_NAME)
 
 .PHONY: cert-manager
 cert-manager:

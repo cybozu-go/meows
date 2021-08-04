@@ -1,14 +1,14 @@
-apiVersion: actions.cybozu.com/v1alpha1
+apiVersion: meows.cybozu.com/v1alpha1
 kind: RunnerPool
 metadata:
   name: runnerpool1
 spec:
-  repositoryName: github-actions-controller-ci
+  repositoryName: meows-ci
   replicas: 3
   slackAgent:
-    serviceName: slack-agent.actions-system.svc
+    serviceName: slack-agent.meows.svc
   template:
-    image: actions-runner:kindtest
+    image: meows-runner:kindtest
     imagePullPolicy: Never
     env:
     - name: EXTEND_DURATION

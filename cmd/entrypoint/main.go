@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/cybozu-go/github-actions-controller/cmd/entrypoint/cmd"
+	"github.com/cybozu-go/meows/cmd/entrypoint/cmd"
 )
 
 func main() {

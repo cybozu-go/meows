@@ -12,8 +12,8 @@ import (
 	"text/template"
 	"time"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/runner/client"
+	constants "github.com/cybozu-go/meows"
+	"github.com/cybozu-go/meows/runner/client"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/gomega"

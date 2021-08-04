@@ -5,12 +5,12 @@ import (
 	"net"
 	"strconv"
 
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/controllers"
-	"github.com/cybozu-go/github-actions-controller/github"
-	"github.com/cybozu-go/github-actions-controller/hooks"
-	"github.com/cybozu-go/github-actions-controller/metrics"
-	rc "github.com/cybozu-go/github-actions-controller/runner/client"
+	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/controllers"
+	"github.com/cybozu-go/meows/github"
+	"github.com/cybozu-go/meows/hooks"
+	"github.com/cybozu-go/meows/metrics"
+	rc "github.com/cybozu-go/meows/runner/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -30,7 +30,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(actionsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(meowsv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
 }
@@ -81,7 +81,7 @@ func run() error {
 	wh := mgr.GetWebhookServer()
 	wh.Register("/pod/mutate", hooks.NewPodMutator(
 		mgr.GetClient(),
-		ctrl.Log.WithName("actions-token-pod-mutator"),
+		ctrl.Log.WithName("meows-token-pod-mutator"),
 		dec,
 		githubClient,
 	))
@@ -107,7 +107,7 @@ func run() error {
 		return err
 	}
 
-	if err = (&actionsv1alpha1.RunnerPool{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meowsv1alpha1.RunnerPool{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RunnerPool")
 		return err
 	}

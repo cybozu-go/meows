@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	"github.com/cybozu-go/github-actions-controller/github"
+	constants "github.com/cybozu-go/meows"
+	"github.com/cybozu-go/meows/github"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups="",resources=pods,verbs=create,versions=v1,name=pod-hook.actions.cybozu.com,path=/pod/mutate,mutating=true,sideEffects=none,admissionReviewVersions={v1,v1beta1}
+// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups="",resources=pods,verbs=create,versions=v1,name=pod-hook.meows.cybozu.com,path=/pod/mutate,mutating=true,sideEffects=none,admissionReviewVersions={v1,v1beta1}
 
 // PodMutator is a mutating webhook for Pods.
 type PodMutator struct {
@@ -107,7 +107,7 @@ func (m PodMutator) Handle(ctx context.Context, req admission.Request) admission
 
 	token, err := m.githubClient.CreateRegistrationToken(ctx, repo)
 	if err != nil {
-		log.Error(err, "failed to create actions registration token", "repository", repo)
+		log.Error(err, "failed to create meows registration token", "repository", repo)
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 

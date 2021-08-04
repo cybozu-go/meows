@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	constants "github.com/cybozu-go/github-actions-controller"
-	actionsv1alpha1 "github.com/cybozu-go/github-actions-controller/api/v1alpha1"
-	"github.com/cybozu-go/github-actions-controller/runner"
+	constants "github.com/cybozu-go/meows"
+	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/runner"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
@@ -45,8 +45,8 @@ func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runt
 	}
 }
 
-//+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=actions.cybozu.com,resources=runnerpools/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=meows.cybozu.com,resources=runnerpools,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=meows.cybozu.com,resources=runnerpools/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -55,7 +55,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	log := r.log.WithValues("runnerpool", req.NamespacedName)
 	log.Info("start reconciliation loop")
 
-	rp := &actionsv1alpha1.RunnerPool{}
+	rp := &meowsv1alpha1.RunnerPool{}
 	if err := r.Get(ctx, req.NamespacedName, rp); err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("runnerpool is not found")
@@ -112,12 +112,12 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&actionsv1alpha1.RunnerPool{}).
+		For(&meowsv1alpha1.RunnerPool{}).
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
 
-func (r *RunnerPoolReconciler) validateRepositoryName(rp *actionsv1alpha1.RunnerPool) error {
+func (r *RunnerPoolReconciler) validateRepositoryName(rp *meowsv1alpha1.RunnerPool) error {
 	for _, n := range r.repositoryNames {
 		if n == rp.Spec.RepositoryName {
 			return nil
@@ -126,7 +126,7 @@ func (r *RunnerPoolReconciler) validateRepositoryName(rp *actionsv1alpha1.Runner
 	return fmt.Errorf("found the invalid repository name %v. Valid repository names are %v", rp.Spec.RepositoryName, r.repositoryNames)
 }
 
-func (r *RunnerPoolReconciler) finalize(ctx context.Context, log logr.Logger, rp *actionsv1alpha1.RunnerPool) error {
+func (r *RunnerPoolReconciler) finalize(ctx context.Context, log logr.Logger, rp *meowsv1alpha1.RunnerPool) error {
 	d := &appsv1.Deployment{}
 	d.SetNamespace(rp.GetNamespace())
 	d.SetName(rp.GetRunnerDeploymentName())
@@ -139,7 +139,7 @@ func (r *RunnerPoolReconciler) finalize(ctx context.Context, log logr.Logger, rp
 	return nil
 }
 
-func labelSet(rp *actionsv1alpha1.RunnerPool, component string) map[string]string {
+func labelSet(rp *meowsv1alpha1.RunnerPool, component string) map[string]string {
 	labels := map[string]string{
 		constants.AppNameLabelKey:      constants.AppName,
 		constants.AppComponentLabelKey: component,
@@ -148,7 +148,7 @@ func labelSet(rp *actionsv1alpha1.RunnerPool, component string) map[string]strin
 	return labels
 }
 
-func labelSetForRunnerPod(rp *actionsv1alpha1.RunnerPool, organizationName string) map[string]string {
+func labelSetForRunnerPod(rp *meowsv1alpha1.RunnerPool, organizationName string) map[string]string {
 	labels := labelSet(rp, constants.AppComponentRunner)
 	labels[constants.RunnerOrgLabelKey] = organizationName
 	labels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
@@ -169,7 +169,7 @@ func mergeMap(m1, m2 map[string]string) map[string]string {
 	return m
 }
 
-func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr.Logger, rp *actionsv1alpha1.RunnerPool) error {
+func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr.Logger, rp *meowsv1alpha1.RunnerPool) error {
 	d := &appsv1.Deployment{}
 	d.SetNamespace(rp.GetNamespace())
 	d.SetName(rp.GetRunnerDeploymentName())
@@ -188,9 +188,9 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		d.Spec.Template.Spec.ServiceAccountName = rp.Spec.Template.ServiceAccountName
 		d.Spec.Template.Spec.ImagePullSecrets = rp.Spec.Template.ImagePullSecrets
 
-		actionsDir := "actions-directory"
+		meowsDir := "meows-directory"
 		volumes := append(rp.Spec.Template.Volumes, corev1.Volume{
-			Name: actionsDir,
+			Name: meowsDir,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -214,7 +214,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		runnerContainer.Ports = r.makeRunnerContainerPorts()
 
 		volumeMounts := append(rp.Spec.Template.VolumeMounts, corev1.VolumeMount{
-			Name:      actionsDir,
+			Name:      meowsDir,
 			MountPath: constants.RunnerEmptyDirPath,
 		})
 		runnerContainer.VolumeMounts = volumeMounts
@@ -267,7 +267,7 @@ func (r *RunnerPoolReconciler) addRunnerContainerIfNotExists(d *appsv1.Deploymen
 	d.Spec.Template.Spec.Containers = append(d.Spec.Template.Spec.Containers, c)
 }
 
-func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *actionsv1alpha1.RunnerPool) ([]corev1.EnvVar, error) {
+func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *meowsv1alpha1.RunnerPool) ([]corev1.EnvVar, error) {
 	option := runner.Option{
 		SetupCommand:          rp.Spec.SetupCommand,
 		SlackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
