@@ -2,7 +2,7 @@ package runner
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,25 +14,22 @@ import (
 	"github.com/cybozu-go/meows/runner/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/prometheus/client_golang/prometheus"
+	. "github.com/onsi/gomega/gstruct"
+	gomegatypes "github.com/onsi/gomega/types"
+)
+
+var (
+	testRootDir = filepath.Join("..", "tmp", "runner")
+	testWorkDir = filepath.Join("..", "tmp", "runner", "_work")
+	testVarDir  = filepath.Join("..", "tmp", "var", "meows")
 )
 
 var _ = Describe("Runner", func() {
-	meowsDir := filepath.Join("..", "tmp", "meows")
-	startedFlagFile := filepath.Join(meowsDir, "started")
-	listenerMock := newlistenerMock()
-	runnerClient := client.NewClient()
-	var r *Runner
-	var ctx context.Context
-	var cancel context.CancelFunc
-
 	BeforeEach(func() {
-		err := os.MkdirAll(meowsDir, 0755)
-		Expect(err).ToNot(HaveOccurred())
-		if isFileExists(startedFlagFile) {
-			err := os.Remove(startedFlagFile)
-			Expect(err).ToNot(HaveOccurred())
-		}
+		Expect(os.MkdirAll(testRootDir, 0755)).To(Succeed())
+		Expect(os.MkdirAll(testWorkDir, 0755)).To(Succeed())
+		Expect(os.MkdirAll(testVarDir, 0755)).To(Succeed())
+
 		os.Setenv(constants.PodNameEnvName, "fake-pod-name")
 		os.Setenv(constants.PodNamespaceEnvName, "fake-pod-ns")
 		os.Setenv(constants.RunnerTokenEnvName, "fake-runner-token")
@@ -40,67 +37,255 @@ var _ = Describe("Runner", func() {
 		os.Setenv(constants.RunnerRepoEnvName, "fake-repo")
 		os.Setenv(constants.RunnerPoolNameEnvName, "fake-runnerpool")
 		os.Setenv(constants.RunnerOptionEnvName, "{}")
-		r, err = NewRunner(fmt.Sprintf(":%d", constants.RunnerListenPort))
-		Expect(err).ToNot(HaveOccurred())
-		r.listener = listenerMock
-		r.envs.startedFlagFile = startedFlagFile
-		r.envs.workDir = filepath.Join(meowsDir, "_work")
-		reg := prometheus.NewRegistry()
-		metrics.InitRunnerPodMetrics(reg, r.envs.runnerPoolName)
-		ctx, cancel = context.WithCancel(context.Background())
 	})
 
 	AfterEach(func() {
-		cancel()
-		time.Sleep(5 * time.Second)
+		Expect(os.RemoveAll(testRootDir)).To(Succeed())
+		Expect(os.RemoveAll(testWorkDir)).To(Succeed())
+		Expect(os.RemoveAll(testVarDir)).To(Succeed())
+		time.Sleep(time.Second)
 	})
 
-	It("should not set deletion time", func() {
-		By("run runner")
-		go func() {
-			defer GinkgoRecover()
-			err := r.Run(ctx)
-			Expect(err).ToNot(HaveOccurred())
-		}()
-		By("check deletion time")
-		time.Sleep(5 * time.Second)
-		Eventually(func() error {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			tm, err := runnerClient.GetDeletionTime(ctx, "localhost")
-			if err != nil {
-				return err
-			}
-			if tm.IsZero() {
-				return nil
-			}
-			return errors.New("Deletion time is not Zero. r.deletionTime: " + tm.Format(time.RFC3339))
-		}).Should(Succeed())
+	It("should change states", func() {
+		By("starting runner")
+		listener := newListenerMock()
+		cancel := startRunner(listener)
+		defer cancel()
+
+		By("checking initializing state")
+		flagFileShouldExist("started")
+		deletionTimeShouldBeZero()
+		metricsShouldHaveValue("meows_runner_pod_state",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+		metricsShouldNotExist("meows_runner_listener_exit_state")
+
+		By("checking running state")
+		listener.configureCh <- nil
+		time.Sleep(time.Second)
+
+		flagFileShouldExist("started")
+		deletionTimeShouldBeZero()
+		metricsShouldHaveValue("meows_runner_pod_state",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+		metricsShouldNotExist("meows_runner_listener_exit_state")
+
+		By("checking debugging state")
+		listener.listenCh <- nil
+		finishedAt := time.Now()
+		time.Sleep(time.Second)
+
+		flagFileShouldExist("started")
+		flagFileShouldNotExist("extend")
+		flagFileShouldNotExist("failure")
+		flagFileShouldNotExist("cancelled")
+		flagFileShouldNotExist("success")
+		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
+		metricsShouldHaveValue("meows_runner_pod_state",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+		metricsShouldNotExist("meows_runner_listener_exit_state")
 	})
 
-	It("should set deletion time when startedFlagFile exist", func() {
-		_, err := os.Create(r.envs.startedFlagFile)
+	It("should extend default duration when extend file exists", func() {
+		By("starting runner")
+		listener := newListenerMock("extend")
+		cancel := startRunner(listener)
+		defer cancel()
+		listener.configureCh <- nil
+		listener.listenCh <- nil
+		finishedAt := time.Now()
+		time.Sleep(time.Second)
+
+		By("checking outputs")
+		d, err := time.ParseDuration("20m")
 		Expect(err).ToNot(HaveOccurred())
-		By("run runner")
-		go func() {
-			defer GinkgoRecover()
-			err := r.Run(ctx)
-			Expect(err).ToNot(HaveOccurred())
-		}()
-		By("check deletion time")
-		time.Sleep(5 * time.Second)
-		Eventually(func() error {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			tm, err := runnerClient.GetDeletionTime(ctx, "localhost")
-			if err != nil {
-				return err
-			}
-			if !tm.IsZero() {
-				return nil
-			}
-			return errors.New("Deletion time is Zero.")
-		}).Should(Succeed())
+		deletionTimeShouldHaveValue("~", finishedAt.Add(d), 500*time.Millisecond)
+		metricsShouldHaveValue("meows_runner_pod_state",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+		metricsShouldNotExist("meows_runner_listener_exit_state")
+	})
+
+	It("should extend specified duration", func() {
+		By("starting runner with extend duration")
+		os.Setenv(constants.ExtendDurationEnvName, "1h")
+		listener := newListenerMock("extend")
+		cancel := startRunner(listener)
+		defer cancel()
+		listener.configureCh <- nil
+		listener.listenCh <- nil
+		finishedAt := time.Now()
+		time.Sleep(time.Second)
+
+		By("checking outputs")
+		d, err := time.ParseDuration("1h")
+		Expect(err).ToNot(HaveOccurred())
+		deletionTimeShouldHaveValue("~", finishedAt.Add(d), 500*time.Millisecond)
+		metricsShouldHaveValue("meows_runner_pod_state",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+		metricsShouldNotExist("meows_runner_listener_exit_state")
+	})
+
+	It("should become stale state when started file exists", func() {
+		By("starting runner with started file")
+		createFlagFile("started")
+		startedAt := time.Now()
+		listener := newListenerMock()
+		cancel := startRunner(listener)
+		defer cancel()
+
+		By("checking outputs")
+		deletionTimeShouldHaveValue("~", startedAt, 500*time.Millisecond)
+		metricsShouldHaveValue("meows_runner_pod_state",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+		metricsShouldNotExist("meows_runner_listener_exit_state")
+	})
+
+	It("should run setup command", func() {
+		By("starting runner with setup command")
+		opt, err := json.Marshal(&Option{
+			SetupCommand: []string{"bash", "-c", "touch ./dummy"},
+		})
+		Expect(err).NotTo(HaveOccurred())
+		os.Setenv(constants.RunnerOptionEnvName, string(opt))
+
+		listener := newListenerMock()
+		cancel := startRunner(listener)
+		defer cancel()
+
+		By("checking outputs")
+		_, err = os.Stat(filepath.Join(testRootDir, "dummy")) // setup command is run at runner root dir.
+		Expect(err).ToNot(HaveOccurred())
+
+		flagFileShouldExist("started")
+		deletionTimeShouldBeZero()
+		metricsShouldHaveValue("meows_runner_pod_state",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+				"3": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+		metricsShouldNotExist("meows_runner_listener_exit_state")
 	})
 })
 
@@ -116,17 +301,79 @@ func TestRunner(t *testing.T) {
 }
 
 type listenerMock struct {
+	flagFiles   []string
+	configureCh chan error
+	listenCh    chan error
 }
 
-func (e *listenerMock) configure(ctx context.Context, configArgs []string) error {
-	return nil
+func newListenerMock(flagFiles ...string) *listenerMock {
+	return &listenerMock{
+		flagFiles:   flagFiles,
+		configureCh: make(chan error),
+		listenCh:    make(chan error),
+	}
 }
 
-func (e *listenerMock) listen(ctx context.Context) error {
-	<-ctx.Done()
-	return nil
+func (l *listenerMock) configure(ctx context.Context, configArgs []string) error {
+	return <-l.configureCh
 }
 
-func newlistenerMock() listener {
-	return &listenerMock{}
+func (l *listenerMock) listen(ctx context.Context) error {
+	ret := <-l.listenCh
+	for _, file := range l.flagFiles {
+		createFlagFile(file)
+	}
+	return ret
+}
+
+func startRunner(listener Listener) context.CancelFunc {
+	r, err := NewRunner(listener, fmt.Sprintf(":%d", constants.RunnerListenPort), testRootDir, testWorkDir, testVarDir)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer GinkgoRecover()
+		Expect(r.Run(ctx)).To(Succeed())
+	}()
+	time.Sleep(2 * time.Second) // delay
+	return cancel
+}
+
+func createFlagFile(filename string) {
+	_, err := os.Create(filepath.Join(testVarDir, filename))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+}
+
+func flagFileShouldExist(filename string) {
+	_, err := os.Stat(filepath.Join(testVarDir, filename))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+}
+
+func flagFileShouldNotExist(filename string) {
+	_, err := os.Stat(filepath.Join(testVarDir, filename))
+	ExpectWithOffset(1, err).To(HaveOccurred())
+}
+
+func deletionTimeShouldBeZero() {
+	runnerClient := client.NewClient()
+	tm, err := runnerClient.GetDeletionTime(context.Background(), "localhost")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, tm).To(BeZero())
+}
+
+func deletionTimeShouldHaveValue(comparator string, compareTo time.Time, threshold ...time.Duration) {
+	runnerClient := client.NewClient()
+	tm, err := runnerClient.GetDeletionTime(context.Background(), "localhost")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, tm).To(BeTemporally(comparator, compareTo, threshold...))
+}
+
+func metricsShouldNotExist(name string) {
+	_, err := metrics.FetchGauge(context.Background(), "http://localhost:8080/metrics", name)
+	ExpectWithOffset(1, err).Should(MatchError(metrics.ErrNotExist))
+}
+
+func metricsShouldHaveValue(name string, matcher gomegatypes.GomegaMatcher) {
+	m, err := metrics.FetchGauge(context.Background(), "http://localhost:8080/metrics", name)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+	ExpectWithOffset(1, m).To(matcher)
 }

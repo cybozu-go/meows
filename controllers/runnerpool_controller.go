@@ -215,7 +215,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 
 		volumeMounts := append(rp.Spec.Template.VolumeMounts, corev1.VolumeMount{
 			Name:      meowsDir,
-			MountPath: constants.RunnerEmptyDirPath,
+			MountPath: constants.RunnerVarDirPath,
 		})
 		runnerContainer.VolumeMounts = volumeMounts
 

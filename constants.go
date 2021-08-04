@@ -50,9 +50,16 @@ const (
 	DeletionTimeEndpoint = "deletion_time"
 )
 
+// Directory path for runner pods.
 const (
-	// Container Mount Path
-	RunnerEmptyDirPath = "/var/meows"
+	// RunnerRootDirPath is a directory path where GitHub Actions Runner will be installed.
+	RunnerRootDirPath = "/runner"
+
+	// RunnerWorkDirPath is a working directory path for job execution.
+	RunnerWorkDirPath = "/runner/_work"
+
+	// RunnerVarDirPath is a directory path for storing variable files.
+	RunnerVarDirPath = "/var/meows"
 )
 
 // Environment variables

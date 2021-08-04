@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -19,22 +20,39 @@ import (
 )
 
 type Runner struct {
-	envs         *environments
-	listenAddr   string
-	listener     listener
+	envs       *environments
+	listenAddr string
+	listener   Listener
+
+	// Directory/File Paths
+	rootDir           string
+	workDir           string
+	startedFlagFile   string
+	extendFlagFile    string
+	failureFlagFile   string
+	cancelledFlagFile string
+	successFlagFile   string
+
 	deletionTime atomic.Value
 }
 
-func NewRunner(listenAddr string) (*Runner, error) {
+func NewRunner(listener Listener, listenAddr, rootDir, workDir, varDir string) (*Runner, error) {
 	envs, err := newRunnerEnvs()
 	if err != nil {
 		return nil, err
 	}
 
 	r := Runner{
-		envs:       envs,
-		listenAddr: listenAddr,
-		listener:   newListener(envs.runnerDir, envs.configCommand, envs.listenerCommand),
+		envs:              envs,
+		listenAddr:        listenAddr,
+		listener:          listener,
+		rootDir:           rootDir,
+		workDir:           workDir,
+		startedFlagFile:   filepath.Join(varDir, "started"),
+		extendFlagFile:    filepath.Join(varDir, "extend"),
+		failureFlagFile:   filepath.Join(varDir, "failure"),
+		cancelledFlagFile: filepath.Join(varDir, "cancelled"),
+		successFlagFile:   filepath.Join(varDir, "success"),
 	}
 
 	r.deletionTime.Store(time.Time{})
@@ -43,16 +61,13 @@ func NewRunner(listenAddr string) (*Runner, error) {
 
 func (r *Runner) Run(ctx context.Context) error {
 	registry := prometheus.NewRegistry()
-	metrics.InitRunnerPodMetrics(registry, r.envs.runnerPoolName)
-	if err := os.MkdirAll(r.envs.workDir, 0755); err != nil {
-		return err
-	}
+	metrics.InitRunnerPodMetrics(registry, r.envs.podNamespace+"/"+r.envs.runnerPoolName)
 
 	env := well.NewEnvironment(ctx)
 	env.Go(r.runListener)
 
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
 	mux.Handle("/"+constants.DeletionTimeEndpoint, http.HandlerFunc(r.deletionTimeHandler))
 	serv := &well.HTTPServer{
 		Env: env,
@@ -70,20 +85,19 @@ func (r *Runner) Run(ctx context.Context) error {
 }
 
 func (r *Runner) runListener(ctx context.Context) error {
-	if isFileExists(r.envs.startedFlagFile) {
+	if isFileExists(r.startedFlagFile) {
 		metrics.UpdateRunnerPodState(metrics.Stale)
 		r.deletionTime.Store(time.Now())
 		<-ctx.Done()
 		return nil
 	}
 
-	if _, err := os.Create(r.envs.startedFlagFile); err != nil {
+	if _, err := os.Create(r.startedFlagFile); err != nil {
 		return err
 	}
-
 	metrics.UpdateRunnerPodState(metrics.Initializing)
 	if len(r.envs.option.SetupCommand) != 0 {
-		if _, err := runCommand(ctx, r.envs.runnerDir, r.envs.option.SetupCommand[0], r.envs.option.SetupCommand[1:]...); err != nil {
+		if _, err := runCommand(ctx, r.rootDir, r.envs.option.SetupCommand[0], r.envs.option.SetupCommand[1:]...); err != nil {
 			return err
 		}
 	}
@@ -95,7 +109,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 		"--labels", r.envs.podNamespace + "/" + r.envs.runnerPoolName,
 		"--url", fmt.Sprintf("https://github.com/%s/%s", r.envs.runnerOrg, r.envs.runnerRepo),
 		"--token", r.envs.runnerToken,
-		"--work", r.envs.workDir,
+		"--work", r.workDir,
 	}
 	if err := r.listener.configure(ctx, configArgs); err != nil {
 		return err
@@ -107,7 +121,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 	}
 
 	metrics.UpdateRunnerPodState(metrics.Debugging)
-	extend := isFileExists(r.envs.extendFlagFile)
+	extend := isFileExists(r.extendFlagFile)
 	err := r.updateDeletionTime(extend)
 	if err != nil {
 		return err
@@ -138,11 +152,11 @@ func (r *Runner) updateDeletionTime(extend bool) error {
 func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
 	var jobResult string
 	switch {
-	case isFileExists(r.envs.failureFlagFile):
+	case isFileExists(r.failureFlagFile):
 		jobResult = agent.JobResultFailure
-	case isFileExists(r.envs.cancelledFlagFile):
+	case isFileExists(r.cancelledFlagFile):
 		jobResult = agent.JobResultCancelled
-	case isFileExists(r.envs.successFlagFile):
+	case isFileExists(r.successFlagFile):
 		jobResult = agent.JobResultSuccess
 	default:
 		jobResult = agent.JobResultUnknown

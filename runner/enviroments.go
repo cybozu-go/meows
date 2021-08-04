@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -29,19 +28,6 @@ type environments struct {
 
 	// Options
 	option Option
-
-	// Directory/File Paths
-	runnerDir string
-	workDir   string
-
-	startedFlagFile   string
-	extendFlagFile    string
-	failureFlagFile   string
-	cancelledFlagFile string
-	successFlagFile   string
-
-	configCommand   string
-	listenerCommand string
 }
 
 func newRunnerEnvs() (*environments, error) {
@@ -72,18 +58,6 @@ func newRunnerEnvs() (*environments, error) {
 	if err := json.Unmarshal([]byte(optionRaw), &envs.option); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal %s; %w", constants.RunnerOptionEnvName, err)
 	}
-
-	envs.runnerDir = filepath.Join("/runner")
-	envs.workDir = filepath.Join(envs.runnerDir, "_work")
-
-	envs.startedFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "started")
-	envs.extendFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "extend")
-	envs.failureFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "failure")
-	envs.cancelledFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "cancelled")
-	envs.successFlagFile = filepath.Join(constants.RunnerEmptyDirPath, "success")
-
-	envs.configCommand = filepath.Join(envs.runnerDir, "config.sh")
-	envs.listenerCommand = filepath.Join(envs.runnerDir, "bin", "Runner.Listener")
 
 	return envs, nil
 }
