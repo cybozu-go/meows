@@ -57,6 +57,10 @@ type SlackAgentConfig struct {
 }
 
 type RunnerPodTemplateSec struct {
+	// Standard object's metadata.  Only `annotations` and `labels` are valid.
+	// +optional
+	ObjectMeta `json:"metadata"`
+
 	// Docker image name for the runner container.
 	// +optional
 	Image string `json:"image,omitempty"`
@@ -93,6 +97,17 @@ type RunnerPodTemplateSec struct {
 	// +kubebuilder:default="default"
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+}
+
+// ObjectMeta is metadata of objects.
+// This is partially copied from metav1.ObjectMeta.
+type ObjectMeta struct {
+	// Labels is a map of string keys and values.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+	// Annotations is a map of string keys and values.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // RunnerPoolStatus defines status of RunnerPool

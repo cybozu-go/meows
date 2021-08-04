@@ -8,6 +8,11 @@ spec:
   slackAgent:
     serviceName: slack-agent.meows.svc
   template:
+    metadata:
+      labels:
+        test-label: test
+      annotations:
+        test-annotation: test
     image: meows-runner:kindtest
     imagePullPolicy: Never
     env:
