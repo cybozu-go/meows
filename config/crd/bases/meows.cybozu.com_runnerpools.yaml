@@ -194,6 +194,21 @@ spec:
                           type: string
                       type: object
                     type: array
+                  metadata:
+                    description: Standard object's metadata.  Only `annotations` and
+                      `labels` are valid.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations is a map of string keys and values.
+                        type: object
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: Labels is a map of string keys and values.
+                        type: object
+                    type: object
                   resources:
                     description: Compute Resources required by the runner container.
                     properties:

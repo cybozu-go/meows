@@ -235,6 +235,13 @@ var _ = Describe("RunnerPool reconciler", func() {
 		rp.Spec.SetupCommand = []string{"command", "arg1", "args2"}
 		rp.Spec.SlackAgent.ServiceName = "slack-agent"
 		rp.Spec.SlackAgent.Channel = "#test"
+		rp.Spec.Template.ObjectMeta.Labels = map[string]string{
+			"test-label":                "test",
+			constants.RunnerOrgLabelKey: "should-not-be-updated",
+		}
+		rp.Spec.Template.ObjectMeta.Annotations = map[string]string{
+			"test-annotation": "test",
+		}
 		rp.Spec.Template.Image = "sample:devel"
 		rp.Spec.Template.ImagePullPolicy = corev1.PullIfNotPresent
 		rp.Spec.Template.ImagePullSecrets = []corev1.LocalObjectReference{
@@ -310,6 +317,21 @@ var _ = Describe("RunnerPool reconciler", func() {
 		}))
 
 		// runner container spec
+		Expect(d.Spec.Template).To(MatchFields(IgnoreExtras, Fields{
+			"ObjectMeta": MatchFields(IgnoreExtras, Fields{
+				"Labels": MatchAllKeys(Keys{
+					constants.AppNameLabelKey:      Equal(constants.AppName),
+					constants.AppComponentLabelKey: Equal(constants.AppComponentRunner),
+					constants.AppInstanceLabelKey:  Equal(rp.Name),
+					constants.RunnerOrgLabelKey:    Equal(organizationName),
+					constants.RunnerRepoLabelKey:   Equal(rp.Spec.RepositoryName),
+					"test-label":                   Equal("test"),
+				}),
+				"Annotations": MatchAllKeys(Keys{
+					"test-annotation": Equal("test"),
+				}),
+			}),
+		}))
 		Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 		Expect(d.Spec.Template.Spec.Containers[0]).To(MatchFields(IgnoreExtras, Fields{
 			"Name":            Equal(constants.RunnerContainerName),
