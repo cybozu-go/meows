@@ -147,7 +147,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"ImagePullSecrets":   BeEmpty(),
 			"Volumes": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
-					"Name": Equal("meows-directory"),
+					"Name": Equal("var-dir"),
 				}),
 			}),
 		}))
@@ -206,7 +206,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			}),
 			"VolumeMounts": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
-					"Name":      Equal("meows-directory"),
+					"Name":      Equal("var-dir"),
 					"MountPath": Equal("/var/meows"),
 				}),
 			}),
@@ -304,7 +304,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Name": Equal("volume2"),
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
-					"Name": Equal("meows-directory"),
+					"Name": Equal("var-dir"),
 				}),
 			}),
 		}))
@@ -379,7 +379,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"MountPath": Equal("/volume2"),
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
-					"Name":      Equal("meows-directory"),
+					"Name":      Equal("var-dir"),
 					"MountPath": Equal("/var/meows"),
 				}),
 			}),

@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/cybozu-go/meows/metrics"
 )
 
-type listener interface {
+type Listener interface {
 	configure(ctx context.Context, configArgs []string) error
 	listen(ctx context.Context) error
 }
@@ -20,22 +21,22 @@ type listenerImpl struct {
 	listenerCommand string
 }
 
-func newListener(runnerDir, configCommand, listenerCommand string) listener {
+func NewListener(runnerDir string) Listener {
 	return &listenerImpl{
 		runnerDir:       runnerDir,
-		configCommand:   configCommand,
-		listenerCommand: listenerCommand,
+		configCommand:   filepath.Join(runnerDir, "config.sh"),
+		listenerCommand: filepath.Join(runnerDir, "bin", "Runner.Listener"),
 	}
 }
 
-func (e *listenerImpl) configure(ctx context.Context, configArgs []string) error {
-	_, err := runCommand(ctx, e.runnerDir, e.configCommand, configArgs...)
+func (l *listenerImpl) configure(ctx context.Context, configArgs []string) error {
+	_, err := runCommand(ctx, l.runnerDir, l.configCommand, configArgs...)
 	return err
 }
 
-func (e *listenerImpl) listen(ctx context.Context) error {
+func (l *listenerImpl) listen(ctx context.Context) error {
 	for {
-		code, err := runCommand(ctx, e.runnerDir, e.listenerCommand, "run", "--startuptype", "service", "--once")
+		code, err := runCommand(ctx, l.runnerDir, l.listenerCommand, "run", "--startuptype", "service", "--once")
 		if _, ok := err.(*exec.ExitError); !ok {
 			return err
 		}
