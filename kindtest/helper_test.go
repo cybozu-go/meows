@@ -215,7 +215,15 @@ func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) erro
 	return nil
 }
 
-func fetchRunnerNames(label string) ([]string, error) {
+func fetchOnlineRunnerNames(label string) ([]string, error) {
+	return fetchRunnerNames(label, "online")
+}
+
+func fetchAllRunnerNames(label string) ([]string, error) {
+	return fetchRunnerNames(label, "")
+}
+
+func fetchRunnerNames(label, status string) ([]string, error) {
 	runners, res, err := githubClient.Actions.ListRunners(context.Background(), orgName, repoName, &github.ListOptions{Page: 0, PerPage: 100})
 	if err != nil {
 		return nil, err
@@ -227,7 +235,7 @@ func fetchRunnerNames(label string) ([]string, error) {
 	runnerNames := []string{}
 OUTER:
 	for _, r := range runners.Runners {
-		if r == nil || r.Name == nil || r.Status == nil || *r.Status != "online" {
+		if r.GetName() == "" || (status != "" && r.GetStatus() != status) {
 			continue
 		}
 
@@ -244,7 +252,7 @@ OUTER:
 }
 
 func compareExistingRunners(label string, podNames []string) error {
-	runnerNames, err := fetchRunnerNames(label)
+	runnerNames, err := fetchOnlineRunnerNames(label)
 	if err != nil {
 		return err
 	}

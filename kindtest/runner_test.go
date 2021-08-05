@@ -26,40 +26,40 @@ func testRunner() {
 
 		By("confirming all runner1 pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady(runner1PoolName, runner1NS, numRunners)
+			return isDeploymentReady(runnerPool1Name, runner1NS, runnerPool1Replicas)
 		}).ShouldNot(HaveOccurred())
 
 		By("confirming all runner2 pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady(runner2PoolName, runner2NS, numRunners)
+			return isDeploymentReady(runnerPool2Name, runner2NS, runnerPool2Replicas)
 		}).ShouldNot(HaveOccurred())
 	})
 
 	It("should register self-hosted runners to GitHub Actions", func() {
-		By("confirming runners on GitHub Actions: " + runner1NS + "/" + runner1PoolName)
+		By("confirming runners on GitHub Actions: " + runner1NS + "/" + runnerPool1Name)
 		Eventually(func() error {
-			runner1Pods, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			runner1Pods, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
-			if len(runner1Pods.Items) != numRunners {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(runner1Pods.Items))
+			if len(runner1Pods.Items) != runnerPool1Replicas {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(runner1Pods.Items))
 			}
 			runner1PodNames := getPodNames(runner1Pods)
-			return compareExistingRunners(runner1NS+"/"+runner1PoolName, runner1PodNames)
+			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, runner1PodNames)
 		}).ShouldNot(HaveOccurred())
 
-		By("confirming runners on GitHub Actions: " + runner2NS + "/" + runner2PoolName)
+		By("confirming runners on GitHub Actions: " + runner2NS + "/" + runnerPool2Name)
 		Eventually(func() error {
-			runner2Pods, err := fetchRunnerPods(runner2NS, runner2PoolName)
+			runner2Pods, err := fetchRunnerPods(runner2NS, runnerPool2Name)
 			if err != nil {
 				return err
 			}
-			if len(runner2Pods.Items) != numRunners {
-				return fmt.Errorf("runner2Pods length expected %d, actual %d", numRunners, len(runner2Pods.Items))
+			if len(runner2Pods.Items) != runnerPool2Replicas {
+				return fmt.Errorf("runner2Pods length expected %d, actual %d", runnerPool2Replicas, len(runner2Pods.Items))
 			}
 			runner2PodNames := getPodNames(runner2Pods)
-			return compareExistingRunners(runner2NS+"/"+runner2PoolName, runner2PodNames)
+			return compareExistingRunners(runner2NS+"/"+runnerPool2Name, runner2PodNames)
 		}).ShouldNot(HaveOccurred())
 	})
 
@@ -68,24 +68,24 @@ func testRunner() {
 		var before *corev1.PodList
 		Eventually(func() error {
 			var err error
-			before, err = fetchRunnerPods(runner1NS, runner1PoolName)
+			before, err = fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
-			if len(before.Items) != numRunners {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			if len(before.Items) != runnerPool1Replicas {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(before.Items))
 			}
 			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner1NS+"/"+runner1PoolName, beforeNames)
+			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, beforeNames)
 		}).ShouldNot(HaveOccurred())
 
 		By(`running "job-success" workflow`)
-		pushWorkflowFile("job-success.tmpl.yaml", runner1NS, runner1PoolName)
+		pushWorkflowFile("job-success.tmpl.yaml", runner1NS, runnerPool1Name)
 
 		By("confirming one Pod is recreated")
 		var delPodNames []string
 		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			delPodNames, _ = getRecretedPods(before, after)
 			if err != nil {
 				return err
@@ -115,30 +115,25 @@ func testRunner() {
 		var before *corev1.PodList
 		Eventually(func() error {
 			var err error
-			before, err = fetchRunnerPods(runner1NS, runner1PoolName)
+			before, err = fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
-			if len(before.Items) != numRunners {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			if len(before.Items) != runnerPool1Replicas {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(before.Items))
 			}
 			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner1NS+"/"+runner1PoolName, beforeNames)
+			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, beforeNames)
 		}).ShouldNot(HaveOccurred())
 
 		By(`running "job-failure" workflow`)
-		pushWorkflowFile("job-failure.tmpl.yaml", runner1NS, runner1PoolName)
+		pushWorkflowFile("job-failure.tmpl.yaml", runner1NS, runnerPool1Name)
 
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var podName string
 		var deletionTime time.Time
 		Eventually(func() error {
-			// DEBUG
-			// stdout, _, _ := kubectl("get", "pods", "-A")
-			// fmt.Println("=== kubectl get pod -A")
-			// fmt.Println(string(stdout))
-
-			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -160,7 +155,7 @@ func testRunner() {
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -174,30 +169,25 @@ func testRunner() {
 		var before *corev1.PodList
 		Eventually(func() error {
 			var err error
-			before, err = fetchRunnerPods(runner1NS, runner1PoolName)
+			before, err = fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
-			if len(before.Items) != numRunners {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			if len(before.Items) != runnerPool1Replicas {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(before.Items))
 			}
 			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner1NS+"/"+runner1PoolName, beforeNames)
+			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, beforeNames)
 		}).ShouldNot(HaveOccurred())
 
 		By(`running "check-env" workflow that makes sure invisible environment variables`)
-		pushWorkflowFile("check-env.tmpl.yaml", runner1NS, runner1PoolName)
+		pushWorkflowFile("check-env.tmpl.yaml", runner1NS, runnerPool1Name)
 
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var podName string
 		var deletionTime time.Time
 		Eventually(func() error {
-			// DEBUG
-			// stdout, _, _ := kubectl("get", "pods", "-A")
-			// fmt.Println("=== kubectl get pod -A")
-			// fmt.Println(string(stdout))
-
-			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -218,7 +208,7 @@ func testRunner() {
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -232,30 +222,25 @@ func testRunner() {
 		var before *corev1.PodList
 		Eventually(func() error {
 			var err error
-			before, err = fetchRunnerPods(runner2NS, runner2PoolName)
+			before, err = fetchRunnerPods(runner2NS, runnerPool2Name)
 			if err != nil {
 				return err
 			}
-			if len(before.Items) != numRunners {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", numRunners, len(before.Items))
+			if len(before.Items) != runnerPool2Replicas {
+				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool2Replicas, len(before.Items))
 			}
 			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner2NS+"/"+runner2PoolName, beforeNames)
+			return compareExistingRunners(runner2NS+"/"+runnerPool2Name, beforeNames)
 		}).ShouldNot(HaveOccurred())
 
 		By(`running "setup-command" workflow`)
-		pushWorkflowFile("setup-command.tmpl.yaml", runner2NS, runner2PoolName)
+		pushWorkflowFile("setup-command.tmpl.yaml", runner2NS, runnerPool2Name)
 
 		By("confirming the job is finished and get deletion time from API of one Pod")
 		var podName string
 		var deletionTime time.Time
 		Eventually(func() error {
-			// DEBUG
-			// stdout, _, _ := kubectl("get", "pods", "-A")
-			// fmt.Println("=== kubectl get pod -A")
-			// fmt.Println(string(stdout))
-
-			after, err := fetchRunnerPods(runner2NS, runner2PoolName)
+			after, err := fetchRunnerPods(runner2NS, runnerPool2Name)
 			if err != nil {
 				return err
 			}
@@ -276,7 +261,7 @@ func testRunner() {
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
-			after, err := fetchRunnerPods(runner2NS, runner2PoolName)
+			after, err := fetchRunnerPods(runner2NS, runnerPool2Name)
 			if err != nil {
 				return err
 			}
@@ -287,11 +272,11 @@ func testRunner() {
 
 	It("should delete after PUT request to a Pod", func() {
 		By("getting pods list before API request")
-		before, err := fetchRunnerPods(runner1NS, runner1PoolName)
+		before, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 		Expect(err).ShouldNot(HaveOccurred())
-		Expect(before.Items).Should(HaveLen(numRunners))
+		Expect(before.Items).Should(HaveLen(runnerPool1Replicas))
 		Eventually(func() error {
-			next, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			next, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -311,7 +296,7 @@ func testRunner() {
 		var podName string
 		var deletionTime time.Time
 		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -332,7 +317,7 @@ func testRunner() {
 
 		By("confirming one Pod is recreated")
 		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runner1PoolName)
+			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -343,11 +328,11 @@ func testRunner() {
 
 	It("should delete RunnerPool properly", func() {
 		By("deleting runner1")
-		stdout, stderr, err := kubectl("delete", "runnerpools", "-n", runner1NS, runner1PoolName)
+		stdout, stderr, err := kubectl("delete", "runnerpools", "-n", runner1NS, runnerPool1Name)
 		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
 
 		Eventually(func() error {
-			_, _, err := kubectl("get", "deployment", "-n", runner1NS, runner1PoolName)
+			_, _, err := kubectl("get", "deployment", "-n", runner1NS, runnerPool1Name)
 			if err == nil {
 				return errors.New("deployment is not deleted yet")
 			}
@@ -356,7 +341,7 @@ func testRunner() {
 
 		By("confirming runners are deleted from GitHub Actions")
 		Eventually(func() error {
-			runnerNames, err := fetchRunnerNames(runner1NS + "/" + runner1PoolName)
+			runnerNames, err := fetchAllRunnerNames(runner1NS + "/" + runnerPool1Name)
 			if err != nil {
 				return err
 			}
@@ -367,29 +352,29 @@ func testRunner() {
 		}).ShouldNot(HaveOccurred())
 
 		By("confirming runner2 pods are existing")
-		runner2Pods, err := fetchRunnerPods(runner2NS, runner2PoolName)
+		runner2Pods, err := fetchRunnerPods(runner2NS, runnerPool2Name)
 		Expect(err).ShouldNot(HaveOccurred())
-		Expect(runner2Pods.Items).Should(HaveLen(numRunners))
+		Expect(runner2Pods.Items).Should(HaveLen(runnerPool2Replicas))
 		runner2PodNames := getPodNames(runner2Pods)
 
 		By("counting the number of self-hosted runners fetched via GitHub Actions API")
 		Eventually(func() error {
-			runner2Names, err := fetchRunnerNames(runner2NS + "/" + runner2PoolName)
+			runner2Names, err := fetchAllRunnerNames(runner2NS + "/" + runnerPool2Name)
 			if err != nil {
 				return err
 			}
-			if len(runner2Names) != numRunners || !cmp.Equal(runner2PodNames, runner2Names) {
-				return fmt.Errorf("%d runners should exist: pods %#v runners %#v", numRunners, runner2PodNames, runner2Names)
+			if len(runner2Names) != runnerPool2Replicas || !cmp.Equal(runner2PodNames, runner2Names) {
+				return fmt.Errorf("%d runners should exist: pods %#v runners %#v", runnerPool2Replicas, runner2PodNames, runner2Names)
 			}
 			return nil
 		}).ShouldNot(HaveOccurred())
 
 		By("deleting runner2")
-		stdout, stderr, err = kubectl("delete", "runnerpools", "-n", runner2NS, runner2PoolName)
+		stdout, stderr, err = kubectl("delete", "runnerpools", "-n", runner2NS, runnerPool2Name)
 		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
 
 		Eventually(func() error {
-			_, _, err := kubectl("get", "deployment", "-n", runner2NS, runner2PoolName)
+			_, _, err := kubectl("get", "deployment", "-n", runner2NS, runnerPool2Name)
 			if err == nil {
 				return errors.New("deployment is not deleted yet")
 			}
@@ -398,7 +383,7 @@ func testRunner() {
 
 		By("confirming runners are deleted from GitHub Actions")
 		Eventually(func() error {
-			runnerNames, err := fetchRunnerNames(runner2NS + "/" + runner2PoolName)
+			runnerNames, err := fetchAllRunnerNames(runner2NS + "/" + runnerPool2Name)
 			if err != nil {
 				return err
 			}

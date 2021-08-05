@@ -4,7 +4,6 @@ metadata:
   name: runnerpool2
 spec:
   repositoryName: meows-ci
-  replicas: 3
   setupCommand:
   - "bash"
   - "-c"
