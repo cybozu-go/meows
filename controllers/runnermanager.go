@@ -2,8 +2,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -23,7 +21,7 @@ import (
 
 type RunnerManager interface {
 	StartOrUpdate(*meowsv1alpha1.RunnerPool)
-	Stop(string)
+	Stop(context.Context, *meowsv1alpha1.RunnerPool) error
 }
 
 func namespacedName(namespace, name string) string {
@@ -72,11 +70,29 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	}
 }
 
-func (m *RunnerManagerImpl) Stop(rpNamespacedName string) {
+func (m *RunnerManagerImpl) Stop(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+	rpNamespacedName := namespacedName(rp.Namespace, rp.Name)
 	if loop, ok := m.loops[rpNamespacedName]; ok {
-		loop.stop()
+		if err := loop.stop(ctx); err != nil {
+			return err
+		}
 		delete(m.loops, rpNamespacedName)
 	}
+
+	runnerList, err := m.githubClient.ListRunners(ctx, rp.Spec.RepositoryName, []string{rpNamespacedName})
+	if err != nil {
+		m.log.Error(err, "failed to list runners")
+		return err
+	}
+	for _, runner := range runnerList {
+		err := m.githubClient.RemoveRunner(ctx, rp.Spec.RepositoryName, runner.ID)
+		if err != nil {
+			m.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)
+			return err
+		}
+		m.log.Info("removed runner", "runner", runner.Name, "runner_id", runner.ID)
+	}
+	return nil
 }
 
 type managerLoop struct {
@@ -127,14 +143,13 @@ func (m *managerLoop) start() {
 	m.env.Stop()
 }
 
-func (m *managerLoop) stop() error {
-	if m.cancel == nil {
-		return errors.New("runner manager is not started")
-	}
-
-	m.cancel()
-	if err := m.env.Wait(); err != nil {
-		return err
+func (m *managerLoop) stop(ctx context.Context) error {
+	if m.cancel != nil {
+		m.cancel()
+		m.cancel = nil
+		if err := m.env.Wait(); err != nil {
+			return err
+		}
 	}
 
 	for _, runner := range m.prevRunnerNames {
@@ -158,9 +173,9 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 		return err
 	}
 
-	m.updateMetrics(ctx, podList, runnerList)
+	m.updateMetrics(podList, runnerList)
 
-	err = m.deleteRunners(ctx, podList, runnerList)
+	err = m.deleteOfflineRunners(ctx, runnerList, podList)
 	if err != nil {
 		return err
 	}
@@ -198,37 +213,15 @@ func (m *managerLoop) fetchRunnerPods(ctx context.Context) (*corev1.PodList, err
 }
 
 func (m *managerLoop) fetchRunners(ctx context.Context) ([]*github.Runner, error) {
-	runners, err := m.githubClient.ListRunners(ctx, m.repository)
+	runnerList, err := m.githubClient.ListRunners(ctx, m.repository, []string{m.rpNamespacedName()})
 	if err != nil {
 		m.log.Error(err, "failed to list runners")
 		return nil, err
 	}
-
-	ret := []*github.Runner{}
-	for _, runner := range runners {
-		if runner.ID == 0 || runner.Name == "" {
-			err := fmt.Errorf("runner should have ID and name %#v", runner)
-			m.log.Error(err, "got invalid runner")
-			continue
-		}
-
-		var ownRunner bool
-		for _, label := range runner.Labels {
-			if label == m.rpNamespacedName() {
-				ownRunner = true
-				break
-			}
-		}
-		if !ownRunner {
-			continue
-		}
-
-		ret = append(ret, runner)
-	}
-	return ret, nil
+	return runnerList, nil
 }
 
-func (m *managerLoop) updateMetrics(ctx context.Context, podList *corev1.PodList, runnerList []*github.Runner) {
+func (m *managerLoop) updateMetrics(podList *corev1.PodList, runnerList []*github.Runner) {
 	metrics.UpdateRunnerPoolMetrics(m.rpNamespacedName(), int(atomic.LoadInt32(&m.replicas)))
 
 	var currentRunnerNames []string
@@ -260,12 +253,11 @@ func difference(prev, current []string) []string {
 	return ret
 }
 
-func (m *managerLoop) deleteRunners(ctx context.Context, podList *corev1.PodList, runnerList []*github.Runner) error {
+func (m *managerLoop) deleteOfflineRunners(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	for _, runner := range runnerList {
 		if runner.Online || podExists(runner.Name, podList) {
 			continue
 		}
-
 		err := m.githubClient.RemoveRunner(ctx, m.repository, runner.ID)
 		if err != nil {
 			m.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)

@@ -167,7 +167,7 @@ var _ = Describe("RunnerManager", func() {
 			By("checking runners")
 			var actualRunnerNames []string
 			for repo := range tt.inputRunners {
-				runnerList, _ := githubClient.ListRunners(ctx, repo) // github.FakeClient does not return an error.
+				runnerList, _ := githubClient.ListRunners(ctx, repo, nil)
 				for _, runner := range runnerList {
 					actualRunnerNames = append(actualRunnerNames, repo+"/"+runner.Name)
 				}
@@ -176,10 +176,14 @@ var _ = Describe("RunnerManager", func() {
 			sort.Strings(tt.expectedRunnerNames)
 			Expect(actualRunnerNames).To(Equal(tt.expectedRunnerNames))
 
-			By("tearing down; " + tt.name)
 			for _, rp := range tt.inputRunnerPools {
-				runnerManager.Stop(rp.Namespace + "/" + rp.Name)
+				By("stopping runnerpool manager; " + rp.Name)
+				Expect(runnerManager.Stop(ctx, rp)).To(Succeed())
+				runnerList, _ := githubClient.ListRunners(ctx, rp.Spec.RepositoryName, []string{rp.Name})
+				Expect(runnerList).To(BeEmpty())
 			}
+
+			By("tearing down")
 			for _, inputPod := range tt.inputPods {
 				k8sClient.Delete(ctx, inputPod.spec)
 			}
@@ -252,7 +256,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting rp1")
-		runnerManager.Stop("test-ns1/rp1")
+		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -264,7 +268,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting rp2")
-		runnerManager.Stop("test-ns2/rp2")
+		Expect(runnerManager.Stop(ctx, rp2)).To(Succeed())
 		time.Sleep(2 * time.Second)
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 	})
@@ -284,7 +288,8 @@ var _ = Describe("RunnerManager", func() {
 		time.Sleep(1 * time.Second)
 
 		By("creating a runnerpool")
-		runnerManager.StartOrUpdate(makeRunnerPool("rp1", "test-ns1", "repo1"))
+		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
+		runnerManager.StartOrUpdate(rp1)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -384,7 +389,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting runnerpool")
-		runnerManager.Stop("test-ns1/rp1")
+		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
 		time.Sleep(2 * time.Second)
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 		MetricsShouldNotExist(metricsURL, "meows_runner_online")
@@ -411,9 +416,12 @@ var _ = Describe("RunnerManager", func() {
 		time.Sleep(1 * time.Second)
 
 		By("creating runnerpools")
-		runnerManager.StartOrUpdate(makeRunnerPool("rp1", "test-ns1", "repo1"))
-		runnerManager.StartOrUpdate(makeRunnerPool("rp2", "test-ns1", "repo1"))
-		runnerManager.StartOrUpdate(makeRunnerPool("rp3", "test-ns2", "repo2"))
+		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
+		rp2 := makeRunnerPool("rp2", "test-ns1", "repo1")
+		rp3 := makeRunnerPool("rp3", "test-ns2", "repo2")
+		runnerManager.StartOrUpdate(rp1)
+		runnerManager.StartOrUpdate(rp2)
+		runnerManager.StartOrUpdate(rp3)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -531,7 +539,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting runnerpool (1)")
-		runnerManager.Stop("test-ns1/rp1")
+		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
 		time.Sleep(3 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -559,7 +567,107 @@ var _ = Describe("RunnerManager", func() {
 				})),
 			}),
 		)
+
+		By("tearing down")
+		Expect(runnerManager.Stop(ctx, rp2)).To(Succeed())
+		Expect(runnerManager.Stop(ctx, rp3)).To(Succeed())
 	})
+
+	It("should delete all runners and metrics", func() {
+		By("preparing fake clients")
+		runnerPodClient := rc.NewFakeClient()
+		githubClient := github.NewFakeClient("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+
+		By("starting metrics server")
+		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
+		go func() {
+			server.ListenAndServe()
+		}()
+		defer server.Shutdown(context.Background())
+		time.Sleep(1 * time.Second)
+
+		By("creating a runnerpool")
+		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
+		runnerManager.StartOrUpdate(rp1)
+		time.Sleep(2 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchFields(IgnoreExtras, Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1")}),
+				})),
+			}),
+		)
+		MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
+
+		By("creating runner pods")
+		dummyPods := []*corev1.Pod{
+			makePod("pod1", "test-ns1", "rp1"),
+			makePod("pod2", "test-ns1", "rp1"),
+		}
+		for _, po := range dummyPods {
+			Expect(k8sClient.Create(ctx, po)).To(Succeed())
+		}
+
+		By("creating runners")
+		runenrs := map[string][]*github.Runner{
+			"repo1": {
+				{Name: "pod1", ID: 1, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
+			},
+		}
+		githubClient.SetRunners(runenrs)
+		time.Sleep(3 * time.Second)
+		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+		MetricsShouldHaveValue(metricsURL, "meows_runner_busy",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod1")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"1": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod2")}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+				"2": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "runner": Equal("pod3")}),
+					"Value": BeNumerically("==", 0.0),
+				})),
+			}),
+		)
+
+		By("deleting runnerpool")
+		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
+		time.Sleep(2 * time.Second)
+		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
+		MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
+		runnerList, _ := githubClient.ListRunners(ctx, "repo1", nil)
+		Expect(runnerList).To(BeEmpty())
+
+		By("tearing down")
+		for _, po := range dummyPods {
+			Expect(k8sClient.Delete(ctx, po)).To(Succeed())
+		}
+	})
+
 })
 
 func MetricsShouldNotExist(url, name string) {

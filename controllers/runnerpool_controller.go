@@ -77,7 +77,10 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, err
 		}
 
-		r.runnerManager.Stop(req.NamespacedName.String())
+		if err := r.runnerManager.Stop(ctx, rp); err != nil {
+			log.Error(err, "failed to stop runner manager")
+			return ctrl.Result{}, err
+		}
 
 		controllerutil.RemoveFinalizer(rp, constants.RunnerPoolFinalizer)
 		if err := r.Update(ctx, rp); err != nil {

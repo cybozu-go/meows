@@ -35,11 +35,24 @@ func convert(ghRunner *github.Runner) *Runner {
 	}
 }
 
+func (r *Runner) hasLabels(labels []string) bool {
+	actualLabelMap := map[string]struct{}{}
+	for _, l := range r.Labels {
+		actualLabelMap[l] = struct{}{}
+	}
+	for _, required := range labels {
+		if _, ok := actualLabelMap[required]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // Client generates token for GitHub Action selfhosted runner
 type Client interface {
 	GetOrganizationName() string
 	CreateRegistrationToken(context.Context, string) (string, error)
-	ListRunners(context.Context, string) ([]*Runner, error)
+	ListRunners(context.Context, string, []string) ([]*Runner, error)
 	RemoveRunner(context.Context, string, int64) error
 }
 
@@ -87,14 +100,14 @@ func (c *clientImpl) CreateRegistrationToken(ctx context.Context, repositoryName
 		return "", err
 	}
 	if res.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("status should be %d but %d", http.StatusCreated, res.StatusCode)
+		return "", fmt.Errorf("invalid status code %d", res.StatusCode)
 	}
 
 	return token.GetToken(), nil
 }
 
 // ListRunners lists registered self-hosted runners for the organization.
-func (c *clientImpl) ListRunners(ctx context.Context, repositoryName string) ([]*Runner, error) {
+func (c *clientImpl) ListRunners(ctx context.Context, repositoryName string, labels []string) ([]*Runner, error) {
 	var runners []*Runner
 
 	opts := github.ListOptions{PerPage: 100}
@@ -109,11 +122,15 @@ func (c *clientImpl) ListRunners(ctx context.Context, repositoryName string) ([]
 			return nil, err
 		}
 		if res.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("status should be %d but %d", http.StatusOK, res.StatusCode)
+			return nil, fmt.Errorf("invalid status code %d", res.StatusCode)
 		}
 
 		for _, ghRunner := range list.Runners {
-			runners = append(runners, convert(ghRunner))
+			r := convert(ghRunner)
+			if !r.hasLabels(labels) {
+				continue
+			}
+			runners = append(runners, r)
 		}
 		if res.NextPage == 0 {
 			break
@@ -137,7 +154,7 @@ func (c *clientImpl) RemoveRunner(ctx context.Context, repositoryName string, ru
 		return err
 	}
 	if res.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("status should be %d but %d", http.StatusNoContent, res.StatusCode)
+		return fmt.Errorf("invalid status code %d", res.StatusCode)
 	}
 	return nil
 }
@@ -164,8 +181,15 @@ func (c *FakeClient) CreateRegistrationToken(ctx context.Context, repositoryName
 }
 
 // ListRunners returns dummy list.
-func (c *FakeClient) ListRunners(ctx context.Context, repositoryName string) ([]*Runner, error) {
-	return c.runners[repositoryName], nil
+func (c *FakeClient) ListRunners(ctx context.Context, repositoryName string, labels []string) ([]*Runner, error) {
+	ret := []*Runner{}
+	runners := c.runners[repositoryName]
+	for _, r := range runners {
+		if r.hasLabels(labels) {
+			ret = append(ret, r)
+		}
+	}
+	return ret, nil
 }
 
 // RemoveRunner does not delete anything and returns success.

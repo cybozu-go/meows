@@ -36,8 +36,10 @@ func (m *runnerManagerMock) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	m.started[rpNamespacedName] = true
 }
 
-func (m *runnerManagerMock) Stop(rpNamespacedName string) {
+func (m *runnerManagerMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
+	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	delete(m.started, rpNamespacedName)
+	return nil
 }
 
 var _ = Describe("RunnerPool reconciler", func() {
