@@ -319,11 +319,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 		// runner container spec
 		Expect(d.Spec.Template).To(MatchFields(IgnoreExtras, Fields{
 			"ObjectMeta": MatchFields(IgnoreExtras, Fields{
-				"Labels": MatchKeys(IgnoreExtras, Keys{
-					"test-label":                Equal("test"),
-					constants.RunnerOrgLabelKey: Not(Equal("should-not-be-updated")),
+				"Labels": MatchAllKeys(Keys{
+					constants.AppNameLabelKey:      Equal(constants.AppName),
+					constants.AppComponentLabelKey: Equal(constants.AppComponentRunner),
+					constants.AppInstanceLabelKey:  Equal(rp.Name),
+					constants.RunnerOrgLabelKey:    Equal(organizationName),
+					constants.RunnerRepoLabelKey:   Equal(rp.Spec.RepositoryName),
+					"test-label":                   Equal("test"),
 				}),
-				"Annotations": MatchKeys(IgnoreExtras, Keys{
+				"Annotations": MatchAllKeys(Keys{
 					"test-annotation": Equal("test"),
 				}),
 			}),
