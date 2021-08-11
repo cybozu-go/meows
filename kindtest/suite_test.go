@@ -16,19 +16,20 @@ import (
 
 const (
 	controllerNS = "meows"
-	numRunners   = 3
 	orgName      = "neco-test"
 	repoName     = "meows-ci"
 )
 
 var (
-	testID          = "kindtest-" + time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
-	testBranch      = "test-branch-" + testID
-	runner1NS       = testID + "-test-runner1"
-	runner2NS       = testID + "-test-runner2"
-	runner1PoolName = "runnerpool1"
-	runner2PoolName = "runnerpool2"
-	githubClient    *github.Client
+	testID              = "kindtest-" + time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
+	testBranch          = "test-branch-" + testID
+	runner1NS           = testID + "-test-runner1"
+	runner2NS           = testID + "-test-runner2"
+	runnerPool1Name     = "runnerpool1"
+	runnerPool2Name     = "runnerpool2"
+	runnerPool1Replicas = 3
+	runnerPool2Replicas = 1
+	githubClient        *github.Client
 )
 
 // Env variables.
