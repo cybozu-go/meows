@@ -58,14 +58,17 @@ func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, app
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
 
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
+	var clientset *kubernetes.Clientset
+	if !devMode {
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
 
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
+		clientset, err = kubernetes.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Server{
