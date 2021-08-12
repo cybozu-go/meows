@@ -4,6 +4,8 @@ images:
 - name: quay.io/cybozu/meows-controller
   newTag: 0.2.0
 
+namePrefix: meows-
+
 commonLabels:
   app.kubernetes.io/name: meows
   app.kubernetes.io/component: controller
