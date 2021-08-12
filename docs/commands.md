@@ -72,27 +72,20 @@ Flags:
 ```
 
 
-`slack-agent-client`
---------------------
+`meows`
+------
 
-This is a client for `slack-agent`.
+This is a tool command to do some operations.
+It enables to send requests to the slack-agent, or to control the GitHub runners.
 
-```bash
-$ slack-agent-client -h
-slack-agent-client sends job result to Slack agent
+### `meows slackagent send RUNNER_PODNAME`
 
-Usage:
-  slack-agent-client PODNAME [RESULT] [flags]
+This sub command sends a request to the slack-agent.
 
-Flags:
-  -c, --channel string     The Slack channel to notify messages to
-  -e, --extend             Enable extend button.
-  -f, --file string        Job info file. (default "/tmp/github.env")
-  -h, --help               help for slack-agent-client
-      --logfile string     Log filename
-      --logformat string   Log format [plain,logfmt,json]
-      --loglevel string    Log level [critical,error,warning,info,debug]
-  -n, --namespace string   Pod namespace. (default "default")
-  -s, --server string      The address to send requests to. (default "http://127.0.0.1:8080")
+### `meows runner list REPOSITORY`
 
-```
+This sub command lists runners on the specified repository.
+
+### `meows runner remove REPOSITORY`
+
+This sub command removes **offline** runners on the specified repository.

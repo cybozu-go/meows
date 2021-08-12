@@ -103,10 +103,10 @@ $ cat <<EOF > /tmp/github.env
 EOF
 
 # success
-$ go run ./cmd/slack-agent-client pod success
+$ go run ./cmd/meows slackagent send pod success
 
 # failure
-$ go run ./cmd/slack-agent-client pod failure --extend
+$ go run ./cmd/meows slackagent send pod failure --extend
 ```
 
 Then, click the button on the Slack message, and check if a receiving log appears

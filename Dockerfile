@@ -8,6 +8,7 @@ FROM quay.io/cybozu/ubuntu:20.04 as controller
 
 COPY --from=builder /workspace/tmp/bin/controller /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/slack-agent /usr/local/bin
+COPY --from=builder /workspace/tmp/bin/meows /usr/local/bin
 
 USER 10000:10000
 ENTRYPOINT ["controller"]
@@ -43,7 +44,7 @@ COPY scripts/job-cancelled /usr/local/bin
 COPY scripts/job-failure   /usr/local/bin
 COPY scripts/job-success   /usr/local/bin
 
-COPY --from=builder /workspace/tmp/bin/slack-agent-client /usr/local/bin
+COPY --from=builder /workspace/tmp/bin/meows /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/job-started /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/entrypoint /usr/local/bin
 

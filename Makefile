@@ -63,7 +63,7 @@ build: generate ## Build all binaries.
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/entrypoint
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/job-started
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/slack-agent
-	go build -o $(BIN_DIR)/ -trimpath ./cmd/slack-agent-client
+	go build -o $(BIN_DIR)/ -trimpath ./cmd/meows
 
 .PHONY: image
 image: ## Build container images.
