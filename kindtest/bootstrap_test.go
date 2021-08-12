@@ -47,7 +47,7 @@ func testBootstrap() {
 
 		By("confirming all controller pods are ready")
 		Eventually(func() error {
-			return isDeploymentReady("controller-manager", controllerNS, 2)
+			return isDeploymentReady("meows-controller", controllerNS, 2)
 		}).ShouldNot(HaveOccurred())
 	})
 

@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
+  name: meows-controller
   namespace: meows
 spec:
   replicas: 2
   template:
     spec:
       containers:
-      - name: manager
+      - name: controller
         image: meows-controller:kindtest
         imagePullPolicy: Never
         args:
