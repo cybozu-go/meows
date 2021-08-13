@@ -14,12 +14,12 @@ Here are the minimal changes from the default setting on the registration page:
 - Fill **GitHub Apps Name**
 - Fill **Homepage URL**
 - Uncheck `Active` under **Webhook** section
-- Set **Actions** and **Administration** `Read & Write` permission to the repository scope
+- Set **Administration** `Read & Write` permission to the repository scope
 
 Then, you are redirected to the **General** page and what you should do is:
 
 1. Click `Generate a private key` and downloads the generated private key.
-1. Keep `App ID` shown on the top of the page somewhere.
+2. Keep `App ID` shown on the top of the page somewhere.
 
 Next, you should proceed to the Install App page from the sidebar and click the
 `Install` button. You are asked to give the permission to `All repositories`
