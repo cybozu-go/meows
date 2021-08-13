@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
+  name: controller
   namespace: system
 spec:
   selector:
@@ -25,7 +25,7 @@ spec:
         - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
         - "--app-private-key-path=/etc/github/app.pem"
         image: quay.io/cybozu/meows-controller:latest
-        name: manager
+        name: controller
         env:
           - name: "GITHUB_APP_ID"
             valueFrom:
@@ -40,19 +40,25 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
         ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        - containerPort: 8081
+          name: health
+          protocol: TCP
         - containerPort: 9443
           name: webhook-server
           protocol: TCP
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: health
           initialDelaySeconds: 15
           periodSeconds: 20
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: health
           initialDelaySeconds: 5
           periodSeconds: 10
         resources:

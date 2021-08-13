@@ -4,19 +4,21 @@ images:
 - name: quay.io/cybozu/meows-controller
   newTag: 0.2.0
 
+namePrefix: meows-
+
 commonLabels:
   app.kubernetes.io/name: meows
   app.kubernetes.io/component: controller
 
 resources:
-- manager.yaml
 - certificate.yaml
-- webhook.yaml
-- service.yaml
-- role.yaml
-- role_binding.yaml
-- leader_election_role.yaml
+- deployment.yaml
 - leader_election_role_binding.yaml
+- leader_election_role.yaml
+- role_binding.yaml
+- role.yaml
+- service.yaml
+- webhook.yaml
 
 configurations:
 - kustomizeconfig.yaml
