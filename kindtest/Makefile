@@ -1,7 +1,7 @@
 CURL := curl -sSLf
 
 KUSTOMIZE_VERSION := 4.1.3
-K8S_VERSION := 1.21.1
+KINDTEST_K8S_VERSION := 1.21.1
 KIND_VERSION := 0.11.1
 CERT_MANAGER_VERSION := 1.3.1
 
@@ -34,7 +34,7 @@ setup: ## Setup necessary tools.
 	mkdir -p $(BIN_DIR)
 	$(CURL) https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BIN_DIR)
 	$(CURL) -o $(BIN_DIR)/kind https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64 && chmod a+x $(BIN_DIR)/kind
-	$(CURL) -o $(BIN_DIR)/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
+	$(CURL) -o $(BIN_DIR)/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(KINDTEST_K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
 
 .PHONY: clean
 clean: ## Clean files
@@ -44,7 +44,7 @@ clean: ## Clean files
 
 .PHONY: start
 start: ## Start kind cluster.
-	$(KIND) create cluster --image kindest/node:v$(K8S_VERSION) --name $(KIND_CLUSTER_NAME) --config kind.yaml --wait 1m
+	$(KIND) create cluster --image kindest/node:v$(KINDTEST_K8S_VERSION) --name $(KIND_CLUSTER_NAME) --config kind.yaml --wait 1m
 	$(MAKE) cert-manager
 	$(MAKE) load
 
