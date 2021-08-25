@@ -154,7 +154,7 @@ func getTimeFromCallbackEvent(cb *slack.InteractionCallback, baseTime time.Time)
 func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, tm time.Time) error {
 	success := true
 	if !s.devMood {
-		err := s.updateDeletionTime(ctx, pod, namespace, tm)
+		err := s.updateDeletionTime(ctx, namespace, pod, tm)
 		if err != nil {
 			s.log.Error(err, "failed to update deletion time",
 				"name", pod,
