@@ -2,7 +2,7 @@ CURL := curl -sSLf
 
 CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_GEN_VERSION := 0.4.1
-K8S_VERSION := 1.19.7
+K8S_VERSION := 1.21.1
 
 PROJECT_DIR := $(CURDIR)
 TMP_DIR := $(PROJECT_DIR)/tmp
