@@ -1,13 +1,9 @@
-CURL := curl -sSLf
-
-CONTROLLER_RUNTIME_VERSION := $(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_GEN_VERSION := 0.4.1
-K8S_VERSION := 1.19.7
+ENVTEST_K8S_VERSION := 1.21.2
 
 PROJECT_DIR := $(CURDIR)
 TMP_DIR := $(PROJECT_DIR)/tmp
 BIN_DIR := $(TMP_DIR)/bin
-ENVTEST_ASSETS_DIR := $(TMP_DIR)/envtest
 KINDTEST_DIR := $(PROJECT_DIR)/kindtest
 
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
@@ -34,12 +30,11 @@ help: ## Display this help.
 .PHONY: setup
 setup: ## Setup necessary tools.
 	$(MAKE) -C kindtest setup
-	mkdir -p $(BIN_DIR) $(ENVTEST_ASSETS_DIR)
+	mkdir -p $(BIN_DIR)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_GEN_VERSION)
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
 	GOBIN=$(BIN_DIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
-	$(CURL) -o $(BIN_DIR)/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v$(CONTROLLER_RUNTIME_VERSION)/hack/setup-envtest.sh
-	source $(BIN_DIR)/setup-envtest.sh && fetch_envtest_tools $(ENVTEST_ASSETS_DIR)
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 .PHONY: clean
 clean: ## Clean files
@@ -97,6 +92,5 @@ check-generate: ## Generate manifests and code, and check if diff exists.
 
 .PHONY: test
 test: ## Run unit tests.
-	source $(BIN_DIR)/setup-envtest.sh \
-		&& setup_envtest_env $(ENVTEST_ASSETS_DIR) \
+	source <($(BIN_DIR)/setup-envtest use -p env $(ENVTEST_K8S_VERSION)) \
 		&& go test -v -count=1 ./... -coverprofile $(TMP_DIR)/cover.out
