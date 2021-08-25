@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches:
-      - 'main'
+      - "main"
 jobs:
   build:
     name: Build
@@ -24,6 +24,9 @@ jobs:
       - run: make image
   kindtest:
     name: Run test on kind
+    strategy:
+      matrix:
+        k8s-version: ["1.20.7", "1.21.1"]
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -46,8 +49,8 @@ jobs:
           export SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
           export SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
           EOF
-      - run: make setup
-      - run: make -C kindtest start
+      - run: make setup KINDTEST_K8S_VERSION=${{ matrix.k8s-version }}
+      - run: make -C kindtest start KINDTEST_K8S_VERSION=${{ matrix.k8s-version }}
       - run: make -C kindtest test
         env:
           GIT_SSH_COMMAND: "ssh -i /tmp/deploy-key.pem"

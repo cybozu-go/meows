@@ -3,8 +3,7 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/cybozu-go/meows?tab=overview)](https://pkg.go.dev/github.com/cybozu-go/meows?tab=overview)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cybozu-go/meows)](https://goreportcard.com/report/github.com/cybozu-go/meows)
 
-meows
-=========================
+# meows
 
 meows is a Kubernetes controller for GitHub Actions [self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners).
 It enables us to run GitHub Actions workflows on `Pod`s running on you Kubernetes
@@ -12,8 +11,11 @@ clusters.
 
 **Project Status**: Initial development
 
-Features
---------
+## Supported software
+
+- Kubernetes: 1.20, 1.21
+
+## Features
 
 - Self-hosted runner pool
   - Run a time-consuming startup script before a job starts
@@ -22,13 +24,11 @@ Features
 - Workflow failure investigation
   - Users can extend the lifetime of a `Pod` and investigate what causes the failure
 
-Documentation
--------------
+## Documentation
 
 [docs](docs/) directory contains documents about designs and specifications.
 
-Docker images
--------------
+## Docker images
 
 Docker images are available on [Quay.io](https://quay.io/repository/cybozu)
 - [Controller](https://quay.io/repository/cybozu/meows-controller)
