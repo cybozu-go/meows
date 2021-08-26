@@ -265,13 +265,22 @@ func (m *managerLoop) unlinkBusyRunnerPods(ctx context.Context, runnerList []*gi
 			continue
 		}
 
+		t, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+		if err != nil {
+			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
 		runner := findRunner(runnerList, po.Name)
-		if runner == nil || !runner.Busy {
+		if runner == nil {
+			continue
+		}
+
+		if t.IsZero() && !runner.Busy {
 			continue
 		}
 
 		delete(po.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
-		err := m.k8sClient.Update(ctx, po)
+		err = m.k8sClient.Update(ctx, po)
 		if err != nil {
 			m.log.Error(err, "failed to unlink (update) pod", "pod", namespacedName(po.Namespace, po.Name))
 			return err
