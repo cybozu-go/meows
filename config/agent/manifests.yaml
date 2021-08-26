@@ -4,31 +4,30 @@ metadata:
   name: slack-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: slack-agent
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: ClusterRole
   name: slack-agent
 subjects:
-- kind: ServiceAccount
-  name: slack-agent
+  - kind: ServiceAccount
+    name: slack-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   name: slack-agent
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -47,17 +46,17 @@ spec:
         app.kubernetes.io/component: slack-agent
     spec:
       containers:
-      - name: agent
-        image: quay.io/cybozu/meows-controller:latest
-        command:
-          - "slack-agent"
-        envFrom:
-          - secretRef:
-              name: slack-app-secret
-        ports:
-          - name: notifier
-            containerPort: 8080
-            protocol: TCP
+        - name: agent
+          image: quay.io/cybozu/meows-controller:latest
+          command:
+            - "slack-agent"
+          envFrom:
+            - secretRef:
+                name: slack-app-secret
+          ports:
+            - name: notifier
+              containerPort: 8080
+              protocol: TCP
       serviceAccountName: slack-agent
 ---
 apiVersion: v1
