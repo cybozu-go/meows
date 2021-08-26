@@ -12,12 +12,13 @@ import (
 	rc "github.com/cybozu-go/meows/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete;update
 
 type RunnerManager interface {
 	StartOrUpdate(*meowsv1alpha1.RunnerPool)
@@ -175,6 +176,10 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 
 	m.updateMetrics(podList, runnerList)
 
+	err = m.unlinkBusyRunnerPods(ctx, runnerList, podList)
+	if err != nil {
+		return err
+	}
 	err = m.deleteOfflineRunners(ctx, runnerList, podList)
 	if err != nil {
 		return err
@@ -251,6 +256,39 @@ func difference(prev, current []string) []string {
 		}
 	}
 	return ret
+}
+
+func (m *managerLoop) unlinkBusyRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
+	for i := range podList.Items {
+		po := &podList.Items[i]
+		if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
+			continue
+		}
+
+		runner := findRunner(runnerList, po.Name)
+		if runner == nil || !runner.Busy {
+			continue
+		}
+
+		delete(po.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+		err := m.k8sClient.Update(ctx, po)
+		if err != nil {
+			m.log.Error(err, "failed to unlink (update) pod", "pod", namespacedName(po.Namespace, po.Name))
+			return err
+		}
+		m.log.Info("unlinked (updated) pod", "pod", namespacedName(po.Namespace, po.Name))
+	}
+
+	return nil
+}
+
+func findRunner(runnerList []*github.Runner, name string) *github.Runner {
+	for _, runner := range runnerList {
+		if runner.Name == name {
+			return runner
+		}
+	}
+	return nil
 }
 
 func (m *managerLoop) deleteOfflineRunners(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
