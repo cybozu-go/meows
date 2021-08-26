@@ -70,6 +70,7 @@ func (c *clientImpl) PutDeletionTime(ctx context.Context, ip string, tm time.Tim
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	res, err := c.client.Do(req)
 	if err != nil {
