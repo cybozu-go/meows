@@ -265,28 +265,16 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
-		runner := findRunner(runnerList, po.Name)
-		if runner == nil {
-			// kill zombie pod
-			if t.After(now) {
-				err = m.k8sClient.Delete(ctx, po)
-				if err != nil {
-					m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
-					return err
-				}
-			}
-			continue
-		}
 
 		switch {
-		case t.IsZero() && !runner.Busy:
-			// before github action
-			continue
-		case runner.Busy:
-			// during github action
-			fallthrough
-		case t.Before(now) && !runner.Busy:
-			// after github action and before deletionTime
+		case t.Before(now) && !t.IsZero():
+			err = m.k8sClient.Delete(ctx, po)
+			if err != nil {
+				m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
+				return err
+			}
+			m.log.Info("removed pod", "pod", namespacedName(po.Namespace, po.Name))
+		case runnerBusy(runnerList, po.Name) || !t.IsZero():
 			if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
 				continue
 			}
@@ -297,28 +285,18 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 				return err
 			}
 			m.log.Info("unlinked (updated) pod", "pod", namespacedName(po.Namespace, po.Name))
-		case !t.Before(now):
-			// after github action and after deletionTime
-			err = m.k8sClient.Delete(ctx, po)
-			if err != nil {
-				m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
-				return err
-			}
-			m.log.Info("removed pod", "pod", namespacedName(po.Namespace, po.Name))
-		default:
-			panic("unreachable case")
 		}
 	}
 	return nil
 }
 
-func findRunner(runnerList []*github.Runner, name string) *github.Runner {
+func runnerBusy(runnerList []*github.Runner, name string) bool {
 	for _, runner := range runnerList {
 		if runner.Name == name {
-			return runner
+			return runner.Busy
 		}
 	}
-	return nil
+	return false
 }
 
 func (m *managerLoop) deleteOfflineRunners(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
