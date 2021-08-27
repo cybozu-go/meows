@@ -17,6 +17,7 @@ resources:
 - leader_election_role.yaml
 - role_binding.yaml
 - role.yaml
+- service_account.yaml
 - service.yaml
 - webhook.yaml
 
