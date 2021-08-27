@@ -176,15 +176,12 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 
 	m.updateMetrics(podList, runnerList)
 
-	err = m.unlinkBusyRunnerPods(ctx, runnerList, podList)
+	err = m.maintainRunnerPods(ctx, runnerList, podList)
 	if err != nil {
 		return err
 	}
+
 	err = m.deleteOfflineRunners(ctx, runnerList, podList)
-	if err != nil {
-		return err
-	}
-	err = m.deleteRunnerPods(ctx, podList)
 	if err != nil {
 		return err
 	}
@@ -258,12 +255,10 @@ func difference(prev, current []string) []string {
 	return ret
 }
 
-func (m *managerLoop) unlinkBusyRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
+func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
+	now := time.Now().UTC()
 	for i := range podList.Items {
 		po := &podList.Items[i]
-		if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
-			continue
-		}
 
 		t, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
 		if err != nil {
@@ -272,22 +267,48 @@ func (m *managerLoop) unlinkBusyRunnerPods(ctx context.Context, runnerList []*gi
 		}
 		runner := findRunner(runnerList, po.Name)
 		if runner == nil {
+			// kill zombie pod
+			if t.After(now) {
+				err = m.k8sClient.Delete(ctx, po)
+				if err != nil {
+					m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
+					return err
+				}
+			}
 			continue
 		}
 
-		if t.IsZero() && !runner.Busy {
+		switch {
+		case t.IsZero() && !runner.Busy:
+			// before github action
 			continue
+		case runner.Busy:
+			// during github action
+			fallthrough
+		case t.Before(now) && !runner.Busy:
+			// after github action and before deletionTime
+			if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
+				continue
+			}
+			delete(po.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+			err = m.k8sClient.Update(ctx, po)
+			if err != nil {
+				m.log.Error(err, "failed to unlink (update) pod", "pod", namespacedName(po.Namespace, po.Name))
+				return err
+			}
+			m.log.Info("unlinked (updated) pod", "pod", namespacedName(po.Namespace, po.Name))
+		case !t.Before(now):
+			// after github action and after deletionTime
+			err = m.k8sClient.Delete(ctx, po)
+			if err != nil {
+				m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
+				return err
+			}
+			m.log.Info("removed pod", "pod", namespacedName(po.Namespace, po.Name))
+		default:
+			panic("unreachable case")
 		}
-
-		delete(po.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
-		err = m.k8sClient.Update(ctx, po)
-		if err != nil {
-			m.log.Error(err, "failed to unlink (update) pod", "pod", namespacedName(po.Namespace, po.Name))
-			return err
-		}
-		m.log.Info("unlinked (updated) pod", "pod", namespacedName(po.Namespace, po.Name))
 	}
-
 	return nil
 }
 
@@ -322,27 +343,4 @@ func podExists(name string, podList *corev1.PodList) bool {
 		}
 	}
 	return false
-}
-
-func (m *managerLoop) deleteRunnerPods(ctx context.Context, podList *corev1.PodList) error {
-	now := time.Now().UTC()
-	for i := range podList.Items {
-		po := &podList.Items[i]
-		t, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
-		if err != nil {
-			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
-			continue
-		}
-		if t.IsZero() || t.After(now) {
-			continue
-		}
-
-		err = m.k8sClient.Delete(ctx, po)
-		if err != nil {
-			m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
-			return err
-		}
-		m.log.Info("removed pod", "pod", namespacedName(po.Namespace, po.Name))
-	}
-	return nil
 }
