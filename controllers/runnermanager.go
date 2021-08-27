@@ -260,31 +260,33 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 	for i := range podList.Items {
 		po := &podList.Items[i]
 
-		t, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+		deletionTime, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
 		if err != nil {
 			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
 
 		switch {
-		case t.Before(now) && !t.IsZero():
+		case deletionTime.Before(now) && !deletionTime.IsZero():
+			// It means deletion time is exceeded, so the runner pod will be deleted from cluster.
 			err = m.k8sClient.Delete(ctx, po)
 			if err != nil {
-				m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
+				m.log.Error(err, "failed to delete runner pod", "pod", namespacedName(po.Namespace, po.Name))
 				return err
 			}
-			m.log.Info("removed pod", "pod", namespacedName(po.Namespace, po.Name))
-		case runnerBusy(runnerList, po.Name) || !t.IsZero():
+			m.log.Info("deleted runner pod", "pod", namespacedName(po.Namespace, po.Name))
+		case runnerBusy(runnerList, po.Name) || !deletionTime.IsZero():
+			// It means a job is assigned, so the runner pod will be removed from replicaset control.
 			if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
 				continue
 			}
 			delete(po.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
 			err = m.k8sClient.Update(ctx, po)
 			if err != nil {
-				m.log.Error(err, "failed to unlink (update) pod", "pod", namespacedName(po.Namespace, po.Name))
+				m.log.Error(err, "failed to unlink (update) runner pod", "pod", namespacedName(po.Namespace, po.Name))
 				return err
 			}
-			m.log.Info("unlinked (updated) pod", "pod", namespacedName(po.Namespace, po.Name))
+			m.log.Info("unlinked (updated) runner pod", "pod", namespacedName(po.Namespace, po.Name))
 		}
 	}
 	return nil
