@@ -12,12 +12,13 @@ import (
 	rc "github.com/cybozu-go/meows/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete;update
 
 type RunnerManager interface {
 	StartOrUpdate(*meowsv1alpha1.RunnerPool)
@@ -175,11 +176,12 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 
 	m.updateMetrics(podList, runnerList)
 
-	err = m.deleteOfflineRunners(ctx, runnerList, podList)
+	err = m.maintainRunnerPods(ctx, runnerList, podList)
 	if err != nil {
 		return err
 	}
-	err = m.deleteRunnerPods(ctx, podList)
+
+	err = m.deleteOfflineRunners(ctx, runnerList, podList)
 	if err != nil {
 		return err
 	}
@@ -253,6 +255,52 @@ func difference(prev, current []string) []string {
 	return ret
 }
 
+func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
+	now := time.Now().UTC()
+	for i := range podList.Items {
+		po := &podList.Items[i]
+
+		deletionTime, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+		if err != nil {
+			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+
+		switch {
+		case deletionTime.Before(now) && !deletionTime.IsZero():
+			// It means deletion time is exceeded, so the runner pod will be deleted from cluster.
+			err = m.k8sClient.Delete(ctx, po)
+			if err != nil {
+				m.log.Error(err, "failed to delete runner pod", "pod", namespacedName(po.Namespace, po.Name))
+				return err
+			}
+			m.log.Info("deleted runner pod", "pod", namespacedName(po.Namespace, po.Name))
+		case runnerBusy(runnerList, po.Name) || !deletionTime.IsZero():
+			// It means a job is assigned, so the runner pod will be removed from replicaset control.
+			if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
+				continue
+			}
+			delete(po.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
+			err = m.k8sClient.Update(ctx, po)
+			if err != nil {
+				m.log.Error(err, "failed to unlink (update) runner pod", "pod", namespacedName(po.Namespace, po.Name))
+				return err
+			}
+			m.log.Info("unlinked (updated) runner pod", "pod", namespacedName(po.Namespace, po.Name))
+		}
+	}
+	return nil
+}
+
+func runnerBusy(runnerList []*github.Runner, name string) bool {
+	for _, runner := range runnerList {
+		if runner.Name == name {
+			return runner.Busy
+		}
+	}
+	return false
+}
+
 func (m *managerLoop) deleteOfflineRunners(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	for _, runner := range runnerList {
 		if runner.Online || podExists(runner.Name, podList) {
@@ -275,27 +323,4 @@ func podExists(name string, podList *corev1.PodList) bool {
 		}
 	}
 	return false
-}
-
-func (m *managerLoop) deleteRunnerPods(ctx context.Context, podList *corev1.PodList) error {
-	now := time.Now().UTC()
-	for i := range podList.Items {
-		po := &podList.Items[i]
-		t, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
-		if err != nil {
-			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
-			continue
-		}
-		if t.IsZero() || t.After(now) {
-			continue
-		}
-
-		err = m.k8sClient.Delete(ctx, po)
-		if err != nil {
-			m.log.Error(err, "failed to delete pod", "pod", namespacedName(po.Namespace, po.Name))
-			return err
-		}
-		m.log.Info("removed pod", "pod", namespacedName(po.Namespace, po.Name))
-	}
-	return nil
 }
