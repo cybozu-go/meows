@@ -27,10 +27,15 @@ type RunnerPoolSpec struct {
 	// RepositoryName describes repository name to register Pods as self-hosted runners.
 	RepositoryName string `json:"repositoryName"`
 
-	// Number of desired runner pods. Defaults to 1.
+	// Number of desired runner pods to accept a new job. Defaults to 1.
 	// +kubebuilder:default=1
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
+
+	// Number of desired runner pods to keep. Defaults to 1.
+	// +kubebuilder:default=1
+	// +optional
+	MaxRunnerPods int32 `json:"maxRunnerPods,omitempty"`
 
 	// Command that runs when the runner pods will be created.
 	// +optional
