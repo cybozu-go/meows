@@ -88,7 +88,7 @@ type RunnerPodTemplateSec struct {
 	// WorkVolume is the volume source for the working directory.
 	// If pod is not given a volume definition, it uses an empty dir.
 	// +optional
-	WorkVolume *corev1.VolumeSource `json:"workVolume"`
+	WorkVolume *corev1.VolumeSource `json:"workVolume,omitempty"`
 
 	// Pod volumes to mount into the runner container's filesystem.
 	// +optional
