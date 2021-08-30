@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -154,6 +155,9 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"1": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("work-dir"),
 				}),
+				"2": MatchFields(IgnoreExtras, Fields{
+					"Name": Equal("empty-dir"),
+				}),
 			}),
 		}))
 
@@ -275,7 +279,23 @@ var _ = Describe("RunnerPool reconciler", func() {
 			{Name: "volume1", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			{Name: "volume2", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
-		rp.Spec.Template.WorkVolume = &corev1.VolumeSource{Ephemeral: &corev1.EphemeralVolumeSource{}}
+		rp.Spec.Template.WorkVolume = &corev1.VolumeSource{
+			Ephemeral: &corev1.EphemeralVolumeSource{
+				VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "vol",
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: resource.MustParse("100Mi"),
+							},
+						},
+					},
+				},
+			},
+		}
 
 		rp.Spec.Template.ServiceAccountName = serviceAccountName
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
