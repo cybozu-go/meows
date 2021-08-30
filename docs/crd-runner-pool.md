@@ -42,6 +42,7 @@ RunnerPodTemplateSpec
 | `securityContext`    | [corev1.SecurityContext][]          | Security options for the runner container.                                       |
 | `env`                | \[\][corev1.EnvVar][]               | List of environment variables to set in the runner container.                    |
 | `resources`          | [corev1.ResourceRequirements][]     | Compute Resources required by the runner container.                              |
+| `workVolume`         | [corev1.VolumeSource][]             | The volume source for the working directory.                                     |
 | `volumeMounts`       | \[\][corev1.VolumeMount][]          | Pod volumes to mount into the runner container's filesystem.                     |
 | `volumes`            | \[\][corev1.Volume][]               | List of volumes that can be mounted by containers belonging to the pod.          |
 | `ServiceAccountName` | string                              | Name of the service account that the Pod use. (default value is "default")       |
@@ -58,5 +59,6 @@ RunnerPoolStatus
 [corev1.SecurityContext]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#securitycontext-v1-core
 [corev1.EnvVar]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#envvar-v1-core
 [corev1.ResourceRequirements]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#resourcerequirements-v1-core
+[corev1.VolumeSource]: https://pkg.go.dev/k8s.io/api/core/v1#VolumeSource
 [corev1.VolumeMount]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#volumemount-v1-core
 [corev1.Volume]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#volume-v1-core
