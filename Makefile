@@ -93,4 +93,4 @@ check-generate: ## Generate manifests and code, and check if diff exists.
 .PHONY: test
 test: ## Run unit tests.
 	source <($(BIN_DIR)/setup-envtest use -p env $(ENVTEST_K8S_VERSION)) \
-		&& go test -v -count=1 ./... -coverprofile $(TMP_DIR)/cover.out
+		&& go test -v -count=1 ./controllers -ginkgo.failFast -coverprofile $(TMP_DIR)/cover.out

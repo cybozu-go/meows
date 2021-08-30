@@ -275,6 +275,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 			{Name: "volume1", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			{Name: "volume2", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
+		rp.Spec.Template.WorkVolume = &corev1.VolumeSource{Ephemeral: &corev1.EphemeralVolumeSource{}}
+
 		rp.Spec.Template.ServiceAccountName = serviceAccountName
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 

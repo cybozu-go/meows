@@ -201,12 +201,21 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
-		}, corev1.Volume{
-			Name: workDir,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
 		})
+		if rp.Spec.Template.WorkVolume == nil {
+			// use emptyDir (default)
+			volumes = append(volumes, corev1.Volume{
+				Name: workDir,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			})
+		} else {
+			volumes = append(volumes, corev1.Volume{
+				Name:         workDir,
+				VolumeSource: *rp.Spec.Template.WorkVolume,
+			})
+		}
 		d.Spec.Template.Spec.Volumes = volumes
 
 		r.addRunnerContainerIfNotExists(d)
