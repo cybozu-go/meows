@@ -156,14 +156,7 @@ func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
 		allErrs = append(allErrs, field.Required(pp, "the field is required"))
 	}
 
-	for i, e := range s.Template.Env {
-		if reservedEnvNames[e.Name] {
-			allErrs = append(allErrs, field.Forbidden(p.Child("template").Child("env").Index(i),
-				fmt.Sprintf("using the reserved environment variable %s in %s is forbidden", e.Name, constants.RunnerContainerName)))
-		}
-	}
-
-	return allErrs
+	return append(allErrs, s.validateCommon()...)
 }
 
 func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
@@ -173,6 +166,17 @@ func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
 	if s.RepositoryName != old.RepositoryName {
 		pp := p.Child("repositoryName")
 		allErrs = append(allErrs, field.Forbidden(pp, "the field is immutable"))
+	}
+
+	return append(allErrs, s.validateCommon()...)
+}
+
+func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
+	var allErrs field.ErrorList
+	p := field.NewPath("spec")
+
+	if s.MaxRunnerPods < s.Replicas {
+		allErrs = append(allErrs, field.Invalid(p.Child("maxRunnerPods"), s.MaxRunnerPods, "this value should be greater-than or equal-to replicas."))
 	}
 
 	for i, e := range s.Template.Env {
