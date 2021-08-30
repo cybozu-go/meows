@@ -151,12 +151,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"Volumes": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("var-dir"),
+					"VolumeSource": MatchFields(IgnoreExtras, Fields{
+						"EmptyDir": Not(BeNil()),
+					}),
 				}),
 				"1": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("work-dir"),
-				}),
-				"2": MatchFields(IgnoreExtras, Fields{
-					"Name": Equal("empty-dir"),
+					"VolumeSource": MatchFields(IgnoreExtras, Fields{
+						"EmptyDir": Not(BeNil()),
+					}),
 				}),
 			}),
 		}))
@@ -337,15 +340,27 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"Volumes": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("volume1"),
+					"VolumeSource": MatchFields(IgnoreExtras, Fields{
+						"EmptyDir": Not(BeNil()),
+					}),
 				}),
 				"1": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("volume2"),
+					"VolumeSource": MatchFields(IgnoreExtras, Fields{
+						"EmptyDir": Not(BeNil()),
+					}),
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("var-dir"),
+					"VolumeSource": MatchFields(IgnoreExtras, Fields{
+						"EmptyDir": Not(BeNil()),
+					}),
 				}),
 				"3": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("work-dir"),
+					"VolumeSource": MatchFields(IgnoreExtras, Fields{
+						"Ephemeral": Not(BeNil()),
+					}),
 				}),
 			}),
 		}))
