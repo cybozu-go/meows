@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -107,13 +107,14 @@ type managerLoop struct {
 	rpNamespace     string
 	rpName          string
 	repository      string
-	replicas        int32 // This field will be accessed from some goroutines. So use atomic package to access.
-	maxRunnerPods   int32
+	replicas        int32 // This field will be accessed from some goroutines. So use mutex to access.
+	maxRunnerPods   int32 // This field will be accessed from some goroutines. So use mutex to access.
 
 	// Update internally.
 	env             *well.Environment
 	cancel          context.CancelFunc
 	prevRunnerNames []string
+	mu              sync.Mutex
 }
 
 func (m *managerLoop) rpNamespacedName() string {
@@ -163,8 +164,10 @@ func (m *managerLoop) stop(ctx context.Context) error {
 }
 
 func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
-	atomic.StoreInt32(&m.replicas, rp.Spec.Replicas)
-	atomic.StoreInt32(&m.maxRunnerPods, rp.Spec.MaxRunnerPods)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.replicas = rp.Spec.Replicas
+	m.maxRunnerPods = rp.Spec.MaxRunnerPods
 }
 
 func (m *managerLoop) runOnce(ctx context.Context) error {
@@ -227,7 +230,9 @@ func (m *managerLoop) fetchRunners(ctx context.Context) ([]*github.Runner, error
 }
 
 func (m *managerLoop) updateMetrics(podList *corev1.PodList, runnerList []*github.Runner) {
-	metrics.UpdateRunnerPoolMetrics(m.rpNamespacedName(), int(atomic.LoadInt32(&m.replicas)))
+	m.mu.Lock()
+	metrics.UpdateRunnerPoolMetrics(m.rpNamespacedName(), int(m.replicas))
+	m.mu.Unlock()
 
 	var currentRunnerNames []string
 	for _, runner := range runnerList {
@@ -260,7 +265,10 @@ func difference(prev, current []string) []string {
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	now := time.Now().UTC()
+	m.mu.Lock()
 	nRemovablePods := m.maxRunnerPods - int32(len(podList.Items))
+	m.mu.Unlock()
+
 	for i := range podList.Items {
 		po := &podList.Items[i]
 
