@@ -208,16 +208,28 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	default:
 		jobResult = agent.JobResultUnknown
 	}
+
+	jobInfo, err := agent.GetJobInfoFromFile(agent.DefaultJobInfoFile)
+	if err != nil {
+		return err
+	}
+
 	extend := isFileExists(r.extendFlagFile)
 
 	s := struct {
-		Status       string `json:"status"`
-		Extend       bool   `json:"extend"`
-		SlackChannel string `json:"slack_channel`
-		PodName      string
+		Status       string         `json:"status"`
+		Extend       bool           `json:"extend"`
+		SlackChannel string         `json:"slack_channel"`
+		PodNamespace string         `json:"pod_namespace"`
+		PodName      string         `json:"pod_name"`
+		JobInfo      *agent.JobInfo `json:"jobinfo"`
 	}{
-		Status: jobResult,
-		Extend: extend,
+		Status:       jobResult,
+		Extend:       extend,
+		SlackChannel: r.envs.option.SlackChannel,
+		PodNamespace: r.envs.podNamespace,
+		PodName:      r.envs.podName,
+		JobInfo:      jobInfo,
 	}
 
 	res, err := json.Marshal(s)
