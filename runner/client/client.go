@@ -127,11 +127,13 @@ func getDeletionTimeURL(ip string) string {
 // FakeClient is a fake client
 type FakeClient struct {
 	deletionTimes map[string]time.Time
+	jobResults    map[string]string
 }
 
 func NewFakeClient() *FakeClient {
 	return &FakeClient{
 		deletionTimes: map[string]time.Time{},
+		jobResults:    map[string]string{},
 	}
 }
 
@@ -146,4 +148,12 @@ func (c *FakeClient) PutDeletionTime(ctx context.Context, ip string, tm time.Tim
 
 func (c *FakeClient) SetDeletionTimes(ip string, tm time.Time) {
 	c.deletionTimes[ip] = tm
+}
+
+func (c *FakeClient) GetJobResult(ctx context.Context, ip string) (string, error) {
+	return c.jobResults[ip], nil
+}
+
+func (c *FakeClient) SetJobResult(ip string, status string) {
+	c.jobResults[ip] = status
 }
