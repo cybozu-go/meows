@@ -54,16 +54,17 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	rpNamespacedName := namespacedName(rp.Namespace, rp.Name)
 	if _, ok := m.loops[rpNamespacedName]; !ok {
 		loop := &managerLoop{
-			log:             m.log.WithValues("runnerpool", rpNamespacedName),
-			interval:        m.interval,
-			k8sClient:       m.k8sClient,
-			githubClient:    m.githubClient,
-			runnerPodClient: m.runnerPodClient,
-			rpNamespace:     rp.Namespace,
-			rpName:          rp.Name,
-			repository:      rp.Spec.RepositoryName,
-			replicas:        rp.Spec.Replicas,
-			maxRunnerPods:   rp.Spec.MaxRunnerPods,
+			log:                   m.log.WithValues("runnerpool", rpNamespacedName),
+			interval:              m.interval,
+			k8sClient:             m.k8sClient,
+			githubClient:          m.githubClient,
+			runnerPodClient:       m.runnerPodClient,
+			rpNamespace:           rp.Namespace,
+			rpName:                rp.Name,
+			repository:            rp.Spec.RepositoryName,
+			replicas:              rp.Spec.Replicas,
+			maxRunnerPods:         rp.Spec.MaxRunnerPods,
+			slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
 		}
 		loop.start()
 		m.loops[rpNamespacedName] = loop
@@ -99,16 +100,17 @@ func (m *RunnerManagerImpl) Stop(ctx context.Context, rp *meowsv1alpha1.RunnerPo
 
 type managerLoop struct {
 	// Given from outside. Not update internally.
-	log             logr.Logger
-	interval        time.Duration
-	k8sClient       client.Client
-	githubClient    github.Client
-	runnerPodClient rc.Client
-	rpNamespace     string
-	rpName          string
-	repository      string
-	replicas        int32 // This field will be accessed from some goroutines. So use mutex to access.
-	maxRunnerPods   int32 // This field will be accessed from some goroutines. So use mutex to access.
+	log                   logr.Logger
+	interval              time.Duration
+	k8sClient             client.Client
+	githubClient          github.Client
+	runnerPodClient       rc.Client
+	rpNamespace           string
+	rpName                string
+	repository            string
+	replicas              int32 // This field will be accessed from some goroutines. So use mutex to access.
+	maxRunnerPods         int32 // This field will be accessed from some goroutines. So use mutex to access.
+	slackAgentServiceName string
 
 	// Update internally.
 	env             *well.Environment
@@ -168,6 +170,7 @@ func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
 	defer m.mu.Unlock()
 	m.replicas = rp.Spec.Replicas
 	m.maxRunnerPods = rp.Spec.MaxRunnerPods
+	m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
 }
 
 func (m *managerLoop) runOnce(ctx context.Context) error {
@@ -181,6 +184,11 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 	}
 
 	m.updateMetrics(podList, runnerList)
+
+	err = m.notifyToSlack(ctx, runnerList, podList)
+	if err != nil {
+		return err
+	}
 
 	err = m.maintainRunnerPods(ctx, runnerList, podList)
 	if err != nil {
@@ -261,6 +269,14 @@ func difference(prev, current []string) []string {
 		}
 	}
 	return ret
+}
+
+func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
+	for i := range podList.Items {
+		_ = &podList.Items[i]
+		// TODO
+	}
+	return nil
 }
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
