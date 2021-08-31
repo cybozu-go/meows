@@ -196,6 +196,7 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 		return
 	}
+
 	var jobResult string
 	switch {
 	case isFileExists(r.failureFlagFile):
@@ -207,11 +208,18 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	default:
 		jobResult = agent.JobResultUnknown
 	}
+	extend := isFileExists(r.extendFlagFile)
+
 	s := struct {
-		Status string `json:"status"`
+		Status       string `json:"status"`
+		Extend       bool   `json:"extend"`
+		SlackChannel string `json:"slack_channel`
+		PodName      string
 	}{
 		Status: jobResult,
+		Extend: extend,
 	}
+
 	res, err := json.Marshal(s)
 	if err != nil {
 		http.Error(w, "Failed to catch job result", http.StatusInternalServerError)
