@@ -10,14 +10,22 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/meows"
+	"github.com/cybozu-go/meows/agent"
 )
 
 type DeletionTimePayload struct {
 	DeletionTime time.Time `json:"deletion_time"`
 }
-type StatusResponse struct {
-	Status string `json:"status"`
+
+type JobResultResponse struct {
+	Status       string         `json:"status"`
+	Extend       bool           `json:"extend"`
+	SlackChannel string         `json:"slack_channel"`
+	PodNamespace string         `json:"pod_namespace"`
+	PodName      string         `json:"pod_name"`
+	JobInfo      *agent.JobInfo `json:"jobinfo"`
 }
+
 type Client interface {
 	GetDeletionTime(ctx context.Context, ip string) (time.Time, error)
 	PutDeletionTime(ctx context.Context, ip string, tm time.Time) error
@@ -87,33 +95,33 @@ func (c *clientImpl) PutDeletionTime(ctx context.Context, ip string, tm time.Tim
 	return nil
 }
 
-func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (string, error) {
+func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (*JobResultResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getJobResultURL(ip), nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	res, err := c.client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
+		return nil, fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
 	}
 
-	sr := StatusResponse{}
+	jr := JobResultResponse{}
 
-	if err := json.Unmarshal(b, &sr); err != nil {
-		return "", err
+	if err := json.Unmarshal(b, &jr); err != nil {
+		return nil, err
 	}
 
-	return sr.Status, nil
+	return &jr, nil
 }
 
 func getJobResultURL(ip string) string {
@@ -127,13 +135,13 @@ func getDeletionTimeURL(ip string) string {
 // FakeClient is a fake client
 type FakeClient struct {
 	deletionTimes map[string]time.Time
-	jobResults    map[string]string
+	jobResults    map[string]*JobResultResponse
 }
 
 func NewFakeClient() *FakeClient {
 	return &FakeClient{
 		deletionTimes: map[string]time.Time{},
-		jobResults:    map[string]string{},
+		jobResults:    map[string]*JobResultResponse{},
 	}
 }
 
@@ -150,10 +158,10 @@ func (c *FakeClient) SetDeletionTimes(ip string, tm time.Time) {
 	c.deletionTimes[ip] = tm
 }
 
-func (c *FakeClient) GetJobResult(ctx context.Context, ip string) (string, error) {
+func (c *FakeClient) GetJobResult(ctx context.Context, ip string) (*JobResultResponse, error) {
 	return c.jobResults[ip], nil
 }
 
-func (c *FakeClient) SetJobResult(ip string, status string) {
-	c.jobResults[ip] = status
+func (c *FakeClient) SetJobResult(ip string, jr *JobResultResponse) {
+	c.jobResults[ip] = jr
 }
