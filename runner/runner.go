@@ -196,9 +196,6 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 		return
 	}
-
-	// どっかにデータを保存して、APIエンドポイントが叩かれた時にここで投げてるデータを返す
-	// jobの結果の通知をslack-agentに投げてる
 	var jobResult string
 	switch {
 	case isFileExists(r.failureFlagFile):

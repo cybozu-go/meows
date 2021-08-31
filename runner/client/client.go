@@ -15,10 +15,13 @@ import (
 type DeletionTimePayload struct {
 	DeletionTime time.Time `json:"deletion_time"`
 }
-
+type StatusResponse struct {
+	Status string `json:"status"`
+}
 type Client interface {
 	GetDeletionTime(ctx context.Context, ip string) (time.Time, error)
 	PutDeletionTime(ctx context.Context, ip string, tm time.Time) error
+	GetJobResult(ctx context.Context, ip string) (string, error)
 }
 
 type clientImpl struct {
@@ -82,6 +85,39 @@ func (c *clientImpl) PutDeletionTime(ctx context.Context, ip string, tm time.Tim
 		return fmt.Errorf("runner pod (%s) return %d, send data is %v", ip, res.StatusCode, string(b))
 	}
 	return nil
+}
+
+func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getJobResultURL(ip), nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
+	}
+
+	sr := StatusResponse{}
+
+	if err := json.Unmarshal(b, &sr); err != nil {
+		return "", err
+	}
+
+	return sr.Status, nil
+}
+
+func getJobResultURL(ip string) string {
+	return fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerListenPort, constants.RunnerJobResultEndPoint)
 }
 
 func getDeletionTimeURL(ip string) string {
