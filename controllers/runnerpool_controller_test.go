@@ -299,7 +299,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 				},
 			},
 		}
-
 		rp.Spec.Template.ServiceAccountName = serviceAccountName
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
