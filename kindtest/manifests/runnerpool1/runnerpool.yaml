@@ -5,6 +5,7 @@ metadata:
 spec:
   repositoryName: meows-ci
   replicas: 3
+  maxRunnerPods: 3
   slackAgent:
     serviceName: slack-agent.meows.svc
   template:

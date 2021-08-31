@@ -36,9 +36,15 @@ spec:
           spec:
             description: RunnerPoolSpec defines the desired state of RunnerPool
             properties:
+              maxRunnerPods:
+                default: 1
+                description: Number of desired runner pods to keep. Defaults to 1.
+                format: int32
+                type: integer
               replicas:
                 default: 1
-                description: Number of desired runner pods. Defaults to 1.
+                description: Number of desired runner pods to accept a new job. Defaults
+                  to 1.
                 format: int32
                 type: integer
               repositoryName:

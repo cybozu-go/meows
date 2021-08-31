@@ -66,6 +66,7 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 		Expect(rp.ObjectMeta.Finalizers).To(HaveLen(1))
 		Expect(rp.ObjectMeta.Finalizers[0]).To(Equal(constants.RunnerPoolFinalizer))
 		Expect(rp.Spec.Replicas).To(BeNumerically("==", 1))
+		Expect(rp.Spec.MaxRunnerPods).To(BeNumerically("==", 1))
 		Expect(rp.Spec.Template.ServiceAccountName).To(Equal("default"))
 
 		By("deleting the created RunnerPool")
@@ -82,6 +83,53 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		rp.Spec.RepositoryName = "test-repo2"
+		Expect(k8sClient.Update(ctx, rp)).NotTo(Succeed())
+
+		By("deleting the created RunnerPool")
+		deleteRunnerPool(ctx, name, namespace)
+	})
+
+	It("should allow creating RunnerPool when Replicas <= MaxRunnerPods", func() {
+		By("Replicas == MaxRunnerPods")
+		rp := makeRunnerPoolTemplate(name, namespace, "test-repo")
+		rp.Spec.Replicas = 2
+		rp.Spec.MaxRunnerPods = 2
+		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
+		By("deleting the created RunnerPool")
+		deleteRunnerPool(ctx, name, namespace)
+
+		By("Replicas <= MaxRunnerPods")
+		rp = makeRunnerPoolTemplate(name, namespace, "test-repo")
+		rp.Spec.Replicas = 2
+		rp.Spec.MaxRunnerPods = 3
+		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
+		By("deleting the created RunnerPool")
+		deleteRunnerPool(ctx, name, namespace)
+	})
+
+	It("should deny creating RunnerPool if Replicas is set to large number but MaxRunnerPods is not", func() {
+		rp := makeRunnerPoolTemplate(name, namespace, "test-repo")
+		rp.Spec.Replicas = 3
+		Expect(k8sClient.Create(ctx, rp)).NotTo(Succeed())
+	})
+
+	It("should deny creating RunnerPool when Replicas > MaxRunnerPods", func() {
+		rp := makeRunnerPoolTemplate(name, namespace, "test-repo")
+		rp.Spec.Replicas = 3
+		rp.Spec.MaxRunnerPods = 2
+		Expect(k8sClient.Create(ctx, rp)).NotTo(Succeed())
+	})
+
+	It("should deny updating RunnerPool when Replicas > MaxRunnerPods", func() {
+		By("creating RunnerPool")
+		rp := makeRunnerPoolTemplate(name, namespace, "test-repo")
+		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
+		By("updating RunnerPool")
+		rp.Spec.Replicas = 3
+		rp.Spec.MaxRunnerPods = 2
 		Expect(k8sClient.Update(ctx, rp)).NotTo(Succeed())
 
 		By("deleting the created RunnerPool")

@@ -5,6 +5,7 @@ metadata:
 spec:
   repositoryName: repository-sample
   replicas: 3
+  maxRunnerPods: 3
   slackAgent:
     serviceName: slack-agent
   template:

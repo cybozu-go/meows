@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -63,6 +63,7 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 			rpName:          rp.Name,
 			repository:      rp.Spec.RepositoryName,
 			replicas:        rp.Spec.Replicas,
+			maxRunnerPods:   rp.Spec.MaxRunnerPods,
 		}
 		loop.start()
 		m.loops[rpNamespacedName] = loop
@@ -106,12 +107,14 @@ type managerLoop struct {
 	rpNamespace     string
 	rpName          string
 	repository      string
-	replicas        int32 // This field will be accessed from some goroutines. So use atomic package to access.
+	replicas        int32 // This field will be accessed from some goroutines. So use mutex to access.
+	maxRunnerPods   int32 // This field will be accessed from some goroutines. So use mutex to access.
 
 	// Update internally.
 	env             *well.Environment
 	cancel          context.CancelFunc
 	prevRunnerNames []string
+	mu              sync.Mutex
 }
 
 func (m *managerLoop) rpNamespacedName() string {
@@ -161,7 +164,10 @@ func (m *managerLoop) stop(ctx context.Context) error {
 }
 
 func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
-	atomic.StoreInt32(&m.replicas, rp.Spec.Replicas)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.replicas = rp.Spec.Replicas
+	m.maxRunnerPods = rp.Spec.MaxRunnerPods
 }
 
 func (m *managerLoop) runOnce(ctx context.Context) error {
@@ -224,7 +230,9 @@ func (m *managerLoop) fetchRunners(ctx context.Context) ([]*github.Runner, error
 }
 
 func (m *managerLoop) updateMetrics(podList *corev1.PodList, runnerList []*github.Runner) {
-	metrics.UpdateRunnerPoolMetrics(m.rpNamespacedName(), int(atomic.LoadInt32(&m.replicas)))
+	m.mu.Lock()
+	metrics.UpdateRunnerPoolMetrics(m.rpNamespacedName(), int(m.replicas))
+	m.mu.Unlock()
 
 	var currentRunnerNames []string
 	for _, runner := range runnerList {
@@ -257,6 +265,10 @@ func difference(prev, current []string) []string {
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	now := time.Now().UTC()
+	m.mu.Lock()
+	nRemovablePods := m.maxRunnerPods - int32(len(podList.Items))
+	m.mu.Unlock()
+
 	for i := range podList.Items {
 		po := &podList.Items[i]
 
@@ -277,6 +289,9 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 			m.log.Info("deleted runner pod", "pod", namespacedName(po.Namespace, po.Name))
 		case runnerBusy(runnerList, po.Name) || !deletionTime.IsZero():
 			// It means a job is assigned, so the runner pod will be removed from replicaset control.
+			if nRemovablePods <= 0 {
+				continue
+			}
 			if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
 				continue
 			}
@@ -286,6 +301,7 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 				m.log.Error(err, "failed to unlink (update) runner pod", "pod", namespacedName(po.Namespace, po.Name))
 				return err
 			}
+			nRemovablePods--
 			m.log.Info("unlinked (updated) runner pod", "pod", namespacedName(po.Namespace, po.Name))
 		}
 	}
