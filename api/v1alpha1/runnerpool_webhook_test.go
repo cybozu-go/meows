@@ -92,11 +92,23 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 	It("validated Maxrunnerpod", func() {
 		// -1など不可能な値(失敗)
 		// 未指定デフォルト値1(成功)
-		//
 		// 3(成功)
+		//異常ケース
+
 		rp := makeRunnerPoolTemplate(name, namespace, "test-repo")
 		rp.Spec.MaxRunnerPods = -1
+		rp.Spec.Replicas = 1
+		Expect(k8sClient.Create(ctx, rp)).NotTo(Succeed())
+
+		rp.Spec.MaxRunnerPods = 3
+		rp.Spec.Replicas = 5
+		Expect(k8sClient.Create(ctx, rp)).NotTo(Succeed())
+
+		//正常ケース
+		rp.Spec.MaxRunnerPods = 3
+		rp.Spec.Replicas = 1
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
 	})
 
 	It("should deny creating or updating RunnerPool with reserved environment variables", func() {
