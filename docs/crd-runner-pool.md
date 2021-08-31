@@ -18,10 +18,13 @@ RunnerPoolSpec
 | Field            | Type                                            | Description                                              |
 | ---------------- | ----------------------------------------------- | -------------------------------------------------------- |
 | `repositoryName` | string                                          | Repository Name to register Pods as self-hosted runners. |
-| `replicas`       | int32                                           | Number of desired Pods.                                  |
+| `replicas`       | int32                                           | Number of desired runner pods to accept a new job.       |
+| `maxRunnerPods`  | int32                                           | Number of desired runner pods to keep.                   |
 | `setupCommand`   | []string                                        | Command that runs when the runner pods will be created.  |
 | `slackAgent`     | [SlackAgentConfig](#SlackAgentConfig)           | Configuration of a Slack agent.                          |
 | `template`       | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec) | Pod manifest Template.                                   |
+
+**NOTE**: `maxRunnerPods` is equal-to or greater than `replicas`.
 
 SlackAgentConfig
 ----------------
