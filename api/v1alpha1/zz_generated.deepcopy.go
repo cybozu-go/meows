@@ -60,6 +60,11 @@ func (in *RunnerPodTemplateSec) DeepCopyInto(out *RunnerPodTemplateSec) {
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
+	if in.WorkVolume != nil {
+		in, out := &in.WorkVolume, &out.WorkVolume
+		*out = new(v1.VolumeSource)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
 		*out = make([]v1.VolumeMount, len(*in))
