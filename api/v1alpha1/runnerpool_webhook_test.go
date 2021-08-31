@@ -66,6 +66,7 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 		Expect(rp.ObjectMeta.Finalizers).To(HaveLen(1))
 		Expect(rp.ObjectMeta.Finalizers[0]).To(Equal(constants.RunnerPoolFinalizer))
 		Expect(rp.Spec.Replicas).To(BeNumerically("==", 1))
+		Expect(rp.Spec.MaxRunnerPods).To(BeNumerically("==", 1))
 		Expect(rp.Spec.Template.ServiceAccountName).To(Equal("default"))
 
 		By("deleting the created RunnerPool")
@@ -86,6 +87,16 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, name, namespace)
+	})
+
+	It("validated Maxrunnerpod", func() {
+		// -1など不可能な値(失敗)
+		// 未指定デフォルト値1(成功)
+		//
+		// 3(成功)
+		rp := makeRunnerPoolTemplate(name, namespace, "test-repo")
+		rp.Spec.MaxRunnerPods = -1
+		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 	})
 
 	It("should deny creating or updating RunnerPool with reserved environment variables", func() {
