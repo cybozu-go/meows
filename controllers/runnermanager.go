@@ -63,6 +63,7 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 			rpName:          rp.Name,
 			repository:      rp.Spec.RepositoryName,
 			replicas:        rp.Spec.Replicas,
+			maxRunnerPods:   rp.Spec.MaxRunnerPods,
 		}
 		loop.start()
 		m.loops[rpNamespacedName] = loop
@@ -107,6 +108,7 @@ type managerLoop struct {
 	rpName          string
 	repository      string
 	replicas        int32 // This field will be accessed from some goroutines. So use atomic package to access.
+	maxRunnerPods   int32
 
 	// Update internally.
 	env             *well.Environment
@@ -162,6 +164,7 @@ func (m *managerLoop) stop(ctx context.Context) error {
 
 func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
 	atomic.StoreInt32(&m.replicas, rp.Spec.Replicas)
+	atomic.StoreInt32(&m.maxRunnerPods, rp.Spec.MaxRunnerPods)
 }
 
 func (m *managerLoop) runOnce(ctx context.Context) error {
@@ -257,6 +260,7 @@ func difference(prev, current []string) []string {
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	now := time.Now().UTC()
+	nRemovablePods := m.maxRunnerPods - int32(len(podList.Items))
 	for i := range podList.Items {
 		po := &podList.Items[i]
 
@@ -277,6 +281,9 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 			m.log.Info("deleted runner pod", "pod", namespacedName(po.Namespace, po.Name))
 		case runnerBusy(runnerList, po.Name) || !deletionTime.IsZero():
 			// It means a job is assigned, so the runner pod will be removed from replicaset control.
+			if nRemovablePods <= 0 {
+				continue
+			}
 			if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
 				continue
 			}
@@ -286,6 +293,7 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 				m.log.Error(err, "failed to unlink (update) runner pod", "pod", namespacedName(po.Namespace, po.Name))
 				return err
 			}
+			nRemovablePods--
 			m.log.Info("unlinked (updated) runner pod", "pod", namespacedName(po.Namespace, po.Name))
 		}
 	}
