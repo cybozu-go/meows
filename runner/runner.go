@@ -211,7 +211,8 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 
 	jobInfo, err := agent.GetJobInfoFromFile(agent.DefaultJobInfoFile)
 	if err != nil {
-		return err
+		http.Error(w, "Failed to get job info", http.StatusInternalServerError)
+		return
 	}
 
 	extend := isFileExists(r.extendFlagFile)
@@ -235,7 +236,9 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	res, err := json.Marshal(s)
 	if err != nil {
 		http.Error(w, "Failed to catch job result", http.StatusInternalServerError)
+		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(res)
