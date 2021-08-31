@@ -69,6 +69,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
 	mux.Handle("/"+constants.DeletionTimeEndpoint, http.HandlerFunc(r.deletionTimeHandler))
+	mux.Handle("/"+constants.RunnerJobResultEndPoint, http.HandlerFunc(r.runnerJobResultHandler))
 	serv := &well.HTTPServer{
 		Env: env,
 		Server: &http.Server{
@@ -126,9 +127,6 @@ func (r *Runner) runListener(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := r.notifyToSlack(ctx, extend); err != nil {
-		return err
-	}
 
 	<-ctx.Done()
 	return nil
@@ -145,35 +143,6 @@ func (r *Runner) updateDeletionTime(extend bool) error {
 	} else {
 		fmt.Println("Update pod's deletion time with current time")
 		r.deletionTime.Store(time.Now().UTC())
-	}
-	return nil
-}
-
-func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
-	var jobResult string
-	switch {
-	case isFileExists(r.failureFlagFile):
-		jobResult = agent.JobResultFailure
-	case isFileExists(r.cancelledFlagFile):
-		jobResult = agent.JobResultCancelled
-	case isFileExists(r.successFlagFile):
-		jobResult = agent.JobResultSuccess
-	default:
-		jobResult = agent.JobResultUnknown
-	}
-	if len(r.envs.option.SlackAgentServiceName) != 0 {
-		fmt.Println("Send an notification to slack jobResult = ", jobResult)
-		c, err := agent.NewClient(fmt.Sprintf("http://%s", r.envs.option.SlackAgentServiceName))
-		if err != nil {
-			return err
-		}
-		jobInfo, err := agent.GetJobInfoFromFile(agent.DefaultJobInfoFile)
-		if err != nil {
-			return err
-		}
-		return c.PostResult(ctx, r.envs.option.SlackChannel, jobResult, extend, r.envs.podNamespace, r.envs.podName, jobInfo)
-	} else {
-		fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
 	}
 	return nil
 }
@@ -217,4 +186,40 @@ func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		return
+	}
+	if req.Header.Get("Content-Type") != "application/json" {
+		w.WriteHeader(http.StatusUnsupportedMediaType)
+		return
+	}
+
+	// どっかにデータを保存して、APIエンドポイントが叩かれた時にここで投げてるデータを返す
+	// jobの結果の通知をslack-agentに投げてる
+	var jobResult string
+	switch {
+	case isFileExists(r.failureFlagFile):
+		jobResult = agent.JobResultFailure
+	case isFileExists(r.cancelledFlagFile):
+		jobResult = agent.JobResultCancelled
+	case isFileExists(r.successFlagFile):
+		jobResult = agent.JobResultSuccess
+	default:
+		jobResult = agent.JobResultUnknown
+	}
+	s := struct {
+		Status string `json:"status"`
+	}{
+		Status: jobResult,
+	}
+	res, err := json.Marshal(s)
+	if err != nil {
+		http.Error(w, "Failed to catch job result", http.StatusInternalServerError)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(res)
 }
