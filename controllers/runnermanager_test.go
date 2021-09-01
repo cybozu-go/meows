@@ -34,6 +34,25 @@ var _ = Describe("RunnerManager", func() {
 			spec         *corev1.Pod
 			ip           string
 			deletionTime time.Time
+			jobResult    *rc.JobResultResponse
+		}
+		jr := &rc.JobResultResponse{
+			Status:       rc.JobResultUnknown,
+			Update:       time.Now().UTC(),
+			Extend:       false,
+			SlackChannel: "test1",
+			PodNamespace: "test-pod-namespace",
+			PodName:      "test-pod",
+			JobInfo: &rc.JobInfo{
+				Actor:          "",
+				GitRef:         "",
+				JobID:          "",
+				PullRequestNum: 0,
+				Repository:     "",
+				RunID:          0,
+				RunNumber:      0,
+				WorkflowName:   "",
+			},
 		}
 		testCases := []struct {
 			name                string
@@ -50,9 +69,9 @@ var _ = Describe("RunnerManager", func() {
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
 				},
 				inputPods: []*inputPod{
-					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", deletionTime: time.Now().UTC()},
-					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", deletionTime: time.Now().UTC()},
-					{spec: makePod("pod3", "test-ns1", "rp2"), ip: "10.0.0.3", deletionTime: time.Now().UTC()},
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", deletionTime: time.Now().UTC(), jobResult: jr},
+					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", deletionTime: time.Now().UTC(), jobResult: jr},
+					{spec: makePod("pod3", "test-ns1", "rp2"), ip: "10.0.0.3", deletionTime: time.Now().UTC(), jobResult: jr},
 				},
 				expectedPodNames: nil,
 			},
@@ -63,10 +82,10 @@ var _ = Describe("RunnerManager", func() {
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
 				},
 				inputPods: []*inputPod{
-					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1"},
-					{spec: makePod("pod2", "test-ns1", "rp2"), ip: "10.0.0.2", deletionTime: time.Now().Add(24 * time.Hour).UTC()},
-					{spec: makePod("pod3", "test-ns1", "rp3"), ip: "10.0.0.3", deletionTime: time.Now().UTC()}, // RunnerPool (test-ns1/rp3) is not exists.
-					{spec: makePod("pod1", "test-ns2", "rp1"), ip: "10.0.1.1", deletionTime: time.Now().UTC()}, // RunnerPool (test-ns2/rp1) is not exists.
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", jobResult: jr},
+					{spec: makePod("pod2", "test-ns1", "rp2"), ip: "10.0.0.2", deletionTime: time.Now().Add(24 * time.Hour).UTC(), jobResult: jr},
+					{spec: makePod("pod3", "test-ns1", "rp3"), ip: "10.0.0.3", deletionTime: time.Now().UTC(), jobResult: jr}, // RunnerPool (test-ns1/rp3) is not exists.
+					{spec: makePod("pod1", "test-ns2", "rp1"), ip: "10.0.1.1", deletionTime: time.Now().UTC(), jobResult: jr}, // RunnerPool (test-ns2/rp1) is not exists.
 				},
 				expectedPodNames: []string{
 					"test-ns1/pod1",
@@ -99,8 +118,8 @@ var _ = Describe("RunnerManager", func() {
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
 				},
 				inputPods: []*inputPod{
-					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1"},
-					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2"},
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", jobResult: jr},
+					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", jobResult: jr},
 				},
 				inputRunners: map[string][]*github.Runner{
 					"repo1": {
