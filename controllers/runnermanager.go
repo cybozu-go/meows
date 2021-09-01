@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -273,8 +274,30 @@ func difference(prev, current []string) []string {
 
 func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	for i := range podList.Items {
-		_ = &podList.Items[i]
+		po := &podList.Items[i]
 		// TODO
+		//jobResultを受け取ってくる
+		jobResult, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+		if err != nil {
+			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+		//送信処理
+		if len(r.envs.option.SlackAgentServiceName) != 0 {
+			fmt.Println("Send an notification to slack jobResult = ", jobResult)
+			c, err := agent.NewClient(fmt.Sprintf("http://%s", r.envs.option.SlackAgentServiceName))
+			if err != nil {
+				return err
+			}
+			jobInfo, err := agent.GetJobInfoFromFile(agent.DefaultJobInfoFile)
+			if err != nil {
+				return err
+			}
+			return c.PostResult(ctx, r.envs.option.SlackChannel, jobResult, extend, r.envs.podNamespace, r.envs.podName, jobInfo)
+		} else {
+			fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
+		}
+		return nil
 	}
 	return nil
 }
