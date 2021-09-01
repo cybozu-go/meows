@@ -7,6 +7,7 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/meows"
+	"github.com/cybozu-go/meows/agent"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/metrics"
@@ -275,25 +276,18 @@ func difference(prev, current []string) []string {
 func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	for i := range podList.Items {
 		po := &podList.Items[i]
-		// TODO
-		//jobResultを受け取ってくる
-		jobResult, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+		jobResult, err := m.runnerPodClient.GetJobResult(ctx, po.Status.PodIP)
 		if err != nil {
 			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
-		//送信処理
-		if len(r.envs.option.SlackAgentServiceName) != 0 {
+		if len(m.slackAgentServiceName) != 0 {
 			fmt.Println("Send an notification to slack jobResult = ", jobResult)
-			c, err := agent.NewClient(fmt.Sprintf("http://%s", r.envs.option.SlackAgentServiceName))
+			c, err := agent.NewClient(fmt.Sprintf("http://%s", m.slackAgentServiceName))
 			if err != nil {
 				return err
 			}
-			jobInfo, err := agent.GetJobInfoFromFile(agent.DefaultJobInfoFile)
-			if err != nil {
-				return err
-			}
-			return c.PostResult(ctx, r.envs.option.SlackChannel, jobResult, extend, r.envs.podNamespace, r.envs.podName, jobInfo)
+			return c.PostResult(ctx, jobResult.SlackChannel, jobResult.Status, jobResult.Extend, jobResult.PodNamespace, jobResult.PodName, jobResult.JobInfo)
 		} else {
 			fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
 		}

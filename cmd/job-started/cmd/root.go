@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/cybozu-go/meows/agent"
+	"github.com/cybozu-go/meows/runner/client"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +14,7 @@ var rootCmd = &cobra.Command{
 	Use:  "job-started",
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		jobInfo, err := agent.GetJobInfo()
+		jobInfo, err := client.GetJobInfo()
 		if err != nil {
 			return err
 		}
@@ -36,5 +36,5 @@ func Execute() {
 
 func init() {
 	fs := rootCmd.Flags()
-	fs.StringVarP(&jobInfoFile, "jobinfo-file", "f", agent.DefaultJobInfoFile, "Job info file.")
+	fs.StringVarP(&jobInfoFile, "jobinfo-file", "f", client.DefaultJobInfoFile, "Job info file.")
 }
