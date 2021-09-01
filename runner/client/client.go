@@ -10,7 +10,13 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/meows"
-	"github.com/cybozu-go/meows/agent"
+)
+
+const (
+	JobResultSuccess   = "success"
+	JobResultFailure   = "failure"
+	JobResultCancelled = "cancelled"
+	JobResultUnknown   = "unknown"
 )
 
 type DeletionTimePayload struct {
@@ -18,18 +24,18 @@ type DeletionTimePayload struct {
 }
 
 type JobResultResponse struct {
-	Status       string         `json:"status"`
-	Extend       bool           `json:"extend"`
-	SlackChannel string         `json:"slack_channel"`
-	PodNamespace string         `json:"pod_namespace"`
-	PodName      string         `json:"pod_name"`
-	JobInfo      *agent.JobInfo `json:"jobinfo"`
+	Status       string   `json:"status"`
+	Extend       bool     `json:"extend"`
+	SlackChannel string   `json:"slack_channel"`
+	PodNamespace string   `json:"pod_namespace"`
+	PodName      string   `json:"pod_name"`
+	JobInfo      *JobInfo `json:"jobinfo"`
 }
 
 type Client interface {
 	GetDeletionTime(ctx context.Context, ip string) (time.Time, error)
 	PutDeletionTime(ctx context.Context, ip string, tm time.Time) error
-	GetJobResult(ctx context.Context, ip string) (string, error)
+	GetJobResult(ctx context.Context, ip string) (*JobResultResponse, error)
 }
 
 type clientImpl struct {

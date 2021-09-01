@@ -11,7 +11,6 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/meows"
-	"github.com/cybozu-go/meows/agent"
 	"github.com/cybozu-go/meows/metrics"
 	"github.com/cybozu-go/meows/runner/client"
 	"github.com/cybozu-go/well"
@@ -200,16 +199,16 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	var jobResult string
 	switch {
 	case isFileExists(r.failureFlagFile):
-		jobResult = agent.JobResultFailure
+		jobResult = client.JobResultFailure
 	case isFileExists(r.cancelledFlagFile):
-		jobResult = agent.JobResultCancelled
+		jobResult = client.JobResultCancelled
 	case isFileExists(r.successFlagFile):
-		jobResult = agent.JobResultSuccess
+		jobResult = client.JobResultSuccess
 	default:
-		jobResult = agent.JobResultUnknown
+		jobResult = client.JobResultUnknown
 	}
 
-	jobInfo, err := agent.GetJobInfoFromFile(agent.DefaultJobInfoFile)
+	jobInfo, err := client.GetJobInfoFromFile(client.DefaultJobInfoFile)
 	if err != nil {
 		http.Error(w, "Failed to get job info", http.StatusInternalServerError)
 		return
@@ -217,13 +216,14 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 
 	extend := isFileExists(r.extendFlagFile)
 
+	// agent
 	s := struct {
-		Status       string         `json:"status"`
-		Extend       bool           `json:"extend"`
-		SlackChannel string         `json:"slack_channel"`
-		PodNamespace string         `json:"pod_namespace"`
-		PodName      string         `json:"pod_name"`
-		JobInfo      *agent.JobInfo `json:"jobinfo"`
+		Status       string          `json:"status"`
+		Extend       bool            `json:"extend"`
+		SlackChannel string          `json:"slack_channel"`
+		PodNamespace string          `json:"pod_namespace"`
+		PodName      string          `json:"pod_name"`
+		JobInfo      *client.JobInfo `json:"jobinfo"`
 	}{
 		Status:       jobResult,
 		Extend:       extend,

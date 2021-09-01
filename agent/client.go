@@ -8,13 +8,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-)
 
-const (
-	JobResultSuccess   = "success"
-	JobResultFailure   = "failure"
-	JobResultCancelled = "cancelled"
-	JobResultUnknown   = "unknown"
+	"github.com/cybozu-go/meows/runner/client"
 )
 
 // These colors are based on the following guide.
@@ -28,27 +23,27 @@ const (
 )
 
 var colors = map[string]string{
-	JobResultSuccess:   colorGreen,
-	JobResultFailure:   colorRed,
-	JobResultCancelled: colorGray,
-	JobResultUnknown:   colorYellow,
+	client.JobResultSuccess:   colorGreen,
+	client.JobResultFailure:   colorRed,
+	client.JobResultCancelled: colorGray,
+	client.JobResultUnknown:   colorYellow,
 }
 
 var captions = map[string]string{
-	JobResultSuccess:   "Success",
-	JobResultFailure:   "Failure",
-	JobResultCancelled: "Cancelled",
-	JobResultUnknown:   "Finished(Unknown)",
+	client.JobResultSuccess:   "Success",
+	client.JobResultFailure:   "Failure",
+	client.JobResultCancelled: "Cancelled",
+	client.JobResultUnknown:   "Finished(Unknown)",
 }
 
-func makePayload(result string, namespaceName, podName string, info *JobInfo) *resultAPIPayload {
+func makePayload(result string, namespaceName, podName string, info *client.JobInfo) *resultAPIPayload {
 	color, ok := colors[result]
 	if !ok {
-		color = colors[JobResultUnknown]
+		color = colors[client.JobResultUnknown]
 	}
 	head, ok := captions[result]
 	if !ok {
-		head = captions[JobResultUnknown]
+		head = captions[client.JobResultUnknown]
 	}
 
 	var text, job, pod string
@@ -85,7 +80,7 @@ func NewClient(serverURL string) (*Client, error) {
 }
 
 // PostResult sends a result of CI job to server.
-func (c *Client) PostResult(ctx context.Context, channel, result string, extend bool, namespaceName, podName string, info *JobInfo) error {
+func (c *Client) PostResult(ctx context.Context, channel, result string, extend bool, namespaceName, podName string, info *client.JobInfo) error {
 	payload := makePayload(result, namespaceName, podName, info)
 	payload.Channel = channel
 	payload.Extend = extend
