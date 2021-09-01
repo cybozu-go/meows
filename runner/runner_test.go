@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/metrics"
 	"github.com/cybozu-go/meows/runner/client"
+	rc "github.com/cybozu-go/meows/runner/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -367,13 +371,20 @@ func deletionTimeShouldHaveValue(comparator string, compareTo time.Time, thresho
 	ExpectWithOffset(1, tm).To(BeTemporally(comparator, compareTo, threshold...))
 }
 
-// func jobRunnerResultShouldDefaultResponse() {
-// 	runnerClient := client.NewClient()
-// 	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
-// 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-// 	// エンドポイントから返ってくるjsonと、デフォルトで返ってくるjsonが等価であれば良い
-// 	http.NewRequest(http.MethodGet, "http://localhost/"+constants.RunnerJobResultEndPoint, nil)
-// }
+func jobRunnerResultShouldDefaultResponse() {
+	runnerClient := client.NewClient()
+	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	// エンドポイントから返ってくるjsonと、デフォルトで返ってくるjsonが等価であれば良い
+	http.NewRequest(http.MethodGet, "http://localhost/"+constants.RunnerJobResultEndPoint, nil)
+	resp, err := http.Get("http://localhost/" + constants.RunnerJobResultEndPoint)
+	defer resp.Body.Close()
+	s := rc.JobResultResponse{}
+	byteArray, _ := ioutil.ReadAll(resp.Body)
+	err = json.Unmarshal(byteArray, &s)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, s).To(Equal(reflect.DeepEqual(jr, s)))
+}
 
 func metricsShouldNotExist(name string) {
 	_, err := metrics.FetchGauge(context.Background(), "http://localhost:8080/metrics", name)
