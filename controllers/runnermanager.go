@@ -299,10 +299,6 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Ru
 			m.log.Info("skipped notification because pod status is not updated", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
-		if jobResult.Status == rc.JobResultUnknown {
-			m.log.Info("skipped notification because pod status is unknown", "pod", namespacedName(po.Namespace, po.Name))
-			continue
-		}
 
 		if len(m.slackAgentServiceName) != 0 {
 			fmt.Println("Send an notification to slack jobResult = ", jobResult)

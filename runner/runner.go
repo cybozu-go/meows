@@ -31,8 +31,8 @@ type Runner struct {
 	failureFlagFile   string
 	cancelledFlagFile string
 	successFlagFile   string
-
-	deletionTime atomic.Value
+	update            time.Time
+	deletionTime      atomic.Value
 }
 
 func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string) (*Runner, error) {
@@ -127,6 +127,8 @@ func (r *Runner) runListener(ctx context.Context) error {
 		return err
 	}
 
+	r.update = time.Now().UTC()
+
 	<-ctx.Done()
 	return nil
 }
@@ -193,17 +195,13 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	}
 
 	var jobResult string
-	var update time.Time
 	switch {
 	case isFileExists(r.failureFlagFile):
 		jobResult = client.JobResultFailure
-		update = getFileUpdateTime(r.failureFlagFile)
 	case isFileExists(r.cancelledFlagFile):
 		jobResult = client.JobResultCancelled
-		update = getFileUpdateTime(r.cancelledFlagFile)
 	case isFileExists(r.successFlagFile):
 		jobResult = client.JobResultSuccess
-		update = getFileUpdateTime(r.successFlagFile)
 	default:
 		jobResult = client.JobResultUnknown
 	}
@@ -216,10 +214,9 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 
 	extend := isFileExists(r.extendFlagFile)
 
-	// agent
 	s := &client.JobResultResponse{
 		Status:       jobResult,
-		Update:       update,
+		Update:       r.update,
 		Extend:       extend,
 		SlackChannel: r.envs.option.SlackChannel,
 		PodNamespace: r.envs.podNamespace,
