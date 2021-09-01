@@ -37,12 +37,9 @@ var _ = Describe("RunnerManager", func() {
 			jobResult    *rc.JobResultResponse
 		}
 		jr := &rc.JobResultResponse{
-			Status:       rc.JobResultUnknown,
-			Update:       time.Now().UTC(),
-			Extend:       false,
-			SlackChannel: "test1",
-			PodNamespace: "test-pod-namespace",
-			PodName:      "test-pod",
+			Status: rc.JobResultUnknown,
+			Update: time.Now().UTC(),
+			Extend: false,
 			JobInfo: &rc.JobInfo{
 				Actor:          "",
 				GitRef:         "",

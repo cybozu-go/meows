@@ -419,7 +419,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				}),
 				"5": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerOptionEnvName),
-					"Value": Equal("{\"setup_command\":[\"command\",\"arg1\",\"args2\"],\"slack_agent_service_name\":\"slack-agent\",\"slack_channel\":\"#test\"}"),
+					"Value": Equal("{\"setup_command\":[\"command\",\"arg1\",\"args2\"]}"),
 				}),
 				"6": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal("ENV_VAR"),

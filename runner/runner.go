@@ -215,13 +215,10 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	extend := isFileExists(r.extendFlagFile)
 
 	s := &client.JobResultResponse{
-		Status:       jobResult,
-		Update:       r.update,
-		Extend:       extend,
-		SlackChannel: r.envs.option.SlackChannel,
-		PodNamespace: r.envs.podNamespace,
-		PodName:      r.envs.podName,
-		JobInfo:      jobInfo,
+		Status:  jobResult,
+		Update:  r.update,
+		Extend:  extend,
+		JobInfo: jobInfo,
 	}
 
 	res, err := json.Marshal(s)

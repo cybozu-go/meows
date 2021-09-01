@@ -11,9 +11,7 @@ import (
 
 // Omittable options
 type Option struct {
-	SetupCommand          []string `json:"setup_command,omitempty"`
-	SlackAgentServiceName string   `json:"slack_agent_service_name,omitempty"`
-	SlackChannel          string   `json:"slack_channel,omitempty"`
+	SetupCommand []string `json:"setup_command,omitempty"`
 }
 
 type environments struct {

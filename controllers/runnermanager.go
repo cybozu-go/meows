@@ -72,6 +72,7 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 			repository:            rp.Spec.RepositoryName,
 			replicas:              rp.Spec.Replicas,
 			maxRunnerPods:         rp.Spec.MaxRunnerPods,
+			slackChannel:          rp.Spec.SlackAgent.Channel,
 			slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
 			lastCheckTime:         m.lastCheckTime,
 		}
@@ -119,6 +120,7 @@ type managerLoop struct {
 	repository            string
 	replicas              int32 // This field will be accessed from some goroutines. So use mutex to access.
 	maxRunnerPods         int32 // This field will be accessed from some goroutines. So use mutex to access.
+	slackChannel          string
 	slackAgentServiceName string
 
 	// Update internally.
@@ -306,7 +308,7 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Ru
 			if err != nil {
 				return err
 			}
-			return c.PostResult(ctx, jobResult.SlackChannel, jobResult.Status, jobResult.Extend, jobResult.PodNamespace, jobResult.PodName, jobResult.JobInfo)
+			return c.PostResult(ctx, m.slackChannel, jobResult.Status, jobResult.Extend, po.Namespace, po.Name, jobResult.JobInfo)
 		} else {
 			fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
 		}
