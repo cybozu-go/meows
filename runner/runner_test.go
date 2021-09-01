@@ -367,6 +367,14 @@ func deletionTimeShouldHaveValue(comparator string, compareTo time.Time, thresho
 	ExpectWithOffset(1, tm).To(BeTemporally(comparator, compareTo, threshold...))
 }
 
+// func jobRunnerResultShouldDefaultResponse() {
+// 	runnerClient := client.NewClient()
+// 	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
+// 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+// 	// エンドポイントから返ってくるjsonと、デフォルトで返ってくるjsonが等価であれば良い
+// 	http.NewRequest(http.MethodGet, "http://localhost/"+constants.RunnerJobResultEndPoint, nil)
+// }
+
 func metricsShouldNotExist(name string) {
 	_, err := metrics.FetchGauge(context.Background(), "http://localhost:8080/metrics", name)
 	ExpectWithOffset(1, err).Should(MatchError(metrics.ErrNotExist))
