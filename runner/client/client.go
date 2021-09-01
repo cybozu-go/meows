@@ -167,7 +167,10 @@ func (c *FakeClient) SetDeletionTimes(ip string, tm time.Time) {
 }
 
 func (c *FakeClient) GetJobResult(ctx context.Context, ip string) (*JobResultResponse, error) {
-	return c.jobResults[ip], nil
+	if jr, ok := c.jobResults[ip]; ok {
+		return jr, nil
+	}
+	return nil, fmt.Errorf("runner pod (%s) job result is not defined", ip)
 }
 
 func (c *FakeClient) SetJobResult(ip string, jr *JobResultResponse) {
