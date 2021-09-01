@@ -121,13 +121,13 @@ func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (*JobResultRes
 		return nil, fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
 	}
 
-	jr := JobResultResponse{}
+	s := JobResultResponse{}
 
-	if err := json.Unmarshal(b, &jr); err != nil {
+	if err := json.Unmarshal(b, &s); err != nil {
 		return nil, err
 	}
 
-	return &jr, nil
+	return &s, nil
 }
 
 func getJobResultURL(ip string) string {
