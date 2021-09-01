@@ -217,14 +217,7 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	extend := isFileExists(r.extendFlagFile)
 
 	// agent
-	s := struct {
-		Status       string          `json:"status"`
-		Extend       bool            `json:"extend"`
-		SlackChannel string          `json:"slack_channel"`
-		PodNamespace string          `json:"pod_namespace"`
-		PodName      string          `json:"pod_name"`
-		JobInfo      *client.JobInfo `json:"jobinfo"`
-	}{
+	s := &client.JobResultResponse{
 		Status:       jobResult,
 		Extend:       extend,
 		SlackChannel: r.envs.option.SlackChannel,
