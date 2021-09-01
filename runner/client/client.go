@@ -24,12 +24,13 @@ type DeletionTimePayload struct {
 }
 
 type JobResultResponse struct {
-	Status       string   `json:"status"`
-	Extend       bool     `json:"extend"`
-	SlackChannel string   `json:"slack_channel"`
-	PodNamespace string   `json:"pod_namespace"`
-	PodName      string   `json:"pod_name"`
-	JobInfo      *JobInfo `json:"jobinfo"`
+	Status       string    `json:"status"`
+	Update       time.Time `json:"update"`
+	Extend       bool      `json:"extend"`
+	SlackChannel string    `json:"slack_channel"`
+	PodNamespace string    `json:"pod_namespace"`
+	PodName      string    `json:"pod_name"`
+	JobInfo      *JobInfo  `json:"jobinfo"`
 }
 
 type Client interface {

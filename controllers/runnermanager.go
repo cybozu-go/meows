@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -38,16 +39,21 @@ type RunnerManagerImpl struct {
 	githubClient    github.Client
 	runnerPodClient rc.Client
 
-	loops map[string]*managerLoop
+	lastCheckTime *atomic.Value
+	loops         map[string]*managerLoop
 }
 
 func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient rc.Client) RunnerManager {
+	var lastCheckTime atomic.Value
+	lastCheckTime.Store(time.Now().UTC())
+
 	return &RunnerManagerImpl{
 		log:             log,
 		interval:        interval,
 		k8sClient:       k8sClient,
 		githubClient:    githubClient,
 		runnerPodClient: runnerPodClient,
+		lastCheckTime:   &lastCheckTime,
 		loops:           map[string]*managerLoop{},
 	}
 }
@@ -67,6 +73,7 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 			replicas:              rp.Spec.Replicas,
 			maxRunnerPods:         rp.Spec.MaxRunnerPods,
 			slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
+			lastCheckTime:         m.lastCheckTime,
 		}
 		loop.start()
 		m.loops[rpNamespacedName] = loop
@@ -115,6 +122,7 @@ type managerLoop struct {
 	slackAgentServiceName string
 
 	// Update internally.
+	lastCheckTime   *atomic.Value
 	env             *well.Environment
 	cancel          context.CancelFunc
 	prevRunnerNames []string
@@ -201,6 +209,9 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	m.lastCheckTime.Store(time.Now().UTC())
+
 	return nil
 }
 
@@ -274,13 +285,25 @@ func difference(prev, current []string) []string {
 }
 
 func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
+	lastCheckTime := m.lastCheckTime.Load().(time.Time)
+
 	for i := range podList.Items {
 		po := &podList.Items[i]
 		jobResult, err := m.runnerPodClient.GetJobResult(ctx, po.Status.PodIP)
 		if err != nil {
-			m.log.Error(err, "skipped notification because failed to get the job result from the runner pod API", "pod:", namespacedName(po.Namespace, po.Name))
+			m.log.Error(err, "skipped notification because failed to get the job result from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
+
+		if jobResult.Update.Before(lastCheckTime) {
+			m.log.Info("skipped notification because pod status is not updated", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+		if jobResult.Status == rc.JobResultUnknown {
+			m.log.Info("skipped notification because pod status is unknown", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+
 		if len(m.slackAgentServiceName) != 0 {
 			fmt.Println("Send an notification to slack jobResult = ", jobResult)
 			c, err := agent.NewClient(fmt.Sprintf("http://%s", m.slackAgentServiceName))

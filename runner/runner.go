@@ -193,13 +193,17 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	}
 
 	var jobResult string
+	var update time.Time
 	switch {
 	case isFileExists(r.failureFlagFile):
 		jobResult = client.JobResultFailure
+		update = getFileUpdateTime(r.failureFlagFile)
 	case isFileExists(r.cancelledFlagFile):
 		jobResult = client.JobResultCancelled
+		update = getFileUpdateTime(r.cancelledFlagFile)
 	case isFileExists(r.successFlagFile):
 		jobResult = client.JobResultSuccess
+		update = getFileUpdateTime(r.successFlagFile)
 	default:
 		jobResult = client.JobResultUnknown
 	}
@@ -215,6 +219,7 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	// agent
 	s := &client.JobResultResponse{
 		Status:       jobResult,
+		Update:       update,
 		Extend:       extend,
 		SlackChannel: r.envs.option.SlackChannel,
 		PodNamespace: r.envs.podNamespace,

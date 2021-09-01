@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	constants "github.com/cybozu-go/meows"
 )
@@ -46,4 +47,9 @@ func removedEnv() []string {
 func isFileExists(filename string) bool {
 	_, err := os.Stat(filename)
 	return err == nil
+}
+
+func getFileUpdateTime(filename string) time.Time {
+	stat, _ := os.Stat(filename)
+	return stat.ModTime().UTC()
 }
