@@ -50,7 +50,7 @@ const (
 	DeletionTimeEndpoint = "deletion_time"
 
 	// RunnerJobResultEndPoint is the endpoint to get job result for runner manager.
-	RunnerJobResultEndPoint = "/result"
+	RunnerJobResultEndPoint = "result"
 )
 
 // Directory path for runner pods.
