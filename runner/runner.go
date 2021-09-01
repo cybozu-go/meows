@@ -191,10 +191,6 @@ func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request
 	if req.Method != http.MethodGet {
 		return
 	}
-	if req.Header.Get("Content-Type") != "application/json" {
-		w.WriteHeader(http.StatusUnsupportedMediaType)
-		return
-	}
 
 	var jobResult string
 	switch {

@@ -106,6 +106,7 @@ func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (*JobResultRes
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
