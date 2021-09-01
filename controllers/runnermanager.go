@@ -278,7 +278,7 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Ru
 		po := &podList.Items[i]
 		jobResult, err := m.runnerPodClient.GetJobResult(ctx, po.Status.PodIP)
 		if err != nil {
-			m.log.Error(err, "skipped GetJobResult", "pod:", namespacedName(po.Namespace, po.Name))
+			m.log.Error(err, "skipped notification because failed to get the job result from the runner pod API", "pod:", namespacedName(po.Namespace, po.Name))
 			continue
 		}
 		if len(m.slackAgentServiceName) != 0 {
