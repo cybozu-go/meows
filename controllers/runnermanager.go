@@ -182,6 +182,7 @@ func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
 	defer m.mu.Unlock()
 	m.replicas = rp.Spec.Replicas
 	m.maxRunnerPods = rp.Spec.MaxRunnerPods
+	m.slackChannel = rp.Spec.SlackAgent.Channel
 	m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
 }
 
