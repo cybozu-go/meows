@@ -60,10 +60,9 @@ This API updates a pod's deletion time. The time format is RFC 3339 in UTC.
 
 This API returns a pod's job result.
 
-When the pod state is `initializing` or `running`, it returns the JobResultResponse.Status == unknown.
-When the pod state is `debugging` or `stale`, it returns the JobResultResponse.Status == failure.
-
-If the deletion time returned by this API has passed, a controller manager will delete the pod.
+When the pod state is `initializing`, `running` or `stale`, it returns a json contains `status` key with `'unfinished'` as value.
+When the pod state is `debugging` (i.e. the pod is finished), it returns a json contains `status` key with one
+of `'success', 'failure', 'cancelled', 'unknown'` as value and other job result values.
 
 **Successful response**
 
@@ -77,19 +76,26 @@ If the deletion time returned by this API has passed, a controller manager will 
 500 internal server error in HTTP status code.
 
 ```console
+$ # When the pod stats is `initializing`, `running` or `stale`.
+$ curl -s -XGET localhost:8080/job_result
+{
+	"status":"unfinished"
+}
+
+$ # When the pod state is `debugging`.
 $ curl -s -XGET localhost:8080/job_result
 {
 	"status":"unknown",
-	"update":"0001-01-01T00:00:00Z",
-	"extend":false,
+	"finished_at":"2021-01-01T00:00:00Z",
+	"extend":true,
 	"job_info":{
-		"actor":"",
-		"git_ref":"",
-		"job_id":"",
-		"pull_request_number":0,
-		"repository":"",
-		"run_id":0,
-		"run_number":0,
-		"workflow_name":""
+		"actor":"user",
+		"git_ref":"branch/name",
+		"job_id":"job",
+		"repository":"owner/repo",
+		"run_id":123456789,
+		"run_number":987,
+		"workflow_name":"Work flow"
 	}
 }
+```

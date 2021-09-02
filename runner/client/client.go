@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	JobResultSuccess   = "success"
-	JobResultFailure   = "failure"
-	JobResultCancelled = "cancelled"
-	JobResultUnknown   = "unknown"
+	JobResultUnfinished = "unfinished"
+	JobResultSuccess    = "success"
+	JobResultFailure    = "failure"
+	JobResultCancelled  = "cancelled"
+	JobResultUnknown    = "unknown"
 )
 
 type DeletionTimePayload struct {
@@ -24,13 +25,10 @@ type DeletionTimePayload struct {
 }
 
 type JobResultResponse struct {
-	Status       string    `json:"status"`
-	Update       time.Time `json:"update"`
-	Extend       bool      `json:"extend"`
-	SlackChannel string    `json:"slack_channel"`
-	PodNamespace string    `json:"pod_namespace"`
-	PodName      string    `json:"pod_name"`
-	JobInfo      *JobInfo  `json:"jobinfo"`
+	Status     string     `json:"status"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	Extend     *bool      `json:"extend,omitempty"`
+	JobInfo    *JobInfo   `json:"job_info,omitempty"`
 }
 
 type Client interface {

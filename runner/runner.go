@@ -16,6 +16,7 @@ import (
 	"github.com/cybozu-go/well"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/utils/pointer"
 )
 
 type Runner struct {
@@ -31,7 +32,7 @@ type Runner struct {
 	failureFlagFile   string
 	cancelledFlagFile string
 	successFlagFile   string
-	update            time.Time
+	finishedAt        atomic.Value
 	deletionTime      atomic.Value
 }
 
@@ -54,6 +55,7 @@ func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string)
 		successFlagFile:   filepath.Join(varDir, "success"),
 	}
 
+	r.finishedAt.Store(time.Time{})
 	r.deletionTime.Store(time.Time{})
 	return &r, nil
 }
@@ -68,7 +70,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
 	mux.Handle("/"+constants.DeletionTimeEndpoint, http.HandlerFunc(r.deletionTimeHandler))
-	mux.Handle("/"+constants.JobResultEndPoint, http.HandlerFunc(r.runnerJobResultHandler))
+	mux.Handle("/"+constants.JobResultEndPoint, http.HandlerFunc(r.jobResultHandler))
 	serv := &well.HTTPServer{
 		Env: env,
 		Server: &http.Server{
@@ -127,7 +129,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 		return err
 	}
 
-	r.update = time.Now().UTC()
+	r.finishedAt.Store(time.Now().UTC())
 
 	<-ctx.Done()
 	return nil
@@ -189,39 +191,48 @@ func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (r *Runner) runnerJobResultHandler(w http.ResponseWriter, req *http.Request) {
+func (r *Runner) jobResultHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		return
 	}
 
-	var jobResult string
-	switch {
-	case isFileExists(r.failureFlagFile):
-		jobResult = client.JobResultFailure
-	case isFileExists(r.cancelledFlagFile):
-		jobResult = client.JobResultCancelled
-	case isFileExists(r.successFlagFile):
-		jobResult = client.JobResultSuccess
-	default:
-		jobResult = client.JobResultUnknown
+	var jr *client.JobResultResponse
+	finishedAt := r.finishedAt.Load().(time.Time)
+
+	if finishedAt.IsZero() {
+		jr = &client.JobResultResponse{
+			Status: client.JobResultUnfinished,
+		}
+	} else {
+		var status string
+		switch {
+		case isFileExists(r.failureFlagFile):
+			status = client.JobResultFailure
+		case isFileExists(r.cancelledFlagFile):
+			status = client.JobResultCancelled
+		case isFileExists(r.successFlagFile):
+			status = client.JobResultSuccess
+		default:
+			status = client.JobResultUnknown
+		}
+
+		jobInfo, err := client.GetJobInfoFromFile(client.DefaultJobInfoFile)
+		if err != nil {
+			http.Error(w, "Failed to get job info", http.StatusInternalServerError)
+			return
+		}
+
+		extend := isFileExists(r.extendFlagFile)
+
+		jr = &client.JobResultResponse{
+			Status:     status,
+			FinishedAt: &finishedAt,
+			Extend:     pointer.Bool(extend),
+			JobInfo:    jobInfo,
+		}
 	}
 
-	jobInfo, err := client.GetJobInfoFromFile(client.DefaultJobInfoFile)
-	if err != nil {
-		http.Error(w, "Failed to get job info", http.StatusInternalServerError)
-		return
-	}
-
-	extend := isFileExists(r.extendFlagFile)
-
-	s := &client.JobResultResponse{
-		Status:  jobResult,
-		Update:  r.update,
-		Extend:  extend,
-		JobInfo: jobInfo,
-	}
-
-	res, err := json.Marshal(s)
+	res, err := json.Marshal(jr)
 	if err != nil {
 		http.Error(w, "Failed to catch job result", http.StatusInternalServerError)
 		return

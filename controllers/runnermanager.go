@@ -297,7 +297,11 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Ru
 			continue
 		}
 
-		if jobResult.Update.Before(lastCheckTime) {
+		if jobResult.Status == rc.JobResultUnfinished {
+			m.log.Info("skipped notification because pod is not finished", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+		if jobResult.FinishedAt.Before(lastCheckTime) {
 			m.log.Info("skipped notification because pod status is not updated", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
@@ -308,7 +312,7 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Ru
 			if err != nil {
 				return err
 			}
-			return c.PostResult(ctx, m.slackChannel, jobResult.Status, jobResult.Extend, po.Namespace, po.Name, jobResult.JobInfo)
+			return c.PostResult(ctx, m.slackChannel, jobResult.Status, *jobResult.Extend, po.Namespace, po.Name, jobResult.JobInfo)
 		} else {
 			fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
 		}

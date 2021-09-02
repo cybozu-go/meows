@@ -55,8 +55,7 @@ var _ = Describe("Runner", func() {
 		By("checking initializing state")
 		flagFileShouldExist("started")
 		deletionTimeShouldBeZero()
-		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
-		jobRunnerResultShouldNotBeUpdated()
+		jobRunnerResultShouldNotBeFinished()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -85,8 +84,7 @@ var _ = Describe("Runner", func() {
 
 		flagFileShouldExist("started")
 		deletionTimeShouldBeZero()
-		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
-		jobRunnerResultShouldNotBeUpdated()
+		jobRunnerResultShouldNotBeFinished()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -121,7 +119,7 @@ var _ = Describe("Runner", func() {
 		flagFileShouldNotExist("success")
 		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
 		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
-		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldBeFinishedAt("~", finishedAt, 500*time.Millisecond)
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -160,7 +158,7 @@ var _ = Describe("Runner", func() {
 		Expect(err).ToNot(HaveOccurred())
 		deletionTimeShouldHaveValue("~", finishedAt.Add(d), 500*time.Millisecond)
 		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
-		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldBeFinishedAt("~", finishedAt, 500*time.Millisecond)
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -200,7 +198,7 @@ var _ = Describe("Runner", func() {
 		Expect(err).ToNot(HaveOccurred())
 		deletionTimeShouldHaveValue("~", finishedAt.Add(d), 500*time.Millisecond)
 		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
-		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldBeFinishedAt("~", finishedAt, 500*time.Millisecond)
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -234,8 +232,7 @@ var _ = Describe("Runner", func() {
 
 		By("checking outputs")
 		deletionTimeShouldHaveValue("~", startedAt, 500*time.Millisecond)
-		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
-		jobRunnerResultShouldNotBeUpdated()
+		jobRunnerResultShouldNotBeFinished()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -277,8 +274,7 @@ var _ = Describe("Runner", func() {
 
 		flagFileShouldExist("started")
 		deletionTimeShouldBeZero()
-		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
-		jobRunnerResultShouldNotBeUpdated()
+		jobRunnerResultShouldNotBeFinished()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -316,7 +312,7 @@ var _ = Describe("Runner", func() {
 		By("checking outputs")
 		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
 		jobRunnerResultShouldHaveStatus(client.JobResultSuccess)
-		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldBeFinishedAt("~", finishedAt, 500*time.Millisecond)
 	})
 
 	It("should become failure status when failure file is created", func() {
@@ -333,7 +329,7 @@ var _ = Describe("Runner", func() {
 		By("checking outputs")
 		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
 		jobRunnerResultShouldHaveStatus(client.JobResultFailure)
-		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldBeFinishedAt("~", finishedAt, 500*time.Millisecond)
 	})
 
 	It("should become cancelled status when cancelled file is created", func() {
@@ -350,7 +346,7 @@ var _ = Describe("Runner", func() {
 		By("checking outputs")
 		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
 		jobRunnerResultShouldHaveStatus(client.JobResultCancelled)
-		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldBeFinishedAt("~", finishedAt, 500*time.Millisecond)
 	})
 })
 
@@ -439,18 +435,19 @@ func jobRunnerResultShouldHaveStatus(status string) {
 	ExpectWithOffset(1, jr.Status).To(Equal(status))
 }
 
-func jobRunnerResultShouldNotBeUpdated() {
+func jobRunnerResultShouldNotBeFinished() {
 	runnerClient := client.NewClient()
 	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, jr.Update).To(BeZero())
+	ExpectWithOffset(1, jr.Status).To(Equal(client.JobResultUnfinished))
+	ExpectWithOffset(1, jr.FinishedAt).To(BeNil())
 }
 
-func jobRunnerResultShouldBeUpdated(comparator string, compareTo time.Time, threshold ...time.Duration) {
+func jobRunnerResultShouldBeFinishedAt(comparator string, compareTo time.Time, threshold ...time.Duration) {
 	runnerClient := client.NewClient()
 	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, jr.Update).To(BeTemporally(comparator, compareTo, threshold...))
+	ExpectWithOffset(1, *jr.FinishedAt).To(BeTemporally(comparator, compareTo, threshold...))
 }
 
 func metricsShouldNotExist(name string) {
