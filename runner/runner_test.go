@@ -4,18 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/metrics"
 	"github.com/cybozu-go/meows/runner/client"
-	rc "github.com/cybozu-go/meows/runner/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -59,6 +55,8 @@ var _ = Describe("Runner", func() {
 		By("checking initializing state")
 		flagFileShouldExist("started")
 		deletionTimeShouldBeZero()
+		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
+		jobRunnerResultShouldNotBeUpdated()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -87,6 +85,8 @@ var _ = Describe("Runner", func() {
 
 		flagFileShouldExist("started")
 		deletionTimeShouldBeZero()
+		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
+		jobRunnerResultShouldNotBeUpdated()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -120,6 +120,8 @@ var _ = Describe("Runner", func() {
 		flagFileShouldNotExist("cancelled")
 		flagFileShouldNotExist("success")
 		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
+		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -157,6 +159,8 @@ var _ = Describe("Runner", func() {
 		d, err := time.ParseDuration("20m")
 		Expect(err).ToNot(HaveOccurred())
 		deletionTimeShouldHaveValue("~", finishedAt.Add(d), 500*time.Millisecond)
+		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
+		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -195,6 +199,8 @@ var _ = Describe("Runner", func() {
 		d, err := time.ParseDuration("1h")
 		Expect(err).ToNot(HaveOccurred())
 		deletionTimeShouldHaveValue("~", finishedAt.Add(d), 500*time.Millisecond)
+		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
+		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -228,6 +234,8 @@ var _ = Describe("Runner", func() {
 
 		By("checking outputs")
 		deletionTimeShouldHaveValue("~", startedAt, 500*time.Millisecond)
+		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
+		jobRunnerResultShouldNotBeUpdated()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -269,6 +277,8 @@ var _ = Describe("Runner", func() {
 
 		flagFileShouldExist("started")
 		deletionTimeShouldBeZero()
+		jobRunnerResultShouldHaveStatus(client.JobResultUnknown)
+		jobRunnerResultShouldNotBeUpdated()
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": PointTo(MatchAllFields(Fields{
@@ -290,6 +300,57 @@ var _ = Describe("Runner", func() {
 			}),
 		)
 		metricsShouldNotExist("meows_runner_listener_exit_state")
+	})
+
+	It("should become success status when success file is created", func() {
+		By("starting runner with creating success file")
+		listener := newListenerMock()
+		cancel := startRunner(listener)
+		defer cancel()
+		listener.configureCh <- nil
+		listener.listenCh <- nil
+		finishedAt := time.Now()
+		time.Sleep(time.Second)
+		createFlagFile("success")
+
+		By("checking outputs")
+		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldHaveStatus(client.JobResultSuccess)
+		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+	})
+
+	It("should become failure status when failure file is created", func() {
+		By("starting runner with creating failure file")
+		listener := newListenerMock()
+		cancel := startRunner(listener)
+		defer cancel()
+		listener.configureCh <- nil
+		listener.listenCh <- nil
+		finishedAt := time.Now()
+		time.Sleep(time.Second)
+		createFlagFile("failure")
+
+		By("checking outputs")
+		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldHaveStatus(client.JobResultFailure)
+		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
+	})
+
+	It("should become cancelled status when cancelled file is created", func() {
+		By("starting runner with creating cancelled file")
+		listener := newListenerMock()
+		cancel := startRunner(listener)
+		defer cancel()
+		listener.configureCh <- nil
+		listener.listenCh <- nil
+		finishedAt := time.Now()
+		time.Sleep(time.Second)
+		createFlagFile("cancelled")
+
+		By("checking outputs")
+		deletionTimeShouldHaveValue("~", finishedAt, 500*time.Millisecond)
+		jobRunnerResultShouldHaveStatus(client.JobResultCancelled)
+		jobRunnerResultShouldBeUpdated("~", finishedAt, 500*time.Millisecond)
 	})
 })
 
@@ -371,19 +432,25 @@ func deletionTimeShouldHaveValue(comparator string, compareTo time.Time, thresho
 	ExpectWithOffset(1, tm).To(BeTemporally(comparator, compareTo, threshold...))
 }
 
-func jobRunnerResultShouldDefaultResponse() {
+func jobRunnerResultShouldHaveStatus(status string) {
 	runnerClient := client.NewClient()
 	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	// エンドポイントから返ってくるjsonと、デフォルトで返ってくるjsonが等価であれば良い
-	http.NewRequest(http.MethodGet, "http://localhost/"+constants.RunnerJobResultEndPoint, nil)
-	resp, err := http.Get("http://localhost/" + constants.RunnerJobResultEndPoint)
-	defer resp.Body.Close()
-	s := rc.JobResultResponse{}
-	byteArray, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal(byteArray, &s)
+	ExpectWithOffset(1, jr.Status).To(Equal(status))
+}
+
+func jobRunnerResultShouldNotBeUpdated() {
+	runnerClient := client.NewClient()
+	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, s).To(Equal(reflect.DeepEqual(jr, s)))
+	ExpectWithOffset(1, jr.Update).To(BeZero())
+}
+
+func jobRunnerResultShouldBeUpdated(comparator string, compareTo time.Time, threshold ...time.Duration) {
+	runnerClient := client.NewClient()
+	jr, err := runnerClient.GetJobResult(context.Background(), "localhost")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, jr.Update).To(BeTemporally(comparator, compareTo, threshold...))
 }
 
 func metricsShouldNotExist(name string) {
