@@ -1,10 +1,9 @@
 Runner Pod API
 ==============
 
-- [Runner Pod API](#runner-pod-api)
-  - [`GET /deletion_time`](#get-deletion_time)
-  - [`PUT /deletion_time`](#put-deletion_time)
-  - [`GET /result`](#get-result)
+- [`GET /deletion_time`](#get-deletion_time)
+- [`PUT /deletion_time`](#put-deletion_time)
+- [`GET /job_result`](#get-job_result)
 
 ## `GET /deletion_time`
 
@@ -57,7 +56,7 @@ This API updates a pod's deletion time. The time format is RFC 3339 in UTC.
 }'
 ```
 
-## `GET /result`
+## `GET /job_result`
 
 This API returns a pod's job result.
 
@@ -74,23 +73,23 @@ If the deletion time returned by this API has passed, a controller manager will 
 
 **Failure responses**
 
-- If the  of the pod is incorrect
-  HTTP status code: 500 Internal Server Error
+- If it fails to get the job information  
+500 internal server error in HTTP status code.
 
 ```console
 $ curl -s -XGET localhost:8080/job_result
 {
-  "status":"unknown",
+	"status":"unknown",
 	"update":"0001-01-01T00:00:00Z",
 	"extend":false,
-	"jobInfo":{
-    "actor":"",
-    "git_ref":"",
-    "job_id":"",
-    "pull_request_number":0,
-    "repository":"",
-    "run_id":0,
-    "run_number":0,
-    "workflow_name":""
-  }
+	"job_info":{
+		"actor":"",
+		"git_ref":"",
+		"job_id":"",
+		"pull_request_number":0,
+		"repository":"",
+		"run_id":0,
+		"run_number":0,
+		"workflow_name":""
+	}
 }
