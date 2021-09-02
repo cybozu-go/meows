@@ -27,8 +27,8 @@ or `Only select repositories`. `Only select repositories` is recommended because
 the permission is very strong. You should decide the scope wide enough depending on
 how you use this controller.
 
-Finally, you should get the installation ID from the URL of which page you are
-redicted to. The URL should look like `https://github.com/organizations/cybozu-go/settings/installations/12345`
+Finally, you should get the installation ID from the URL of the page to which you are
+redirected. The URL should look like `https://github.com/organizations/cybozu-go/settings/installations/12345`
 and `12345` is your installation ID.
 
 How to deploy meows
@@ -54,7 +54,7 @@ In addition to this, the admission webhook requires a TLS certificate.
 You should use [`github.com/jetstack/cert-manager`](https://github.com/jetstack/cert-manager)
 or create a certificate by yourself.
 
-This document does not give you a comprehensive list of what you shold deploy.
+This document does not give you a comprehensive list of what you should deploy.
 Please refer to the manifests under `config/` for further information.
 
 How to create Slack App
@@ -206,7 +206,7 @@ situation that we have to update the runner `Pod` image.
 Here are some small technique to decrease the downtime in your CI.
 
 - Restart all the `Pod`s at the same time by setting update strategy `Recreate`.
-- Dare use `:latest` image and let the `Pod`s upgrade by themeself after a job
+- Dare to use `:latest` image and let the `Pod`s upgrade by themselves after a job
   is scheduled and executed.
   The official document says that the `:latest` tag should be avoided in production
   because it's harder to track which version is running, but self-hosted runners
