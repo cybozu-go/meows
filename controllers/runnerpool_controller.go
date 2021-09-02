@@ -33,11 +33,11 @@ type RunnerPoolReconciler struct {
 	organizationName      string
 	runnerImage           string
 	runnerManager         RunnerManager
-	secretWatcherInterval time.Duration
+	secretUpdaterInterval time.Duration
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string, runnerManager RunnerManager, secretWatcherInterval time.Duration) *RunnerPoolReconciler {
+func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string, runnerManager RunnerManager, secretUpdaterInterval time.Duration) *RunnerPoolReconciler {
 	return &RunnerPoolReconciler{
 		Client:                client,
 		log:                   log,
@@ -46,7 +46,7 @@ func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runt
 		organizationName:      organizationName,
 		runnerImage:           runnerImage,
 		runnerManager:         runnerManager,
-		secretWatcherInterval: secretWatcherInterval,
+		secretUpdaterInterval: secretUpdaterInterval,
 	}
 }
 
@@ -107,7 +107,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Info("wait for the secret to be issued by secret watcher")
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: 2 * r.secretWatcherInterval,
+			RequeueAfter: 2 * r.secretUpdaterInterval,
 		}, nil
 	}
 

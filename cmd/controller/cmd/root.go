@@ -28,7 +28,7 @@ var config struct {
 
 	runnerImage           string
 	runnerManagerInterval time.Duration
-	secretWatcherInterval time.Duration
+	secretUpdaterInterval time.Duration
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -78,7 +78,7 @@ func init() {
 
 	fs.StringVar(&config.runnerImage, "runner-image", defaultRunnerImage, "The image of runner container")
 	fs.DurationVar(&config.runnerManagerInterval, "runner-manager-interval", time.Minute, "Interval to watch and delete Pods.")
-	fs.DurationVar(&config.secretWatcherInterval, "secret-watcher-interval", time.Minute, "Interval to watch and update secret.")
+	fs.DurationVar(&config.secretUpdaterInterval, "secret-updater-interval", time.Minute, "Interval to watch and update secret.")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

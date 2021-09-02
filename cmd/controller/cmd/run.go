@@ -79,12 +79,12 @@ func run() error {
 		rc.NewClient(),
 	)
 
-	secretWatcher := controllers.NewSecretWatcher(
+	secretUpdater := controllers.NewSecretUpdater(
 		mgr.GetClient(),
-		config.secretWatcherInterval,
+		config.secretUpdaterInterval,
 		githubClient,
 	)
-	err = mgr.Add(secretWatcher)
+	err = mgr.Add(secretUpdater)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func run() error {
 		config.organizationName,
 		config.runnerImage,
 		runnerManager,
-		config.secretWatcherInterval,
+		config.secretUpdaterInterval,
 	)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {

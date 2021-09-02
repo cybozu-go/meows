@@ -13,25 +13,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewSecretWatcher(client client.Client, interval time.Duration, githubClient github.Client) SecretWatcher {
-	return SecretWatcher{
+func NewSecretUpdater(client client.Client, interval time.Duration, githubClient github.Client) SecretUpdater {
+	return SecretUpdater{
 		client:       client,
 		interval:     interval,
 		githubClient: githubClient,
 	}
 }
 
-type SecretWatcher struct {
+type SecretUpdater struct {
 	client       client.Client
 	interval     time.Duration
 	githubClient github.Client
 }
 
 // Start implements Runnable.Start
-func (w SecretWatcher) Start(ctx context.Context) error {
+func (w SecretUpdater) Start(ctx context.Context) error {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
-	logger := log.FromContext(ctx).WithName("SecretWatcher")
+	logger := log.FromContext(ctx).WithName("SecretUpdater")
 	for {
 		select {
 		case <-ctx.Done():
@@ -46,8 +46,8 @@ func (w SecretWatcher) Start(ctx context.Context) error {
 	}
 }
 
-func (w SecretWatcher) secretExpired(ctx context.Context) error {
-	logger := log.FromContext(ctx).WithName("SecretWatcher")
+func (w SecretUpdater) secretExpired(ctx context.Context) error {
+	logger := log.FromContext(ctx).WithName("SecretUpdater")
 	rps := meowsv1alpha1.RunnerPoolList{}
 	err := w.client.List(ctx, &rps)
 	if err != nil {

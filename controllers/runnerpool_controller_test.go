@@ -55,7 +55,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 	wait := 10 * time.Second
 	mockManager := newRunnerManagerMock()
 	var githubFakeClient *github.FakeClient
-	secretWatcherInterval := 1 * time.Second
+	secretUpdaterInterval := 1 * time.Second
 
 	ctx := context.Background()
 	var mgrCtx context.Context
@@ -78,15 +78,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 			organizationName,
 			defaultRunnerImage,
 			RunnerManager(mockManager),
-			secretWatcherInterval,
+			secretUpdaterInterval,
 		)
 
-		secretWatcher := NewSecretWatcher(
+		secretUpdater := NewSecretUpdater(
 			mgr.GetClient(),
-			secretWatcherInterval,
+			secretUpdaterInterval,
 			githubFakeClient,
 		)
-		Expect(mgr.Add(secretWatcher)).To(Succeed())
+		Expect(mgr.Add(secretUpdater)).To(Succeed())
 
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
@@ -543,7 +543,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 	})
 
-	It("should or not update secret by a SecretWatcher", func() {
+	It("should or not update secret by a SecretUpdater", func() {
 		By("deploying RunnerPool resource")
 		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[0])
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
