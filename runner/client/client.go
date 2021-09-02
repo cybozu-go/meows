@@ -133,7 +133,7 @@ func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (*JobResultRes
 }
 
 func getJobResultURL(ip string) string {
-	return fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerListenPort, constants.RunnerJobResultEndPoint)
+	return fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerListenPort, constants.JobResultEndPoint)
 }
 
 func getDeletionTimeURL(ip string) string {

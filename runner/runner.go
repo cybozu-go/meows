@@ -68,7 +68,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
 	mux.Handle("/"+constants.DeletionTimeEndpoint, http.HandlerFunc(r.deletionTimeHandler))
-	mux.Handle("/"+constants.RunnerJobResultEndPoint, http.HandlerFunc(r.runnerJobResultHandler))
+	mux.Handle("/"+constants.JobResultEndPoint, http.HandlerFunc(r.runnerJobResultHandler))
 	serv := &well.HTTPServer{
 		Env: env,
 		Server: &http.Server{
