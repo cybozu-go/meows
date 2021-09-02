@@ -234,7 +234,7 @@ func (r *Runner) jobResultHandler(w http.ResponseWriter, req *http.Request) {
 
 	res, err := json.Marshal(jr)
 	if err != nil {
-		http.Error(w, "Failed to catch job result", http.StatusInternalServerError)
+		http.Error(w, "Failed to marshal job result", http.StatusInternalServerError)
 		return
 	}
 

@@ -62,7 +62,7 @@ This API returns a pod's job result.
 
 When the pod state is `initializing`, `running` or `stale`, it returns a json contains `status` key with `'unfinished'` as value.
 When the pod state is `debugging` (i.e. the pod is finished), it returns a json contains `status` key with one
-of `'success', 'failure', 'cancelled', 'unknown'` as value and other job result values.
+of `'success', 'failure', 'cancelled', 'unknown'` as value along with other keys describing job result.
 
 **Successful response**
 
@@ -73,16 +73,16 @@ of `'success', 'failure', 'cancelled', 'unknown'` as value and other job result 
 **Failure responses**
 
 - If it fails to get the job information  
-500 internal server error in HTTP status code.
+HTTP status code: 500 Internal Server Error
 
 ```console
-$ # When the pod stats is `initializing`, `running` or `stale`.
+$ # When the pod state is `initializing`, `running` or `stale`:
 $ curl -s -XGET localhost:8080/job_result
 {
 	"status":"unfinished"
 }
 
-$ # When the pod state is `debugging`.
+$ # When the pod state is `debugging`:
 $ curl -s -XGET localhost:8080/job_result
 {
 	"status":"unknown",

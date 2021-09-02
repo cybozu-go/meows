@@ -118,8 +118,8 @@ type managerLoop struct {
 	rpNamespace           string
 	rpName                string
 	repository            string
-	replicas              int32 // This field will be accessed from some goroutines. So use mutex to access.
-	maxRunnerPods         int32 // This field will be accessed from some goroutines. So use mutex to access.
+	replicas              int32 // This field will be accessed from multiple goroutines. So use mutex to access.
+	maxRunnerPods         int32 // This field will be accessed from multiple goroutines. So use mutex to access.
 	slackChannel          string
 	slackAgentServiceName string
 
@@ -307,14 +307,14 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Ru
 		}
 
 		if len(m.slackAgentServiceName) != 0 {
-			fmt.Println("Send an notification to slack jobResult = ", jobResult)
+			m.log.Info("send an notification to slack-agent", "pod", namespacedName(po.Namespace, po.Name))
 			c, err := agent.NewClient(fmt.Sprintf("http://%s", m.slackAgentServiceName))
 			if err != nil {
 				return err
 			}
 			return c.PostResult(ctx, m.slackChannel, jobResult.Status, *jobResult.Extend, po.Namespace, po.Name, jobResult.JobInfo)
 		} else {
-			fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
+			m.log.Info("skip sending a notification to slack-agent because service name is blank", "pod", namespacedName(po.Namespace, po.Name))
 		}
 		return nil
 	}
