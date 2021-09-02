@@ -111,22 +111,19 @@ func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (*JobResultRes
 		return nil, err
 	}
 	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
+	}
 
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
-	}
-
 	s := JobResultResponse{}
-
 	if err := json.Unmarshal(b, &s); err != nil {
 		return nil, err
 	}
-
 	return &s, nil
 }
 
