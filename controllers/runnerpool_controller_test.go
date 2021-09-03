@@ -101,7 +101,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[0])
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
-		By("wating the RunnerPool become Bound")
+		By("waiting the RunnerPool become Bound")
 		Eventually(func() error {
 			rp := new(meowsv1alpha1.RunnerPool)
 			if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
@@ -234,7 +234,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
-		By("wating the Deployment is deleted")
+		By("waiting the Deployment is deleted")
 		Eventually(func() bool {
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: deploymentName, Namespace: namespace}, &appsv1.Deployment{})
 			return apierrors.IsNotFound(err)
@@ -302,7 +302,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		rp.Spec.Template.ServiceAccountName = serviceAccountName
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
-		By("wating the RunnerPool become Bound")
+		By("waiting the RunnerPool become Bound")
 		Eventually(func() error {
 			rp := new(meowsv1alpha1.RunnerPool)
 			if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
@@ -465,7 +465,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
-		By("wating the Deployment is deleted")
+		By("waiting the Deployment is deleted")
 		Eventually(func() bool {
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: deploymentName, Namespace: namespace}, &appsv1.Deployment{})
 			return apierrors.IsNotFound(err)
