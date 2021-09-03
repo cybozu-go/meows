@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -39,21 +38,16 @@ type RunnerManagerImpl struct {
 	githubClient    github.Client
 	runnerPodClient rc.Client
 
-	lastCheckTime *atomic.Value
-	loops         map[string]*managerLoop
+	loops map[string]*managerLoop
 }
 
 func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient rc.Client) RunnerManager {
-	var lastCheckTime atomic.Value
-	lastCheckTime.Store(time.Now().UTC())
-
 	return &RunnerManagerImpl{
 		log:             log,
 		interval:        interval,
 		k8sClient:       k8sClient,
 		githubClient:    githubClient,
 		runnerPodClient: runnerPodClient,
-		lastCheckTime:   &lastCheckTime,
 		loops:           map[string]*managerLoop{},
 	}
 }
@@ -74,7 +68,7 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 			maxRunnerPods:         rp.Spec.MaxRunnerPods,
 			slackChannel:          rp.Spec.SlackAgent.Channel,
 			slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
-			lastCheckTime:         m.lastCheckTime,
+			lastCheckTime:         time.Now().UTC(),
 		}
 		loop.start()
 		m.loops[rpNamespacedName] = loop
@@ -124,7 +118,7 @@ type managerLoop struct {
 	slackAgentServiceName string
 
 	// Update internally.
-	lastCheckTime   *atomic.Value
+	lastCheckTime   time.Time
 	env             *well.Environment
 	cancel          context.CancelFunc
 	prevRunnerNames []string
@@ -213,7 +207,7 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 		return err
 	}
 
-	m.lastCheckTime.Store(time.Now().UTC())
+	m.lastCheckTime = time.Now().UTC()
 
 	return nil
 }
@@ -288,8 +282,6 @@ func difference(prev, current []string) []string {
 }
 
 func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
-	lastCheckTime := m.lastCheckTime.Load().(time.Time)
-
 	for i := range podList.Items {
 		po := &podList.Items[i]
 		jobResult, err := m.runnerPodClient.GetJobResult(ctx, po.Status.PodIP)
@@ -302,7 +294,7 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Ru
 			m.log.Info("skipped notification because pod is not finished", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
-		if jobResult.FinishedAt.Before(lastCheckTime) {
+		if jobResult.FinishedAt.Before(m.lastCheckTime) {
 			m.log.Info("skipped notification because pod status is not updated", "pod", namespacedName(po.Namespace, po.Name))
 			continue
 		}
