@@ -3,6 +3,7 @@ Runner Pod API
 
 - [`GET /deletion_time`](#get-deletion_time)
 - [`PUT /deletion_time`](#put-deletion_time)
+- [`GET /job_result`](#get-job_result)
 
 ## `GET /deletion_time`
 
@@ -53,4 +54,48 @@ This API updates a pod's deletion time. The time format is RFC 3339 in UTC.
 {
 	"deletion_time":"0001-01-01T00:00:00Z"
 }'
+```
+
+## `GET /job_result`
+
+This API returns a pod's job result.
+
+When the pod state is `initializing`, `running` or `stale`, it returns a json contains `status` key with `'unfinished'` as value.
+When the pod state is `debugging` (i.e. the pod is finished), it returns a json contains `status` key with one
+of `'success', 'failure', 'cancelled', 'unknown'` as value along with other keys describing job result.
+
+**Successful response**
+
+- HTTP status code: 200 OK
+- HTTP response header: `Content-Type: application/json`
+- HTTP response body: Current JobResultResponse in JSON
+
+**Failure responses**
+
+- If it fails to get the job information  
+HTTP status code: 500 Internal Server Error
+
+```console
+$ # When the pod state is `initializing`, `running` or `stale`:
+$ curl -s -XGET localhost:8080/job_result
+{
+	"status":"unfinished"
+}
+
+$ # When the pod state is `debugging`:
+$ curl -s -XGET localhost:8080/job_result
+{
+	"status":"unknown",
+	"finished_at":"2021-01-01T00:00:00Z",
+	"extend":true,
+	"job_info":{
+		"actor":"user",
+		"git_ref":"branch/name",
+		"job_id":"job",
+		"repository":"owner/repo",
+		"run_id":123456789,
+		"run_number":987,
+		"workflow_name":"Work flow"
+	}
+}
 ```

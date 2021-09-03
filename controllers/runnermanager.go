@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
+	"github.com/cybozu-go/meows/agent"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/metrics"
@@ -54,16 +56,19 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	rpNamespacedName := namespacedName(rp.Namespace, rp.Name)
 	if _, ok := m.loops[rpNamespacedName]; !ok {
 		loop := &managerLoop{
-			log:             m.log.WithValues("runnerpool", rpNamespacedName),
-			interval:        m.interval,
-			k8sClient:       m.k8sClient,
-			githubClient:    m.githubClient,
-			runnerPodClient: m.runnerPodClient,
-			rpNamespace:     rp.Namespace,
-			rpName:          rp.Name,
-			repository:      rp.Spec.RepositoryName,
-			replicas:        rp.Spec.Replicas,
-			maxRunnerPods:   rp.Spec.MaxRunnerPods,
+			log:                   m.log.WithValues("runnerpool", rpNamespacedName),
+			interval:              m.interval,
+			k8sClient:             m.k8sClient,
+			githubClient:          m.githubClient,
+			runnerPodClient:       m.runnerPodClient,
+			rpNamespace:           rp.Namespace,
+			rpName:                rp.Name,
+			repository:            rp.Spec.RepositoryName,
+			replicas:              rp.Spec.Replicas,
+			maxRunnerPods:         rp.Spec.MaxRunnerPods,
+			slackChannel:          rp.Spec.SlackAgent.Channel,
+			slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
+			lastCheckTime:         time.Now().UTC(),
 		}
 		loop.start()
 		m.loops[rpNamespacedName] = loop
@@ -99,18 +104,21 @@ func (m *RunnerManagerImpl) Stop(ctx context.Context, rp *meowsv1alpha1.RunnerPo
 
 type managerLoop struct {
 	// Given from outside. Not update internally.
-	log             logr.Logger
-	interval        time.Duration
-	k8sClient       client.Client
-	githubClient    github.Client
-	runnerPodClient rc.Client
-	rpNamespace     string
-	rpName          string
-	repository      string
-	replicas        int32 // This field will be accessed from some goroutines. So use mutex to access.
-	maxRunnerPods   int32 // This field will be accessed from some goroutines. So use mutex to access.
+	log                   logr.Logger
+	interval              time.Duration
+	k8sClient             client.Client
+	githubClient          github.Client
+	runnerPodClient       rc.Client
+	rpNamespace           string
+	rpName                string
+	repository            string
+	replicas              int32 // This field will be accessed from multiple goroutines. So use mutex to access.
+	maxRunnerPods         int32 // This field will be accessed from multiple goroutines. So use mutex to access.
+	slackChannel          string
+	slackAgentServiceName string
 
 	// Update internally.
+	lastCheckTime   time.Time
 	env             *well.Environment
 	cancel          context.CancelFunc
 	prevRunnerNames []string
@@ -168,6 +176,8 @@ func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
 	defer m.mu.Unlock()
 	m.replicas = rp.Spec.Replicas
 	m.maxRunnerPods = rp.Spec.MaxRunnerPods
+	m.slackChannel = rp.Spec.SlackAgent.Channel
+	m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
 }
 
 func (m *managerLoop) runOnce(ctx context.Context) error {
@@ -182,6 +192,11 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 
 	m.updateMetrics(podList, runnerList)
 
+	err = m.notifyToSlack(ctx, runnerList, podList)
+	if err != nil {
+		return err
+	}
+
 	err = m.maintainRunnerPods(ctx, runnerList, podList)
 	if err != nil {
 		return err
@@ -191,6 +206,9 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	m.lastCheckTime = time.Now().UTC()
+
 	return nil
 }
 
@@ -261,6 +279,39 @@ func difference(prev, current []string) []string {
 		}
 	}
 	return ret
+}
+
+func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
+	for i := range podList.Items {
+		po := &podList.Items[i]
+		jobResult, err := m.runnerPodClient.GetJobResult(ctx, po.Status.PodIP)
+		if err != nil {
+			m.log.Error(err, "skipped notification because failed to get the job result from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+
+		if jobResult.Status == rc.JobResultUnfinished {
+			m.log.Info("skipped notification because pod is not finished", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+		if jobResult.FinishedAt.Before(m.lastCheckTime) {
+			m.log.Info("skipped notification because pod status is not updated", "pod", namespacedName(po.Namespace, po.Name))
+			continue
+		}
+
+		if len(m.slackAgentServiceName) != 0 {
+			m.log.Info("send an notification to slack-agent", "pod", namespacedName(po.Namespace, po.Name))
+			c, err := agent.NewClient(fmt.Sprintf("http://%s", m.slackAgentServiceName))
+			if err != nil {
+				return err
+			}
+			return c.PostResult(ctx, m.slackChannel, jobResult.Status, *jobResult.Extend, po.Namespace, po.Name, jobResult.JobInfo)
+		} else {
+			m.log.Info("skip sending a notification to slack-agent because service name is blank", "pod", namespacedName(po.Namespace, po.Name))
+		}
+		return nil
+	}
+	return nil
 }
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {

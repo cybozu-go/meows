@@ -293,9 +293,7 @@ func (r *RunnerPoolReconciler) addRunnerContainerIfNotExists(d *appsv1.Deploymen
 
 func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *meowsv1alpha1.RunnerPool) ([]corev1.EnvVar, error) {
 	option := runner.Option{
-		SetupCommand:          rp.Spec.SetupCommand,
-		SlackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
-		SlackChannel:          rp.Spec.SlackAgent.Channel,
+		SetupCommand: rp.Spec.SetupCommand,
 	}
 	optionJson, err := json.Marshal(&option)
 	if err != nil {

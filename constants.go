@@ -48,6 +48,9 @@ const (
 const (
 	// DeletionTimeEndpoint is the endpoint to get deletion time for runner container.
 	DeletionTimeEndpoint = "deletion_time"
+
+	// JobResultEndPoint is the endpoint to get job result used by runner manager.
+	JobResultEndPoint = "job_result"
 )
 
 // Directory path for runner pods.

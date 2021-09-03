@@ -12,13 +12,29 @@ import (
 	constants "github.com/cybozu-go/meows"
 )
 
+const (
+	JobResultUnfinished = "unfinished"
+	JobResultSuccess    = "success"
+	JobResultFailure    = "failure"
+	JobResultCancelled  = "cancelled"
+	JobResultUnknown    = "unknown"
+)
+
 type DeletionTimePayload struct {
 	DeletionTime time.Time `json:"deletion_time"`
+}
+
+type JobResultResponse struct {
+	Status     string     `json:"status"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	Extend     *bool      `json:"extend,omitempty"`
+	JobInfo    *JobInfo   `json:"job_info,omitempty"`
 }
 
 type Client interface {
 	GetDeletionTime(ctx context.Context, ip string) (time.Time, error)
 	PutDeletionTime(ctx context.Context, ip string, tm time.Time) error
+	GetJobResult(ctx context.Context, ip string) (*JobResultResponse, error)
 }
 
 type clientImpl struct {
@@ -84,6 +100,37 @@ func (c *clientImpl) PutDeletionTime(ctx context.Context, ip string, tm time.Tim
 	return nil
 }
 
+func (c *clientImpl) GetJobResult(ctx context.Context, ip string) (*JobResultResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getJobResultURL(ip), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
+	}
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	s := JobResultResponse{}
+	if err := json.Unmarshal(b, &s); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func getJobResultURL(ip string) string {
+	return fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerListenPort, constants.JobResultEndPoint)
+}
+
 func getDeletionTimeURL(ip string) string {
 	return fmt.Sprintf("http://%s:%d/%s", ip, constants.RunnerListenPort, constants.DeletionTimeEndpoint)
 }
@@ -91,11 +138,13 @@ func getDeletionTimeURL(ip string) string {
 // FakeClient is a fake client
 type FakeClient struct {
 	deletionTimes map[string]time.Time
+	jobResults    map[string]*JobResultResponse
 }
 
 func NewFakeClient() *FakeClient {
 	return &FakeClient{
 		deletionTimes: map[string]time.Time{},
+		jobResults:    map[string]*JobResultResponse{},
 	}
 }
 
@@ -110,4 +159,15 @@ func (c *FakeClient) PutDeletionTime(ctx context.Context, ip string, tm time.Tim
 
 func (c *FakeClient) SetDeletionTimes(ip string, tm time.Time) {
 	c.deletionTimes[ip] = tm
+}
+
+func (c *FakeClient) GetJobResult(ctx context.Context, ip string) (*JobResultResponse, error) {
+	if jr, ok := c.jobResults[ip]; ok {
+		return jr, nil
+	}
+	return nil, fmt.Errorf("runner pod (%s) job result is not defined", ip)
+}
+
+func (c *FakeClient) SetJobResult(ip string, jr *JobResultResponse) {
+	c.jobResults[ip] = jr
 }

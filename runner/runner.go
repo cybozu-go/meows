@@ -11,12 +11,12 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/meows"
-	"github.com/cybozu-go/meows/agent"
 	"github.com/cybozu-go/meows/metrics"
 	"github.com/cybozu-go/meows/runner/client"
 	"github.com/cybozu-go/well"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/utils/pointer"
 )
 
 type Runner struct {
@@ -32,8 +32,8 @@ type Runner struct {
 	failureFlagFile   string
 	cancelledFlagFile string
 	successFlagFile   string
-
-	deletionTime atomic.Value
+	finishedAt        atomic.Value
+	deletionTime      atomic.Value
 }
 
 func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string) (*Runner, error) {
@@ -55,6 +55,7 @@ func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string)
 		successFlagFile:   filepath.Join(varDir, "success"),
 	}
 
+	r.finishedAt.Store(time.Time{})
 	r.deletionTime.Store(time.Time{})
 	return &r, nil
 }
@@ -69,6 +70,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{})))
 	mux.Handle("/"+constants.DeletionTimeEndpoint, http.HandlerFunc(r.deletionTimeHandler))
+	mux.Handle("/"+constants.JobResultEndPoint, http.HandlerFunc(r.jobResultHandler))
 	serv := &well.HTTPServer{
 		Env: env,
 		Server: &http.Server{
@@ -126,9 +128,8 @@ func (r *Runner) runListener(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := r.notifyToSlack(ctx, extend); err != nil {
-		return err
-	}
+
+	r.finishedAt.Store(time.Now().UTC())
 
 	<-ctx.Done()
 	return nil
@@ -145,35 +146,6 @@ func (r *Runner) updateDeletionTime(extend bool) error {
 	} else {
 		fmt.Println("Update pod's deletion time with current time")
 		r.deletionTime.Store(time.Now().UTC())
-	}
-	return nil
-}
-
-func (r *Runner) notifyToSlack(ctx context.Context, extend bool) error {
-	var jobResult string
-	switch {
-	case isFileExists(r.failureFlagFile):
-		jobResult = agent.JobResultFailure
-	case isFileExists(r.cancelledFlagFile):
-		jobResult = agent.JobResultCancelled
-	case isFileExists(r.successFlagFile):
-		jobResult = agent.JobResultSuccess
-	default:
-		jobResult = agent.JobResultUnknown
-	}
-	if len(r.envs.option.SlackAgentServiceName) != 0 {
-		fmt.Println("Send an notification to slack jobResult = ", jobResult)
-		c, err := agent.NewClient(fmt.Sprintf("http://%s", r.envs.option.SlackAgentServiceName))
-		if err != nil {
-			return err
-		}
-		jobInfo, err := agent.GetJobInfoFromFile(agent.DefaultJobInfoFile)
-		if err != nil {
-			return err
-		}
-		return c.PostResult(ctx, r.envs.option.SlackChannel, jobResult, extend, r.envs.podNamespace, r.envs.podName, jobInfo)
-	} else {
-		fmt.Println("Skip sending an notification to slack because Slack agent service name is blank")
 	}
 	return nil
 }
@@ -217,4 +189,56 @@ func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+func (r *Runner) jobResultHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		return
+	}
+
+	var jr *client.JobResultResponse
+	finishedAt := r.finishedAt.Load().(time.Time)
+
+	if finishedAt.IsZero() {
+		jr = &client.JobResultResponse{
+			Status: client.JobResultUnfinished,
+		}
+	} else {
+		var status string
+		switch {
+		case isFileExists(r.failureFlagFile):
+			status = client.JobResultFailure
+		case isFileExists(r.cancelledFlagFile):
+			status = client.JobResultCancelled
+		case isFileExists(r.successFlagFile):
+			status = client.JobResultSuccess
+		default:
+			status = client.JobResultUnknown
+		}
+
+		jobInfo, err := client.GetJobInfoFromFile(client.DefaultJobInfoFile)
+		if err != nil {
+			http.Error(w, "Failed to get job info", http.StatusInternalServerError)
+			return
+		}
+
+		extend := isFileExists(r.extendFlagFile)
+
+		jr = &client.JobResultResponse{
+			Status:     status,
+			FinishedAt: &finishedAt,
+			Extend:     pointer.Bool(extend),
+			JobInfo:    jobInfo,
+		}
+	}
+
+	res, err := json.Marshal(jr)
+	if err != nil {
+		http.Error(w, "Failed to marshal job result", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(res)
 }
