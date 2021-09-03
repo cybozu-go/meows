@@ -194,7 +194,7 @@ func (c *FakeClient) ListRunners(ctx context.Context, repositoryName string, lab
 
 // RemoveRunner does not delete anything and returns success.
 func (c *FakeClient) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
-	// skip existance and nil check below because this is mock
+	// skip existence and nil check below because this is mock
 	runners := c.runners[repositoryName]
 	for i, v := range runners {
 		if v.ID == runnerID {

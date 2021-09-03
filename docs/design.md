@@ -210,7 +210,7 @@ repository and we need to make another component responsible for registering tok
   itself to GitHub Actions.
   However, if `Pod`s are recreated in some reasons, it cannot register itself again.
 - Persistent volumes can store the resitration information, but stateful workloads
-  are generally more diffcult to manage than stateless workloads.
+  are generally more difficult to manage than stateless workloads.
 
 Update:  
 Originally, `Runner.Listener` is thought to be able to run in 1 hour or more after
