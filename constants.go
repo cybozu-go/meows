@@ -35,6 +35,9 @@ const (
 
 	// AppComponentRunner is the component name for runner.
 	AppComponentRunner = "runner"
+
+	OwnerControllerField = ".metadata.ownerReferences.kind"
+	OwnerKind            = "RunnerPool"
 )
 
 // Container ports

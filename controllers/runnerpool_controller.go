@@ -126,8 +126,24 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
+func indexSecret(obj client.Object) []string {
+	s := obj.(*corev1.Secret)
+	owner := metav1.GetControllerOf(s)
+	if owner == nil {
+		return nil
+	}
+	if owner.APIVersion != meowsv1alpha1.GroupVersion.String() || owner.Kind != constants.OwnerKind {
+		return nil
+	}
+	return []string{constants.OwnerKind}
+}
+
 // SetupWithManager sets up the controller with the Manager.
-func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RunnerPoolReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
+	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.Secret{}, constants.OwnerControllerField, indexSecret)
+	if err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meowsv1alpha1.RunnerPool{}).
 		Owns(&corev1.Secret{}).
