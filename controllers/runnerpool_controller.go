@@ -104,7 +104,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 	if !isContinuation {
-		log.Info("wait for the secret to be issued by secret watcher")
+		log.Info("wait for the secret to be issued by secret updater")
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: 2 * r.secretUpdaterInterval,

@@ -28,8 +28,8 @@ type SecretUpdater struct {
 }
 
 // Start implements Runnable.Start
-func (w SecretUpdater) Start(ctx context.Context) error {
-	ticker := time.NewTicker(w.interval)
+func (u SecretUpdater) Start(ctx context.Context) error {
+	ticker := time.NewTicker(u.interval)
 	defer ticker.Stop()
 	logger := log.FromContext(ctx).WithName("SecretUpdater")
 	for {
@@ -37,8 +37,8 @@ func (w SecretUpdater) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			logger.Info("start secret watcher")
-			err := w.secretUpdate(ctx)
+			logger.Info("start secret updater")
+			err := u.secretUpdate(ctx)
 			if err != nil {
 				return err
 			}
@@ -46,17 +46,17 @@ func (w SecretUpdater) Start(ctx context.Context) error {
 	}
 }
 
-func (w SecretUpdater) secretUpdate(ctx context.Context) error {
+func (u SecretUpdater) secretUpdate(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("SecretUpdater")
 	rps := meowsv1alpha1.RunnerPoolList{}
-	err := w.client.List(ctx, &rps)
+	err := u.client.List(ctx, &rps)
 	if err != nil {
 		return err
 	}
 	for i := range rps.Items {
 		rp := &rps.Items[i]
 		s := new(corev1.Secret)
-		err := w.client.Get(ctx, types.NamespacedName{Name: rp.GetRunnerSecretName(), Namespace: rp.Namespace}, s)
+		err := u.client.Get(ctx, types.NamespacedName{Name: rp.GetRunnerSecretName(), Namespace: rp.Namespace}, s)
 		if err != nil {
 			logger.Error(err, "failed to get secret")
 			continue
@@ -77,7 +77,7 @@ func (w SecretUpdater) secretUpdate(ctx context.Context) error {
 			logger.Info("create first token", "runnerpool_name", rp.Name)
 		}
 
-		runnerToken, err := w.githubClient.CreateRegistrationToken(ctx, rp.Spec.RepositoryName)
+		runnerToken, err := u.githubClient.CreateRegistrationToken(ctx, rp.Spec.RepositoryName)
 		if err != nil {
 			logger.Error(err, "failed to create actions registration token", "repository", rp.Spec.RepositoryName)
 			return err
@@ -92,7 +92,7 @@ func (w SecretUpdater) secretUpdate(ctx context.Context) error {
 		}
 		patch := client.MergeFrom(s)
 
-		err = w.client.Patch(ctx, newS, patch)
+		err = u.client.Patch(ctx, newS, patch)
 		if err != nil {
 			logger.Error(err, "failed to patch secret")
 			return err
