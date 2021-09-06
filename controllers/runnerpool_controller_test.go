@@ -88,7 +88,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		)
 		Expect(mgr.Add(secretUpdater)).To(Succeed())
 
-		Expect(r.SetupWithManager(ctx, mgr)).To(Succeed())
+		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
 		mgrCtx, mgrCancel = context.WithCancel(context.Background())
 		go func() {

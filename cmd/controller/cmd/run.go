@@ -100,8 +100,7 @@ func run() error {
 		config.secretUpdaterInterval,
 	)
 
-	ctx := ctrl.SetupSignalHandler()
-	if err = reconciler.SetupWithManager(ctx, mgr); err != nil {
+	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "runner-pool-reconciler")
 		return err
 	}
@@ -123,7 +122,7 @@ func run() error {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctx); err != nil {
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		return err
 	}
