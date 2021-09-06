@@ -3,12 +3,12 @@ package agent
 import (
 	"testing"
 
-	"github.com/cybozu-go/meows/runner/client"
+	"github.com/cybozu-go/meows/runner"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestMakePayload(t *testing.T) {
-	branchPushJob := &client.JobInfo{
+	branchPushJob := &runner.JobInfo{
 		Actor:          "user",
 		GitRef:         "branch/name",
 		JobID:          "job",
@@ -18,7 +18,7 @@ func TestMakePayload(t *testing.T) {
 		RunNumber:      987,
 		WorkflowName:   "Work flow",
 	}
-	pullRequestJob := &client.JobInfo{
+	pullRequestJob := &runner.JobInfo{
 		Actor:          "user",
 		GitRef:         "branch-name",
 		JobID:          "job",
@@ -35,7 +35,7 @@ func TestMakePayload(t *testing.T) {
 		inputResult    string
 		inputNamespace string
 		inputPod       string
-		inputJobInfo   *client.JobInfo
+		inputJobInfo   *runner.JobInfo
 
 		expected *resultAPIPayload
 	}{

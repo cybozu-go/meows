@@ -15,16 +15,13 @@ type Option struct {
 }
 
 type environments struct {
-	// Environments
 	podName        string
 	podNamespace   string
 	runnerOrg      string
 	runnerRepo     string
 	runnerPoolName string
-	extendDuration string
-
-	// Options
-	option Option
+	extendDuration time.Duration
+	setupCommand   []string
 }
 
 func newRunnerEnvs() (*environments, error) {
@@ -35,30 +32,32 @@ func newRunnerEnvs() (*environments, error) {
 		runnerRepo:     os.Getenv(constants.RunnerRepoEnvName),
 		runnerPoolName: os.Getenv(constants.RunnerPoolNameEnvName),
 	}
-	if err := envs.checkRequiredEnvs(); err != nil {
+	if err := envs.validateRequiredEnvs(); err != nil {
 		return nil, err
 	}
 
 	str := os.Getenv(constants.ExtendDurationEnvName)
-	if len(str) != 0 {
-		_, err := time.ParseDuration(str)
+	if len(str) == 0 {
+		envs.extendDuration = 20 * time.Minute
+	} else {
+		dur, err := time.ParseDuration(str)
 		if err != nil {
 			return nil, fmt.Errorf("failed to perse %s; %w", constants.ExtendDurationEnvName, err)
 		}
-		envs.extendDuration = str
-	} else {
-		envs.extendDuration = "20m"
+		envs.extendDuration = dur
 	}
 
 	optionRaw := os.Getenv(constants.RunnerOptionEnvName)
-	if err := json.Unmarshal([]byte(optionRaw), &envs.option); err != nil {
+	var opt Option
+	if err := json.Unmarshal([]byte(optionRaw), &opt); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal %s; %w", constants.RunnerOptionEnvName, err)
 	}
+	envs.setupCommand = opt.SetupCommand
 
 	return envs, nil
 }
 
-func (e *environments) checkRequiredEnvs() error {
+func (e *environments) validateRequiredEnvs() error {
 	if len(e.podName) == 0 {
 		return fmt.Errorf("%s must be set", constants.PodNameEnvName)
 	}

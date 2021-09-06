@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -55,13 +56,13 @@ func (l *listenerImpl) listen(ctx context.Context) error {
 			return fmt.Errorf("runner listener exit with terminated error: %v", err)
 		case 2:
 			logger.Info("Runner listener exit with retryable error, re-launch runner in 10 seconds.")
-			metrics.IncrementListenerExitState(metrics.RetryableError)
+			metrics.IncrementListenerExitState(constants.ListenerExitStateRetryableError)
 		case 3:
 			logger.Info("Runner listener exit because of updating, re-launch runner in 10 seconds.")
-			metrics.IncrementListenerExitState(metrics.Updating)
+			metrics.IncrementListenerExitState(constants.ListenerExitStateRetryableError)
 		default:
 			logger.Info("Runner listener exit with undefined return code, re-launch runner in 10 seconds.")
-			metrics.IncrementListenerExitState(metrics.Undefined)
+			metrics.IncrementListenerExitState(constants.ListenerExitStateUndefined)
 		}
 
 		// Sleep 10 seconds to wait for the update process finish.

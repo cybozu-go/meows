@@ -1,9 +1,11 @@
 package kindtest
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -14,7 +16,7 @@ import (
 	"time"
 
 	constants "github.com/cybozu-go/meows"
-	"github.com/cybozu-go/meows/runner/client"
+	"github.com/cybozu-go/meows/runner"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v33/github"
 	. "github.com/onsi/gomega"
@@ -75,22 +77,25 @@ func createNamespace(ns string) {
 	}).Should(Succeed())
 }
 
-func isDeploymentReady(name, namespace string, replicas int) error {
-	stdout, stderr, err := kubectl("get", "deployment", name, "-n", namespace, "-o", "json")
-	if err != nil {
-		return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-	}
+func waitDeployment(namespace, name string, replicas int) {
+	EventuallyWithOffset(1, func() error {
+		stdout, stderr, err := kubectl("get", "deployment", name, "-n", namespace, "-o", "json")
+		if err != nil {
+			return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		}
 
-	d := new(appsv1.Deployment)
-	err = json.Unmarshal(stdout, d)
-	if err != nil {
-		return err
-	}
+		d := new(appsv1.Deployment)
+		err = json.Unmarshal(stdout, d)
+		if err != nil {
+			return err
+		}
 
-	if int(d.Status.AvailableReplicas) != replicas {
-		return fmt.Errorf("AvailableReplicas is not %d: %d", replicas, int(d.Status.AvailableReplicas))
-	}
-	return nil
+		if int(d.Status.AvailableReplicas) != replicas {
+			return fmt.Errorf("AvailableReplicas is not %d: %d", replicas, int(d.Status.AvailableReplicas))
+		}
+
+		return nil
+	}).ShouldNot(HaveOccurred())
 }
 
 func isNotFoundFromStderr(stderr []byte) bool {
@@ -131,19 +136,19 @@ func isPodReady(po *corev1.Pod) bool {
 	return false
 }
 
-func getDeletionTime(po *corev1.Pod) (time.Time, error) {
+func getStatus(po *corev1.Pod) (*runner.Status, error) {
 	stdout, stderr, err := kubectl("exec", po.Name, "-n", po.Namespace,
-		"--", "curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerListenPort, constants.DeletionTimeEndpoint))
+		"--", "curl", "-s", fmt.Sprintf("localhost:%d/%s", constants.RunnerListenPort, constants.StatusEndPoint))
 	if err != nil {
-		return time.Time{}, fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		return nil, fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 	}
-	dt := &client.DeletionTimePayload{}
-	err = json.Unmarshal(stdout, dt)
+	st := new(runner.Status)
+	err = json.Unmarshal(stdout, st)
 	if err != nil {
-		return time.Time{}, err
+		return nil, err
 	}
 
-	return dt.DeletionTime, nil
+	return st, nil
 }
 
 func putDeletionTime(po *corev1.Pod, tm time.Time) error {
@@ -157,67 +162,95 @@ func putDeletionTime(po *corev1.Pod, tm time.Time) error {
 	return nil
 }
 
-func findPodToBeDeleted(pods *corev1.PodList) (string, time.Time) {
+func findDebuggingPod(pods *corev1.PodList) (*corev1.Pod, *runner.Status) {
 	for i := range pods.Items {
-		po := &pods.Items[i]
-		if !isPodReady(po) {
+		pod := &pods.Items[i]
+		if !isPodReady(pod) {
 			continue
 		}
-		tm, err := getDeletionTime(po)
-		if err != nil || tm.IsZero() {
+		st, err := getStatus(pod)
+		if err != nil || st.State != constants.RunnerPodStateDebugging {
 			continue
 		}
-		return po.Namespace + "/" + po.Name, tm
+		return pod, st
 	}
-	return "", time.Time{}
+	return nil, nil
 }
 
-func getRecretedPods(before, after *corev1.PodList) ([]string, []string) {
-	delPodNames := make([]string, 0)
-	addPodNames := make([]string, 0)
-
-	beforeMap := make(map[string]bool)
-	for i := range before.Items {
-		beforeMap[before.Items[i].Name] = true
-	}
-
-	afterMap := make(map[string]bool)
-	for i := range after.Items {
-		afterMap[after.Items[i].Name] = true
-	}
-
-	for i := range before.Items {
-		if !afterMap[before.Items[i].Name] {
-			delPodNames = append(delPodNames, before.Items[i].Name)
+func waitJobCompletion(namespace, runnerpool string) (*corev1.Pod, *runner.Status) {
+	var po *corev1.Pod
+	var status *runner.Status
+	EventuallyWithOffset(1, func() error {
+		pods, err := fetchRunnerPods(namespace, runnerpool)
+		if err != nil {
+			return err
 		}
-	}
-
-	for i := range after.Items {
-		if _, ok := beforeMap[after.Items[i].Name]; !ok {
-			addPodNames = append(addPodNames, after.Items[i].Name)
+		po, status = findDebuggingPod(pods)
+		if po == nil {
+			return errors.New("one pod should become debugging state")
 		}
-	}
-	return delPodNames, addPodNames
+		return nil
+	}, 3*time.Minute, 500*time.Millisecond).ShouldNot(HaveOccurred())
+	return po, status
 }
 
-func equalNumRecreatedPods(before, after *corev1.PodList, numRecreated int) error {
-	if len(before.Items) != len(after.Items) {
-		return fmt.Errorf(
-			"length mismatch: expected %#v actual %#v",
-			getPodNames(before),
-			getPodNames(after),
-		)
+func waitRunnerPodTerminating(namespace, name string) time.Time {
+	var tm time.Time
+	EventuallyWithOffset(1, func() error {
+		stdout, stderr, err := kubectl("get", "pod", "-n", namespace, name)
+		if isNotFoundFromStderr(stderr) {
+			tm = time.Now()
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get pod; stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		}
+
+		pod := new(corev1.Pod)
+		err = json.Unmarshal(stdout, pod)
+		if err != nil {
+			return fmt.Errorf("stdout: %s, err: %v", stdout, err)
+		}
+		if pod.DeletionTimestamp == nil {
+			return fmt.Errorf("pod is not deleted")
+		}
+		tm = pod.DeletionTimestamp.Time
+		return nil
+	}, 3*time.Minute, 500*time.Millisecond).ShouldNot(HaveOccurred())
+	return tm
+}
+
+func waitDeletion(kind, namespace, name string) {
+	EventuallyWithOffset(1, func() error {
+		stdout, stderr, err := kubectl("get", kind, "-n", namespace, name)
+		if !isNotFoundFromStderr(stderr) {
+			return fmt.Errorf("%s %s/%s is not deleted yet; stdout: %s, stderr: %s, err: %v", kind, namespace, name, stdout, stderr, err)
+		}
+		return nil
+	}).ShouldNot(HaveOccurred())
+}
+
+func slackMessageShouldBeSent(pod *corev1.Pod, channel string) {
+	// When a message is successfully sent, the following log will be output from one of slack-agent pods.
+	// {"level":"info","ts":1632841077.9362473,"caller":"agent/server.go:161","msg":"success to send slack message","pod":"kindtest-2021-09-28-145507-test-runner1/runnerpool1-84c6ff54f-tn89r","channel":"#test1"}
+
+	stdout, stderr, err := kubectl("logs", "-n", controllerNS, "-l", "app.kubernetes.io/component=slack-agent")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to get slack-agent log, stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+
+	podName := pod.Namespace + "/" + pod.Name
+	var matchLine string
+	reader := bufio.NewReader(bytes.NewReader(stdout))
+	for {
+		line, isPrefix, err := reader.ReadLine()
+		ExpectWithOffset(1, err).NotTo(HaveOccurred(), "no match line, pod: %d, stdout: %s", podName, stdout)
+		ExpectWithOffset(1, isPrefix).NotTo(BeTrue(), "too long line, line: %s", line)
+		if strings.Contains(string(line), podName) {
+			matchLine = string(line)
+			break
+		}
 	}
-	delPodNames, addPodNames := getRecretedPods(before, after)
-	if len(delPodNames) != numRecreated || len(addPodNames) != numRecreated {
-		return fmt.Errorf(
-			"%d pod should be recreated: before %#v after %#v",
-			numRecreated,
-			getPodNames(before),
-			getPodNames(after),
-		)
-	}
-	return nil
+	ExpectWithOffset(1, matchLine).To(ContainSubstring("success to send slack message"), "msg is not match")
+	ExpectWithOffset(1, matchLine).To(ContainSubstring(channel), "channel is not match")
 }
 
 func fetchOnlineRunnerNames(label string) ([]string, error) {
@@ -256,15 +289,31 @@ OUTER:
 	return runnerNames, nil
 }
 
-func compareExistingRunners(label string, podNames []string) error {
-	runnerNames, err := fetchOnlineRunnerNames(label)
-	if err != nil {
-		return err
-	}
-	if len(runnerNames) != len(podNames) || !cmp.Equal(runnerNames, podNames) {
-		return fmt.Errorf("%d runners should exist: pods %#v runners %#v", len(podNames), podNames, runnerNames)
-	}
-	return nil
+func waitRunnerPods(namespace, runnerpool string, replicas int) []string {
+	var podNames []string
+	EventuallyWithOffset(1, func() error {
+		pods, err := fetchRunnerPods(namespace, runnerpool)
+		if err != nil {
+			return err
+		}
+		if len(pods.Items) != replicas {
+			return fmt.Errorf("pods length expected %d, actual %d", replicas, len(pods.Items))
+		}
+		podNames = getPodNames(pods)
+
+		// checking runners is online.
+		label := namespace + "/" + runnerpool
+		runnerNames, err := fetchOnlineRunnerNames(label)
+		if err != nil {
+			return err
+		}
+		if len(runnerNames) != len(podNames) || !cmp.Equal(runnerNames, podNames) {
+			return fmt.Errorf("%d runners should exist: pods %#v runners %#v", len(podNames), podNames, runnerNames)
+		}
+		return nil
+	}).ShouldNot(HaveOccurred())
+
+	return podNames
 }
 
 func gitSafe(args ...string) {

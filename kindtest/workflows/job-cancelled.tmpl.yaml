@@ -1,0 +1,10 @@
+name: job-cancelled
+on: push
+
+jobs:
+  build:
+    name: job-cancelled
+    runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
+    steps:
+      - run: job-started
+      - run: job-cancelled

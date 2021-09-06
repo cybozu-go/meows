@@ -3,8 +3,9 @@ package slackagent
 import (
 	"context"
 
+	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/agent"
-	"github.com/cybozu-go/meows/runner/client"
+	"github.com/cybozu-go/meows/runner"
 	"github.com/spf13/cobra"
 )
 
@@ -44,8 +45,8 @@ If RESULT is omitted or any other value is specified, it will be treated as 'unk
 				result = args[1]
 			}
 
-			var jobInfo *client.JobInfo
-			jobInfo, err := client.GetJobInfoFromFile(config.jobInfoFile)
+			var jobInfo *runner.JobInfo
+			jobInfo, err := runner.GetJobInfoFromFile(config.jobInfoFile)
 			if err != nil {
 				return err
 			}
@@ -61,7 +62,7 @@ If RESULT is omitted or any other value is specified, it will be treated as 'unk
 	fs := cmd.Flags()
 	fs.StringVarP(&config.server, "server", "s", "http://127.0.0.1:8080", "The address to send requests to.")
 	fs.StringVarP(&config.namespace, "namespace", "n", "default", "Pod namespace.")
-	fs.StringVarP(&config.jobInfoFile, "file", "f", client.DefaultJobInfoFile, "Job info file.")
+	fs.StringVarP(&config.jobInfoFile, "file", "f", constants.RunnerVarDirPath+"/github.env", "Job info file.")
 	fs.StringVarP(&config.channel, "channel", "c", "", "The Slack channel to notify messages to")
 	fs.BoolVarP(&config.extend, "extend", "e", false, "Enable extend button.")
 

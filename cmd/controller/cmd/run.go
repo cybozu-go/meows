@@ -9,7 +9,7 @@ import (
 	"github.com/cybozu-go/meows/controllers"
 	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/metrics"
-	rc "github.com/cybozu-go/meows/runner/client"
+	"github.com/cybozu-go/meows/runner"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -27,7 +27,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(meowsv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
@@ -77,7 +76,7 @@ func run() error {
 		config.runnerManagerInterval,
 		mgr.GetClient(),
 		githubClient,
-		rc.NewClient(),
+		runner.NewClient(),
 	)
 
 	reconciler := controllers.NewRunnerPoolReconciler(

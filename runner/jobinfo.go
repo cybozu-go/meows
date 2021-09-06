@@ -1,4 +1,4 @@
-package client
+package runner
 
 import (
 	"encoding/json"
@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-const DefaultJobInfoFile = "/tmp/github.env"
 
 // JobInfo represents information about a CI job.
 type JobInfo struct {
@@ -29,26 +27,23 @@ func GetJobInfo() (*JobInfo, error) {
 }
 
 func GetJobInfoFromFile(file string) (*JobInfo, error) {
-	var data []byte
-	d, err := os.ReadFile(file)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
+	data, err := os.ReadFile(file)
 	// Accepts ErrNotExist.
 	// When ErrNotExist is returned, it means that `job_started` was not called in a workflow.
 	// Even in this case, slack notification will run.
-	data = d
-
-	var jobInfo *JobInfo
-	if len(data) != 0 {
-		tmp := &JobInfo{}
-		err := json.Unmarshal(data, tmp)
-		if err != nil {
-			return nil, err
-		}
-		jobInfo = tmp
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
-	return jobInfo, nil
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var jobInfo JobInfo
+	err = json.Unmarshal(data, &jobInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &jobInfo, nil
 }
 
 func (info *JobInfo) RepositoryURL() string {

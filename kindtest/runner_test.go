@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	constants "github.com/cybozu-go/meows"
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
+	. "github.com/onsi/gomega/gstruct"
 )
 
 func testRunner() {
@@ -24,305 +23,197 @@ func testRunner() {
 		kubectlSafeWithInput(stdout, "apply", "-n", runner2NS, "-f", "-")
 
 		By("confirming all runner1 pods are ready")
-		Eventually(func() error {
-			return isDeploymentReady(runnerPool1Name, runner1NS, runnerPool1Replicas)
-		}).ShouldNot(HaveOccurred())
+		waitDeployment(runner1NS, runnerPool1Name, runnerPool1Replicas)
+		waitRunnerPods(runner1NS, runnerPool1Name, runnerPool1Replicas)
 
 		By("confirming all runner2 pods are ready")
-		Eventually(func() error {
-			return isDeploymentReady(runnerPool2Name, runner2NS, runnerPool2Replicas)
-		}).ShouldNot(HaveOccurred())
+		waitDeployment(runner2NS, runnerPool2Name, runnerPool2Replicas)
+		waitRunnerPods(runner2NS, runnerPool2Name, runnerPool2Replicas)
 	})
 
-	It("should register self-hosted runners to GitHub Actions", func() {
-		By("confirming runners on GitHub Actions: " + runner1NS + "/" + runnerPool1Name)
-		Eventually(func() error {
-			runner1Pods, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			if len(runner1Pods.Items) != runnerPool1Replicas {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(runner1Pods.Items))
-			}
-			runner1PodNames := getPodNames(runner1Pods)
-			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, runner1PodNames)
-		}).ShouldNot(HaveOccurred())
-
-		By("confirming runners on GitHub Actions: " + runner2NS + "/" + runnerPool2Name)
-		Eventually(func() error {
-			runner2Pods, err := fetchRunnerPods(runner2NS, runnerPool2Name)
-			if err != nil {
-				return err
-			}
-			if len(runner2Pods.Items) != runnerPool2Replicas {
-				return fmt.Errorf("runner2Pods length expected %d, actual %d", runnerPool2Replicas, len(runner2Pods.Items))
-			}
-			runner2PodNames := getPodNames(runner2Pods)
-			return compareExistingRunners(runner2NS+"/"+runnerPool2Name, runner2PodNames)
-		}).ShouldNot(HaveOccurred())
-	})
-
-	It("should run the job-success on a self-hosted runner Pod and delete the Pod immediately", func() {
-		By("getting pods list before running workflow")
-		var before *corev1.PodList
-		Eventually(func() error {
-			var err error
-			before, err = fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			if len(before.Items) != runnerPool1Replicas {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(before.Items))
-			}
-			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, beforeNames)
-		}).ShouldNot(HaveOccurred())
-
-		By(`running "job-success" workflow`)
+	It("should run the job-success on a runner pod and delete the pod immediately", func() {
+		By("running 'job-success' workflow")
+		waitRunnerPods(runner1NS, runnerPool1Name, runnerPool1Replicas)
 		pushWorkflowFile("job-success.tmpl.yaml", runner1NS, runnerPool1Name)
+		assignedPod, status := waitJobCompletion(runner1NS, runnerPool1Name)
+		finishedAt := time.Now()
 
-		By("confirming one Pod is recreated")
-		var delPodNames []string
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			delPodNames, _ = getRecretedPods(before, after)
-			if err != nil {
-				return err
-			}
-			return equalNumRecreatedPods(before, after, 1)
-		}).ShouldNot(HaveOccurred())
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("success"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"Extend":       PointTo(BeFalse()),
+			"JobInfo":      Not(BeNil()),
+		})))
 
-		By("confirming that one of the slack-agent pod emitted a dummy message to stdout")
-		//{"level":"info","ts":1623123384.4349568,"caller":"agent/server.go:141","msg":"success to send slack message","pod":"test-runner/runnerpool-sample-5f4fbff6bb-wpjq6"}
-		Eventually(func() error {
-			stdout, stderr, err := execAtLocal(
-				"sh", nil,
-				"-c", fmt.Sprintf(
-					"kubectl logs -n %s -l app.kubernetes.io/component=slack-agent | grep \"success to send slack message\" | grep -q %s",
-					controllerNS, delPodNames[0],
-				),
-			)
-			if err != nil {
-				return fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-			}
-			return nil
-		}).ShouldNot(HaveOccurred())
+		By("confirming the pod deletion")
+		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
+		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
+		fmt.Println("- DeletionTime: ", *status.DeletionTime)
+		fmt.Println("- DeletedAt   : ", deletedAt)
+		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
+
+		By("confirming a slack message is successfully sent")
+		slackMessageShouldBeSent(assignedPod, "#test1")
 	})
 
-	It("should run the job-failure on a self-hosted runner Pod and delete the Pod after a while", func() {
-		By("getting pods list before running workflow")
-		var before *corev1.PodList
-		Eventually(func() error {
-			var err error
-			before, err = fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			if len(before.Items) != runnerPool1Replicas {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(before.Items))
-			}
-			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, beforeNames)
-		}).ShouldNot(HaveOccurred())
+	It("should run the job-cancelled on a runner pod and delete the pod immediately", func() {
+		By("running 'job-cancelled' workflow")
+		waitRunnerPods(runner2NS, runnerPool2Name, runnerPool2Replicas)
+		pushWorkflowFile("job-cancelled.tmpl.yaml", runner2NS, runnerPool2Name)
+		assignedPod, status := waitJobCompletion(runner2NS, runnerPool2Name)
+		finishedAt := time.Now()
 
-		By(`running "job-failure" workflow`)
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("cancelled"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"Extend":       PointTo(BeFalse()),
+			"JobInfo":      Not(BeNil()),
+		})))
+
+		By("confirming the pod deletion")
+		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
+		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
+		fmt.Println("- DeletionTime: ", *status.DeletionTime)
+		fmt.Println("- DeletedAt   : ", deletedAt)
+		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
+
+		By("confirming a slack message is successfully sent")
+		slackMessageShouldBeSent(assignedPod, "#test2")
+	})
+
+	It("should run the job-failure on a runner pod and delete the pod after a while", func() {
+		By("running 'job-failure' workflow")
+		waitRunnerPods(runner1NS, runnerPool1Name, runnerPool1Replicas)
 		pushWorkflowFile("job-failure.tmpl.yaml", runner1NS, runnerPool1Name)
+		assignedPod, status := waitJobCompletion(runner1NS, runnerPool1Name)
+		finishedAt := time.Now()
 
-		By("confirming the job is finished and get deletion time from API of one Pod")
-		var podName string
-		var deletionTime time.Time
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			podName, deletionTime = findPodToBeDeleted(after)
-			if podName == "" {
-				return fmt.Errorf("one pod should get deletion time from /" + constants.DeletionTimeEndpoint)
-			}
-			return nil
-		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("failure"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(30*time.Second), 3*time.Second)),
+			"Extend":       PointTo(BeTrue()),
+			"JobInfo":      Not(BeNil()),
+		})))
 
-		now := time.Now().UTC()
-		fmt.Println("====== Pod: " + podName)
-		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
-		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
+		By("confirming the pod deletion")
+		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
+		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
+		fmt.Println("- DeletionTime: ", *status.DeletionTime)
+		fmt.Println("- DeletedAt   : ", deletedAt)
+		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
 
-		By("confirming the timestamp value is around 30 sec later from now")
-		Expect(deletionTime.After(now.Add(20 * time.Second))).To(BeTrue())
-		Expect(deletionTime.Before(now.Add(30 * time.Second))).To(BeTrue())
+		By("confirming a slack message is successfully sent")
+		slackMessageShouldBeSent(assignedPod, "#test1")
+	})
 
-		By("confirming one Pod is recreated")
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			return equalNumRecreatedPods(before, after, 1)
-		}).ShouldNot(HaveOccurred())
-		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
+	It("should extend pod with the deletion time API", func() {
+		By("running 'job-failure' workflow")
+		waitRunnerPods(runner2NS, runnerPool2Name, runnerPool2Replicas)
+		pushWorkflowFile("job-failure.tmpl.yaml", runner2NS, runnerPool2Name)
+		assignedPod, status := waitJobCompletion(runner2NS, runnerPool2Name)
+		finishedAt := time.Now()
+
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("failure"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(30*time.Second), 3*time.Second)),
+			"Extend":       PointTo(BeTrue()),
+			"JobInfo":      Not(BeNil()),
+		})))
+
+		By("sending request to the pod")
+		extendTo := time.Now().Add(45 * time.Second).Truncate(time.Second)
+		err := putDeletionTime(assignedPod, extendTo)
+		Expect(err).NotTo(HaveOccurred())
+		status, err = getStatus(assignedPod)
+		Expect(err).NotTo(HaveOccurred())
+
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("failure"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("==", extendTo)),
+			"Extend":       PointTo(BeTrue()),
+			"JobInfo":      Not(BeNil()),
+		})))
+
+		By("confirming the pod deletion")
+		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
+		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
+		fmt.Println("- DeletionTime: ", *status.DeletionTime)
+		fmt.Println("- DeletedAt   : ", deletedAt)
+		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
+
+		By("confirming a slack message is successfully sent")
+		slackMessageShouldBeSent(assignedPod, "#test2")
 	})
 
 	It("should be successful the job that makes sure invisible environment variables", func() {
-		By("getting pods list before running workflow")
-		var before *corev1.PodList
-		Eventually(func() error {
-			var err error
-			before, err = fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			if len(before.Items) != runnerPool1Replicas {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool1Replicas, len(before.Items))
-			}
-			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner1NS+"/"+runnerPool1Name, beforeNames)
-		}).ShouldNot(HaveOccurred())
-
-		By(`running "check-env" workflow that makes sure invisible environment variables`)
+		By("running 'check-env' workflow")
+		waitRunnerPods(runner1NS, runnerPool1Name, runnerPool1Replicas)
 		pushWorkflowFile("check-env.tmpl.yaml", runner1NS, runnerPool1Name)
+		assignedPod, status := waitJobCompletion(runner1NS, runnerPool1Name)
+		finishedAt := time.Now()
 
-		By("confirming the job is finished and get deletion time from API of one Pod")
-		var podName string
-		var deletionTime time.Time
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			podName, deletionTime = findPodToBeDeleted(after)
-			if podName == "" {
-				return fmt.Errorf("one pod should get deletion time from /" + constants.DeletionTimeEndpoint)
-			}
-			return nil
-		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("success"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"Extend":       PointTo(BeFalse()),
+			"JobInfo":      Not(BeNil()),
+		})))
 
-		now := time.Now().UTC()
-		fmt.Println("====== Pod: " + podName)
-		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
-		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
+		By("confirming the pod deletion")
+		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
+		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
+		fmt.Println("- DeletionTime: ", *status.DeletionTime)
+		fmt.Println("- DeletedAt   : ", deletedAt)
+		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
 
-		By("confirming the timestamp value before now")
-		Expect(deletionTime.Before(now)).To(BeTrue())
-
-		By("confirming one Pod is recreated")
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			return equalNumRecreatedPods(before, after, 1)
-		}).ShouldNot(HaveOccurred())
-		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
+		By("confirming a slack message is successfully sent")
+		slackMessageShouldBeSent(assignedPod, "#test1")
 	})
 
 	It("should run a setup command", func() {
-		By("getting pods list before running workflow")
-		var before *corev1.PodList
-		Eventually(func() error {
-			var err error
-			before, err = fetchRunnerPods(runner2NS, runnerPool2Name)
-			if err != nil {
-				return err
-			}
-			if len(before.Items) != runnerPool2Replicas {
-				return fmt.Errorf("runner1Pods length expected %d, actual %d", runnerPool2Replicas, len(before.Items))
-			}
-			beforeNames := getPodNames(before)
-			return compareExistingRunners(runner2NS+"/"+runnerPool2Name, beforeNames)
-		}).ShouldNot(HaveOccurred())
-
-		By(`running "setup-command" workflow`)
+		By("running 'setup-command' workflow")
+		waitRunnerPods(runner2NS, runnerPool2Name, runnerPool2Replicas)
 		pushWorkflowFile("setup-command.tmpl.yaml", runner2NS, runnerPool2Name)
+		assignedPod, status := waitJobCompletion(runner2NS, runnerPool2Name)
+		finishedAt := time.Now()
 
-		By("confirming the job is finished and get deletion time from API of one Pod")
-		var podName string
-		var deletionTime time.Time
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner2NS, runnerPool2Name)
-			if err != nil {
-				return err
-			}
-			podName, deletionTime = findPodToBeDeleted(after)
-			if podName == "" {
-				return fmt.Errorf("one pod should get deletion time from /" + constants.DeletionTimeEndpoint)
-			}
-			return nil
-		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("success"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"Extend":       PointTo(BeFalse()),
+			"JobInfo":      Not(BeNil()),
+		})))
 
-		now := time.Now().UTC()
-		fmt.Println("====== Pod: " + podName)
-		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
-		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
+		By("confirming the pod deletion")
+		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
+		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
+		fmt.Println("- DeletionTime: ", *status.DeletionTime)
+		fmt.Println("- DeletedAt   : ", deletedAt)
+		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
 
-		By("confirming the timestamp value before now")
-		Expect(deletionTime.Before(now)).To(BeTrue())
-
-		By("confirming one Pod is recreated")
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner2NS, runnerPool2Name)
-			if err != nil {
-				return err
-			}
-			return equalNumRecreatedPods(before, after, 1)
-		}).ShouldNot(HaveOccurred())
-		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
-	})
-
-	It("should delete after PUT request to a Pod", func() {
-		By("getting pods list before API request")
-		before, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-		Expect(err).ShouldNot(HaveOccurred())
-		Expect(before.Items).Should(HaveLen(runnerPool1Replicas))
-		Eventually(func() error {
-			next, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			err = equalNumRecreatedPods(before, next, 0)
-			if err != nil {
-				before = next
-				return err
-			}
-			return nil
-		}).ShouldNot(HaveOccurred())
-
-		By("PUT request to one Pod")
-		fmt.Println("PUT request to ", before.Items[0].Name)
-		putDeletionTime(&before.Items[0], time.Now().UTC())
-
-		By("confirming PUT request and get deletion time from API of one Pod")
-		var podName string
-		var deletionTime time.Time
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			podName, deletionTime = findPodToBeDeleted(after)
-			if podName == "" {
-				return fmt.Errorf("one pod should get deletion time from /" + constants.DeletionTimeEndpoint)
-			}
-			return nil
-		}, 3*time.Minute, time.Second).ShouldNot(HaveOccurred())
-
-		now := time.Now().UTC()
-		fmt.Println("====== Pod: " + podName)
-		fmt.Println("====== Current time:  " + now.Format(time.RFC3339))
-		fmt.Println("====== Deletion time: " + deletionTime.Format(time.RFC3339))
-
-		By("confirming the timestamp value before now")
-		Expect(deletionTime.Before(now)).To(BeTrue())
-
-		By("confirming one Pod is recreated")
-		Eventually(func() error {
-			after, err := fetchRunnerPods(runner1NS, runnerPool1Name)
-			if err != nil {
-				return err
-			}
-			return equalNumRecreatedPods(before, after, 1)
-		}).ShouldNot(HaveOccurred())
-		fmt.Println("====== Pod was actually deleted at " + time.Now().UTC().Format(time.RFC3339))
+		By("confirming a slack message is successfully sent")
+		slackMessageShouldBeSent(assignedPod, "#test2")
 	})
 
 	It("should delete RunnerPool properly", func() {
@@ -330,23 +221,9 @@ func testRunner() {
 		stdout, stderr, err := kubectl("delete", "runnerpools", "-n", runner1NS, runnerPool1Name)
 		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
 
-		By("checking to delete deployment")
-		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "deployment", "-n", runner1NS, runnerPool1Name)
-			if !isNotFoundFromStderr(stderr) {
-				return fmt.Errorf("deployment is not deleted yet; stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-			}
-			return nil
-		}).ShouldNot(HaveOccurred())
-
-		By("checking to delete secret")
-		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "secret", "-n", runner1NS, "runner-token-"+runnerPool1Name)
-			if !isNotFoundFromStderr(stderr) {
-				return fmt.Errorf("secret is not deleted yet; stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-			}
-			return nil
-		}).ShouldNot(HaveOccurred())
+		By("confirming to delete resources")
+		waitDeletion("deployment", runner1NS, runnerPool1Name)
+		waitDeletion("secret", runner1NS, "runner-token-"+runnerPool1Name)
 
 		By("confirming runners are deleted from GitHub Actions")
 		Eventually(func() error {
@@ -382,23 +259,9 @@ func testRunner() {
 		stdout, stderr, err = kubectl("delete", "runnerpools", "-n", runner2NS, runnerPool2Name)
 		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
 
-		By("checking to delete deployment")
-		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "deployment", "-n", runner2NS, runnerPool2Name)
-			if !isNotFoundFromStderr(stderr) {
-				return fmt.Errorf("deployment is not deleted yet; stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-			}
-			return nil
-		}).ShouldNot(HaveOccurred())
-
-		By("checking to delete secret")
-		Eventually(func() error {
-			stdout, stderr, err := kubectl("get", "secret", "-n", runner2NS, "runner-token-"+runnerPool2Name)
-			if !isNotFoundFromStderr(stderr) {
-				return fmt.Errorf("secret is not deleted yet; stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-			}
-			return nil
-		}).ShouldNot(HaveOccurred())
+		By("confirming to delete resources")
+		waitDeletion("deployment", runner2NS, runnerPool2Name)
+		waitDeletion("secret", runner2NS, "runner-token-"+runnerPool2Name)
 
 		By("confirming runners are deleted from GitHub Actions")
 		Eventually(func() error {
