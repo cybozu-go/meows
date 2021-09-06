@@ -15,7 +15,7 @@ ENTRYPOINT ["controller"]
 
 FROM quay.io/cybozu/ubuntu:20.04 as runner
 
-ARG RUNNER_VERSION=2.279.0
+ARG RUNNER_VERSION=2.281.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y \

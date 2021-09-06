@@ -7,96 +7,185 @@ import (
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	"github.com/cybozu-go/meows/github"
+	"github.com/cybozu-go/well"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func NewSecretUpdater(client client.Client, interval time.Duration, githubClient github.Client) SecretUpdater {
-	return SecretUpdater{
+func newSecretUpdater(log logr.Logger, client client.Client, githubClient github.Client) secretUpdater {
+	return secretUpdater{
+		log:          log.WithName("secretUpdater"),
 		client:       client,
-		interval:     interval,
 		githubClient: githubClient,
+		processes:    map[string]*updateProcess{},
 	}
 }
 
-type SecretUpdater struct {
+type secretUpdater struct {
+	log          logr.Logger
 	client       client.Client
-	interval     time.Duration
 	githubClient github.Client
+	processes    map[string]*updateProcess
 }
 
 // Start implements Runnable.Start
-func (u SecretUpdater) Start(ctx context.Context) error {
-	ticker := time.NewTicker(u.interval)
-	defer ticker.Stop()
-	logger := log.FromContext(ctx).WithName("SecretUpdater")
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			logger.Info("start secret updater")
-			err := u.secretUpdate(ctx)
-			if err != nil {
-				return err
-			}
+func (u secretUpdater) start(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+	namespacedName := types.NamespacedName{Name: rp.GetRunnerSecretName(), Namespace: rp.Namespace}
+	if _, ok := u.processes[namespacedName.String()]; !ok {
+		process := newUpdateProcess(
+			u.log,
+			u.client,
+			u.githubClient,
+			rp.Spec.RepositoryName,
+			namespacedName,
+		)
+		err := process.start(ctx)
+		if err != nil {
+			return err
 		}
+		u.processes[namespacedName.String()] = process
+	}
+	return nil
+}
+
+func (u *secretUpdater) stop(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+	namespacedNameStr := types.NamespacedName{Namespace: rp.Namespace, Name: rp.GetRunnerSecretName()}.String()
+	if process, ok := u.processes[namespacedNameStr]; ok {
+		if err := process.stop(ctx); err != nil {
+			return err
+		}
+		delete(u.processes, namespacedNameStr)
+	}
+	return nil
+}
+
+type updateProcess struct {
+	log            logr.Logger
+	client         client.Client
+	githubClient   github.Client
+	repositoryName string
+	namespacedName types.NamespacedName
+	env            *well.Environment
+	cancel         context.CancelFunc
+}
+
+func newUpdateProcess(log logr.Logger, client client.Client, githubClient github.Client, repositoryName string, rpNamespacedName types.NamespacedName) *updateProcess {
+	return &updateProcess{
+		log:            log.WithValues("RunnerPoolName", rpNamespacedName),
+		client:         client,
+		githubClient:   githubClient,
+		namespacedName: rpNamespacedName,
+		repositoryName: repositoryName,
 	}
 }
 
-func (u SecretUpdater) secretUpdate(ctx context.Context) error {
-	logger := log.FromContext(ctx).WithName("SecretUpdater")
-	rps := meowsv1alpha1.RunnerPoolList{}
-	err := u.client.List(ctx, &rps)
+func (p *updateProcess) start(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	p.cancel = cancel
+	p.env = well.NewEnvironment(ctx)
+	p.env.Go(p.run)
+	p.env.Stop()
+	return nil
+}
+
+func (p *updateProcess) run(ctx context.Context) error {
+	p.log.Info("wait for an empty secret to be created by reconcile")
+	for {
+		_, err := p.getSecret(ctx)
+		if err == nil {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(1 * time.Second):
+		}
+	}
+
+	p.log.Info("start a secret updater process")
+	updateTime := 1 * time.Second
+	for {
+		select {
+		case <-ctx.Done():
+			p.log.Info("stop a secret updater process")
+			return nil
+		case <-time.After(updateTime):
+			err := p.updateSecret(ctx)
+			if err != nil {
+				p.log.Error(err, "failed to update secret")
+				return err
+			}
+		}
+		expiresAt, err := p.getExpiresAt(ctx)
+		if err != nil {
+			p.log.Error(err, "failed to get expires-at")
+			return err
+		}
+		updateTime = time.Until(expiresAt.Add(-5 * time.Minute))
+		p.log.Info("decide when to update next", "expiresAt", expiresAt.String(), "updateTime", updateTime.String())
+	}
+}
+
+func (p *updateProcess) updateSecret(ctx context.Context) error {
+	s, err := p.getSecret(ctx)
 	if err != nil {
 		return err
 	}
-	for i := range rps.Items {
-		rp := &rps.Items[i]
-		s := new(corev1.Secret)
-		err := u.client.Get(ctx, types.NamespacedName{Name: rp.GetRunnerSecretName(), Namespace: rp.Namespace}, s)
-		if err != nil {
-			logger.Error(err, "failed to get secret")
-			continue
-		}
-		expiresAtStr, ok := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
-		if ok {
-			expiresAt, err := time.Parse(time.RFC3339, expiresAtStr)
-			if err != nil {
-				logger.Error(err, "failed to parse expires-at annotation")
-				continue
-			}
-			if expiresAt.Add(-5 * time.Minute).After(time.Now()) {
-				logger.Info("skip update secret", "runnerpool_name", rp.Name, "expires_at", expiresAtStr)
-				continue
-			}
-			logger.Info("update token as it has expired", "runnerpool_name", rp.Name, "expires_at", expiresAtStr)
-		} else {
-			logger.Info("create first token", "runnerpool_name", rp.Name)
-		}
 
-		runnerToken, err := u.githubClient.CreateRegistrationToken(ctx, rp.Spec.RepositoryName)
-		if err != nil {
-			logger.Error(err, "failed to create actions registration token", "repository", rp.Spec.RepositoryName)
-			return err
-		}
+	runnerToken, err := p.githubClient.CreateRegistrationToken(ctx, p.repositoryName)
+	if err != nil {
+		p.log.Error(err, "failed to create actions registration token", "repository", p.repositoryName)
+		return err
+	}
 
-		newS := s.DeepCopy()
-		newS.Annotations = mergeMap(s.Annotations, map[string]string{
-			constants.RunnerSecretExpiresAtAnnotationKey: runnerToken.GetExpiresAt().Time.Format(time.RFC3339),
-		})
-		newS.StringData = map[string]string{
-			"runnertoken": runnerToken.GetToken(),
-		}
-		patch := client.MergeFrom(s)
+	newS := s.DeepCopy()
+	newS.Annotations = mergeMap(s.Annotations, map[string]string{
+		constants.RunnerSecretExpiresAtAnnotationKey: runnerToken.GetExpiresAt().Format(time.RFC3339),
+	})
+	newS.StringData = map[string]string{
+		"runnertoken": runnerToken.GetToken(),
+	}
+	patch := client.MergeFrom(s)
 
-		err = u.client.Patch(ctx, newS, patch)
-		if err != nil {
-			logger.Error(err, "failed to patch secret")
+	err = p.client.Patch(ctx, newS, patch)
+	if err != nil {
+		p.log.Error(err, "failed to patch secret")
+		return err
+	}
+	return nil
+}
+
+func (p *updateProcess) stop(ctx context.Context) error {
+	if p.cancel != nil {
+		p.cancel()
+		p.cancel = nil
+		if err := p.env.Wait(); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (p *updateProcess) getExpiresAt(ctx context.Context) (time.Time, error) {
+	s, err := p.getSecret(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	expiresAtStr, ok := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
+	if !ok {
+		p.log.Info("not annotated expires-at")
+		return time.Now(), nil
+	}
+	return time.Parse(time.RFC3339, expiresAtStr)
+}
+
+func (p *updateProcess) getSecret(ctx context.Context) (*corev1.Secret, error) {
+	s := new(corev1.Secret)
+	err := p.client.Get(ctx, p.namespacedName, s)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }

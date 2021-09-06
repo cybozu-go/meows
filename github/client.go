@@ -163,14 +163,14 @@ func (c *clientImpl) RemoveRunner(ctx context.Context, repositoryName string, ru
 type FakeClient struct {
 	organizationName  string
 	runners           map[string][]*Runner
-	expiredAtDuration time.Duration
+	ExpiredAtDuration time.Duration
 }
 
 // NewFakeClient creates GitHub Actions Client.
 func NewFakeClient(organizationName string) *FakeClient {
 	return &FakeClient{
 		organizationName:  organizationName,
-		expiredAtDuration: 1 * time.Hour,
+		ExpiredAtDuration: 1 * time.Hour,
 	}
 }
 
@@ -185,7 +185,7 @@ func (c *FakeClient) CreateRegistrationToken(ctx context.Context, repositoryName
 	return &github.RegistrationToken{
 		Token: &fakeToken,
 		ExpiresAt: &github.Timestamp{
-			Time: time.Now().Add(c.expiredAtDuration),
+			Time: time.Now().Add(c.ExpiredAtDuration),
 		},
 	}, nil
 }
