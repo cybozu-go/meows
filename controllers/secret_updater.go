@@ -38,7 +38,7 @@ func (w SecretUpdater) Start(ctx context.Context) error {
 			return ctx.Err()
 		case <-ticker.C:
 			logger.Info("start secret watcher")
-			err := w.secretExpired(ctx)
+			err := w.secretUpdate(ctx)
 			if err != nil {
 				return err
 			}
@@ -46,7 +46,7 @@ func (w SecretUpdater) Start(ctx context.Context) error {
 	}
 }
 
-func (w SecretUpdater) secretExpired(ctx context.Context) error {
+func (w SecretUpdater) secretUpdate(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("SecretUpdater")
 	rps := meowsv1alpha1.RunnerPoolList{}
 	err := w.client.List(ctx, &rps)
