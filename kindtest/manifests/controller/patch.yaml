@@ -18,3 +18,4 @@ spec:
         - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
         - "--app-private-key-path=/etc/github/app.pem"
         - "--runner-manager-interval=10s"
+        - "--secret-updater-interval=10s"
