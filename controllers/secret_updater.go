@@ -30,7 +30,6 @@ type secretUpdater struct {
 	processes    map[string]*updateProcess
 }
 
-// Start implements Runnable.Start
 func (u secretUpdater) start(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
 	namespacedName := types.NamespacedName{Name: rp.GetRunnerSecretName(), Namespace: rp.Namespace}
 	if _, ok := u.processes[namespacedName.String()]; !ok {

@@ -111,10 +111,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 	if err := r.secretUpdater.start(ctx, rp); err != nil {
 		log.Error(err, "failed to start secret updater")
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: 1 * time.Second,
-		}, nil
+		return ctrl.Result{}, err
 	}
 	if !isContinuation {
 		log.Info("wait for the secret to be issued by secret updater")
