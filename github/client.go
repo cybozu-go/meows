@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
@@ -96,6 +97,10 @@ func (c *clientImpl) CreateRegistrationToken(ctx context.Context, repositoryName
 		c.organizationName,
 		repositoryName,
 	)
+	if e, ok := err.(*url.Error); ok {
+		// When url.Error came back, it was because the raw Responce leaked out as a string.
+		return nil, fmt.Errorf("failed to create registration token: %s %s", e.Op, e.URL)
+	}
 	if err != nil {
 		return nil, err
 	}

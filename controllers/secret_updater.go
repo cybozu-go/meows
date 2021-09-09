@@ -7,12 +7,18 @@ import (
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	"github.com/cybozu-go/meows/github"
+	"github.com/cybozu-go/meows/metrics"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+type metricsSet struct {
+	retryCount prometheus.Gauge
+}
 
 func newSecretUpdater(log logr.Logger, client client.Client, githubClient github.Client) secretUpdater {
 	return secretUpdater{
@@ -31,52 +37,62 @@ type secretUpdater struct {
 }
 
 func (u secretUpdater) start(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
-	namespacedName := types.NamespacedName{Name: rp.GetRunnerSecretName(), Namespace: rp.Namespace}
-	if _, ok := u.processes[namespacedName.String()]; !ok {
+	rpNamespacedNameStr := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
+	if _, ok := u.processes[rpNamespacedNameStr]; !ok {
 		process := newUpdateProcess(
 			u.log,
 			u.client,
 			u.githubClient,
 			rp.Spec.RepositoryName,
-			namespacedName,
+			rpNamespacedNameStr,
+			types.NamespacedName{Namespace: rp.Namespace, Name: rp.GetRunnerSecretName()},
 		)
 		err := process.start(ctx)
 		if err != nil {
 			return err
 		}
-		u.processes[namespacedName.String()] = process
+		u.processes[rpNamespacedNameStr] = process
 	}
 	return nil
 }
 
 func (u *secretUpdater) stop(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
-	namespacedNameStr := types.NamespacedName{Namespace: rp.Namespace, Name: rp.GetRunnerSecretName()}.String()
-	if process, ok := u.processes[namespacedNameStr]; ok {
+	rpNamespacedNameStr := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
+	if process, ok := u.processes[rpNamespacedNameStr]; ok {
 		if err := process.stop(ctx); err != nil {
 			return err
 		}
-		delete(u.processes, namespacedNameStr)
+		delete(u.processes, rpNamespacedNameStr)
 	}
 	return nil
 }
 
 type updateProcess struct {
-	log            logr.Logger
-	client         client.Client
-	githubClient   github.Client
-	repositoryName string
-	namespacedName types.NamespacedName
-	env            *well.Environment
-	cancel         context.CancelFunc
+	log                  logr.Logger
+	client               client.Client
+	githubClient         github.Client
+	repositoryName       string
+	secretNamespacedName types.NamespacedName
+	env                  *well.Environment
+	cancel               context.CancelFunc
+
+	metrics       metricsSet
+	deleteMetrics func()
 }
 
-func newUpdateProcess(log logr.Logger, client client.Client, githubClient github.Client, repositoryName string, rpNamespacedName types.NamespacedName) *updateProcess {
+func newUpdateProcess(log logr.Logger, client client.Client, githubClient github.Client, repositoryName, rpNamespacedNameStr string, secretNamespacedName types.NamespacedName) *updateProcess {
 	return &updateProcess{
-		log:            log.WithValues("RunnerPoolName", rpNamespacedName),
-		client:         client,
-		githubClient:   githubClient,
-		namespacedName: rpNamespacedName,
-		repositoryName: repositoryName,
+		log:                  log.WithValues("RunnerPoolName", rpNamespacedNameStr),
+		client:               client,
+		githubClient:         githubClient,
+		secretNamespacedName: secretNamespacedName,
+		repositoryName:       repositoryName,
+		metrics: metricsSet{
+			retryCount: metrics.RunnerPoolSecretRetryCount.WithLabelValues(rpNamespacedNameStr),
+		},
+		deleteMetrics: func() {
+			metrics.RunnerPoolSecretRetryCount.DeleteLabelValues(rpNamespacedNameStr)
+		},
 	}
 }
 
@@ -84,12 +100,19 @@ func (p *updateProcess) start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	p.cancel = cancel
 	p.env = well.NewEnvironment(ctx)
-	p.env.Go(p.run)
+	p.env.Go(func(ctx context.Context) error {
+		p.metrics.retryCount.Set(0)
+		defer func() {
+			p.deleteMetrics()
+		}()
+		p.run(ctx)
+		return nil
+	})
 	p.env.Stop()
 	return nil
 }
 
-func (p *updateProcess) run(ctx context.Context) error {
+func (p *updateProcess) run(ctx context.Context) {
 	p.log.Info("wait for an empty secret to be created by reconcile")
 	for {
 		_, err := p.getSecret(ctx)
@@ -98,7 +121,8 @@ func (p *updateProcess) run(ctx context.Context) error {
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			p.log.Info("stop a secret updater process")
+			return
 		case <-time.After(1 * time.Second):
 		}
 	}
@@ -109,21 +133,26 @@ func (p *updateProcess) run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			p.log.Info("stop a secret updater process")
-			return nil
+			return
 		case <-time.After(updateTime):
 			err := p.updateSecret(ctx)
 			if err != nil {
-				p.log.Error(err, "failed to update secret")
-				return err
+				p.log.Error(err, "failed to update secret, retry 5 minutes ago")
+				p.metrics.retryCount.Inc()
+				updateTime = 5 * time.Minute
+				continue
 			}
 		}
 		expiresAt, err := p.getExpiresAt(ctx)
 		if err != nil {
-			p.log.Error(err, "failed to get expires-at")
-			return err
+			p.log.Error(err, "failed to get expires-at, retry 5 minutes ago")
+			p.metrics.retryCount.Inc()
+			updateTime = 5 * time.Minute
+			continue
 		}
 		updateTime = time.Until(expiresAt.Add(-5 * time.Minute))
 		p.log.Info("decide when to update next", "expiresAt", expiresAt.String(), "updateTime", updateTime.String())
+		p.metrics.retryCount.Set(0)
 	}
 }
 
@@ -182,7 +211,7 @@ func (p *updateProcess) getExpiresAt(ctx context.Context) (time.Time, error) {
 
 func (p *updateProcess) getSecret(ctx context.Context) (*corev1.Secret, error) {
 	s := new(corev1.Secret)
-	err := p.client.Get(ctx, p.namespacedName, s)
+	err := p.client.Get(ctx, p.secretNamespacedName, s)
 	if err != nil {
 		return nil, err
 	}

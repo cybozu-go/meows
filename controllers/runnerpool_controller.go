@@ -39,15 +39,16 @@ type RunnerPoolReconciler struct {
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
 func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string, runnerManager RunnerManager, githubClient github.Client) *RunnerPoolReconciler {
+	l := log.WithName("RunnerPool")
 	return &RunnerPoolReconciler{
 		Client:           client,
-		log:              log.WithName("RunnerPool"),
+		log:              l,
 		scheme:           scheme,
 		repositoryNames:  repositoryNames,
 		organizationName: organizationName,
 		runnerImage:      runnerImage,
 		runnerManager:    runnerManager,
-		secretUpdater:    newSecretUpdater(log, client, githubClient),
+		secretUpdater:    newSecretUpdater(l, client, githubClient),
 	}
 }
 

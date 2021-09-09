@@ -6,12 +6,24 @@ import (
 
 // Controller related metrics
 var (
+	RunnerPoolSecretRetryCount *prometheus.GaugeVec
+
 	runnerPoolReplicas *prometheus.GaugeVec
 	runnerOnlineVec    *prometheus.GaugeVec
 	runnerBusyVec      *prometheus.GaugeVec
 )
 
 func InitControllerMetrics(registry prometheus.Registerer) {
+	RunnerPoolSecretRetryCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metricsNamespace,
+			Subsystem: runnerPoolSubsystem,
+			Name:      "secret_retry_count",
+			Help:      "The number of times meows retried continuously to get github token",
+		},
+		[]string{"runnerpool"},
+	)
+
 	runnerPoolReplicas = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
@@ -43,6 +55,7 @@ func InitControllerMetrics(registry prometheus.Registerer) {
 	)
 
 	registry.MustRegister(
+		RunnerPoolSecretRetryCount,
 		runnerPoolReplicas,
 		runnerOnlineVec,
 		runnerBusyVec,
