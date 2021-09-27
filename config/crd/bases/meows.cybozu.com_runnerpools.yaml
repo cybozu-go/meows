@@ -68,6 +68,10 @@ spec:
                     description: ServiceName is a Service name of Slack agent.
                     type: string
                 type: object
+              staleDuration:
+                default: 24h
+                description: Duration until the pod is recreated
+                type: string
               template:
                 description: Template describes the runner pods that will be created.
                 properties:

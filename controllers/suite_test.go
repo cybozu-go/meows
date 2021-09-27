@@ -100,6 +100,7 @@ func makeRunnerPool(name, namespace, repoName string) *meowsv1alpha1.RunnerPool 
 		},
 		Spec: meowsv1alpha1.RunnerPoolSpec{
 			RepositoryName: repoName,
+			StaleDuration:  "24h",
 		},
 	}
 }

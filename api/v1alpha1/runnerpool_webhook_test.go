@@ -20,6 +20,7 @@ func makeRunnerPoolTemplate(name, namespace, repoName string) *RunnerPool {
 		},
 		Spec: RunnerPoolSpec{
 			RepositoryName: repoName,
+			StaleDuration:  "24h",
 		},
 	}
 }

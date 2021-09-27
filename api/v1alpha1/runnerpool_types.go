@@ -5,6 +5,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"time"
 
 	constants "github.com/cybozu-go/meows"
 	corev1 "k8s.io/api/core/v1"
@@ -43,6 +44,11 @@ type RunnerPoolSpec struct {
 	// Configuration of a Slack agent.
 	// +optional
 	SlackAgent SlackAgentConfig `json:"slackAgent,omitempty"`
+
+	// Duration until the pod is recreated
+	// +kubebuilder:default="24h"
+	// +optional
+	StaleDuration string `json:"staleDuration,omitempty"`
 
 	// Template describes the runner pods that will be created.
 	// +optional
@@ -181,6 +187,11 @@ func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
 
 	if s.MaxRunnerPods < s.Replicas {
 		allErrs = append(allErrs, field.Invalid(p.Child("maxRunnerPods"), s.MaxRunnerPods, "this value should be greater-than or equal-to replicas."))
+	}
+
+	_, err := time.ParseDuration(s.StaleDuration)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(p.Child("staleDuration"), s.StaleDuration, "this value should be able to parse using time.ParseDuration"))
 	}
 
 	for i, e := range s.Template.Env {
