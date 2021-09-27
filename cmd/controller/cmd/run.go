@@ -71,33 +71,24 @@ func run() error {
 		return err
 	}
 
+	log := ctrl.Log.WithName("controllers")
 	runnerManager := controllers.NewRunnerManager(
-		ctrl.Log.WithName("RunnerManager"),
+		log,
 		config.runnerManagerInterval,
 		mgr.GetClient(),
 		githubClient,
 		rc.NewClient(),
 	)
 
-	secretUpdater := controllers.NewSecretUpdater(
-		mgr.GetClient(),
-		config.secretUpdaterInterval,
-		githubClient,
-	)
-	err = mgr.Add(secretUpdater)
-	if err != nil {
-		return err
-	}
-
 	reconciler := controllers.NewRunnerPoolReconciler(
 		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName("RunnerPool"),
+		log,
 		mgr.GetScheme(),
 		config.repositoryNames,
 		config.organizationName,
 		config.runnerImage,
 		runnerManager,
-		config.secretUpdaterInterval,
+		githubClient,
 	)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {

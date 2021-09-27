@@ -55,7 +55,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 	wait := 10 * time.Second
 	mockManager := newRunnerManagerMock()
 	var githubFakeClient *github.FakeClient
-	secretUpdaterInterval := 1 * time.Second
 
 	ctx := context.Background()
 	var mgrCtx context.Context
@@ -70,23 +69,18 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		githubFakeClient = github.NewFakeClient(organizationName)
+		log := ctrl.Log.WithName("controllers")
+
 		r := NewRunnerPoolReconciler(
 			mgr.GetClient(),
-			ctrl.Log.WithName("controllers").WithName("RunnerPool"),
+			log,
 			mgr.GetScheme(),
 			repositoryNames,
 			organizationName,
 			defaultRunnerImage,
 			RunnerManager(mockManager),
-			secretUpdaterInterval,
-		)
-
-		secretUpdater := NewSecretUpdater(
-			mgr.GetClient(),
-			secretUpdaterInterval,
 			githubFakeClient,
 		)
-		Expect(mgr.Add(secretUpdater)).To(Succeed())
 
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
@@ -134,7 +128,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("confirming the Secret's expires in")
 		expiresAt, err := time.Parse(time.RFC3339, s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey])
 		Expect(err).NotTo(HaveOccurred())
-		Expect(expiresAt).Should(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
+		Expect(expiresAt).To(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
 
 		By("checking that a runner pool is the owner of a secret")
 		Expect(s.OwnerReferences).To(HaveLen(1))
@@ -354,7 +348,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("confirming the Secret's expires in")
 		expiresAt, err := time.Parse(time.RFC3339, s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey])
 		Expect(err).NotTo(HaveOccurred())
-		Expect(expiresAt).Should(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
+		Expect(expiresAt).To(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
 
 		By("checking that a runner pool is the owner of a secret")
 		Expect(s.OwnerReferences).To(HaveLen(1))
@@ -543,24 +537,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 	})
 
-	It("should or not update secret by a SecretUpdater", func() {
-		By("deploying RunnerPool resource")
-		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[0])
-		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
-
-		By("wating the RunnerPool become Bound")
-		Eventually(func() error {
-			rp := new(meowsv1alpha1.RunnerPool)
-			if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
-				return err
-			}
-			if !rp.Status.Bound {
-				return errors.New(`status "bound" should be true`)
-			}
-			return nil
-		}).Should(Succeed())
-		time.Sleep(wait) // Wait for the reconciliation to run a few times. Please check the controller's log.
-
+	It("should or not update secret by a secretUpdater", func() {
 		testCase := []struct {
 			expiresAtDuration time.Duration
 			shouldUpdate      bool
@@ -587,41 +564,60 @@ var _ = Describe("RunnerPool reconciler", func() {
 			},
 		}
 		for _, tc := range testCase {
+			By("set expiresAt for githubFakeClient from test case")
+			githubFakeClient.ExpiredAtDuration = tc.expiresAtDuration
+
+			By("deploying RunnerPool resource")
+			rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[0])
+			Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
+			By("wating the RunnerPool become Bound")
+			Eventually(func() error {
+				rp := new(meowsv1alpha1.RunnerPool)
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
+					return err
+				}
+				if !rp.Status.Bound {
+					return errors.New(`status "bound" should be true`)
+				}
+				return nil
+			}).Should(Succeed())
+			time.Sleep(wait) // Wait for the reconciliation to run a few times. Please check the controller's log.
+
 			By("getting the created Secret")
 			fmt.Printf("testcase is {expiresAtDuration: %s, should update: %v}\n", tc.expiresAtDuration.String(), tc.shouldUpdate)
 			s := new(corev1.Secret)
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)).To(Succeed())
+			baseTime := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
 
-			By("set annotation")
-			baseTime := time.Now().Add(tc.expiresAtDuration).Format(time.RFC3339)
-			s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey] = baseTime
-			Expect(k8sClient.Update(ctx, s)).To(Succeed())
-			time.Sleep(wait)
+			By("set expiresAt to the correct value")
+			githubFakeClient.ExpiredAtDuration = 1 * time.Hour
+
+			time.Sleep(10 * time.Second)
 
 			if tc.shouldUpdate {
 				By("checking to update secret")
 				s = new(corev1.Secret)
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)
-				Expect(err).ToNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 				tmStr := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
 				tm, err := time.Parse(time.RFC3339, tmStr)
-				Expect(err).ToNot(HaveOccurred())
-
-				Expect(tmStr).ShouldNot(Equal(baseTime))
-				Expect(tm).Should(BeTemporally("~", time.Now().Add(1*time.Hour), 20*time.Second))
-				continue
+				Expect(err).NotTo(HaveOccurred())
+				Expect(tmStr).NotTo(Equal(baseTime))
+				expectedExpiresAt := time.Now().Add(1 * time.Hour)
+				Expect(tm).To(BeTemporally("~", expectedExpiresAt, 20*time.Second))
+			} else {
+				By("checking to not update secret")
+				s = new(corev1.Secret)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)
+				Expect(err).NotTo(HaveOccurred())
+				tmStr := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
+				Expect(tmStr).To(Equal(baseTime))
 			}
 
-			By("checking to not update secret")
-			s = new(corev1.Secret)
-			err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)
-			Expect(err).ToNot(HaveOccurred())
-			tm := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
-			Expect(err).ToNot(HaveOccurred())
-			Expect(tm).Should(Equal(baseTime))
+			By("deleting the created RunnerPool")
+			deleteRunnerPool(ctx, runnerPoolName, namespace)
 		}
 
-		By("deleting the created RunnerPool")
-		deleteRunnerPool(ctx, runnerPoolName, namespace)
 	})
 })

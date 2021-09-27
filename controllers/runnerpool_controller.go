@@ -9,6 +9,7 @@ import (
 
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/runner"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -27,26 +28,27 @@ import (
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
 	client.Client
-	log                   logr.Logger
-	scheme                *runtime.Scheme
-	repositoryNames       []string
-	organizationName      string
-	runnerImage           string
-	runnerManager         RunnerManager
-	secretUpdaterInterval time.Duration
+	log              logr.Logger
+	scheme           *runtime.Scheme
+	repositoryNames  []string
+	organizationName string
+	runnerImage      string
+	runnerManager    RunnerManager
+	secretUpdater    secretUpdater
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string, runnerManager RunnerManager, secretUpdaterInterval time.Duration) *RunnerPoolReconciler {
+func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string, runnerManager RunnerManager, githubClient github.Client) *RunnerPoolReconciler {
+	l := log.WithName("RunnerPool")
 	return &RunnerPoolReconciler{
-		Client:                client,
-		log:                   log,
-		scheme:                scheme,
-		repositoryNames:       repositoryNames,
-		organizationName:      organizationName,
-		runnerImage:           runnerImage,
-		runnerManager:         runnerManager,
-		secretUpdaterInterval: secretUpdaterInterval,
+		Client:           client,
+		log:              l,
+		scheme:           scheme,
+		repositoryNames:  repositoryNames,
+		organizationName: organizationName,
+		runnerImage:      runnerImage,
+		runnerManager:    runnerManager,
+		secretUpdater:    newSecretUpdater(l, client, githubClient),
 	}
 }
 
@@ -83,6 +85,11 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, err
 		}
 
+		if err := r.secretUpdater.stop(ctx, rp); err != nil {
+			log.Error(err, "failed to stop secret updater")
+			return ctrl.Result{}, err
+		}
+
 		controllerutil.RemoveFinalizer(rp, constants.RunnerPoolFinalizer)
 		if err := r.Update(ctx, rp); err != nil {
 			log.Error(err, "failed to remove finalizer")
@@ -103,11 +110,15 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Error(err, "failed to reconcile secret")
 		return ctrl.Result{}, err
 	}
+	if err := r.secretUpdater.start(ctx, rp); err != nil {
+		log.Error(err, "failed to start secret updater")
+		return ctrl.Result{}, err
+	}
 	if !isContinuation {
 		log.Info("wait for the secret to be issued by secret updater")
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: 2 * r.secretUpdaterInterval,
+			RequeueAfter: 10 * time.Second,
 		}, nil
 	}
 

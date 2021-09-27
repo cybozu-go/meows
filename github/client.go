@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
@@ -96,6 +97,10 @@ func (c *clientImpl) CreateRegistrationToken(ctx context.Context, repositoryName
 		c.organizationName,
 		repositoryName,
 	)
+	if e, ok := err.(*url.Error); ok {
+		// When url.Error came back, it was because the raw Responce leaked out as a string.
+		return nil, fmt.Errorf("failed to create registration token: %s %s", e.Op, e.URL)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -163,14 +168,14 @@ func (c *clientImpl) RemoveRunner(ctx context.Context, repositoryName string, ru
 type FakeClient struct {
 	organizationName  string
 	runners           map[string][]*Runner
-	expiredAtDuration time.Duration
+	ExpiredAtDuration time.Duration
 }
 
 // NewFakeClient creates GitHub Actions Client.
 func NewFakeClient(organizationName string) *FakeClient {
 	return &FakeClient{
 		organizationName:  organizationName,
-		expiredAtDuration: 1 * time.Hour,
+		ExpiredAtDuration: 1 * time.Hour,
 	}
 }
 
@@ -185,7 +190,7 @@ func (c *FakeClient) CreateRegistrationToken(ctx context.Context, repositoryName
 	return &github.RegistrationToken{
 		Token: &fakeToken,
 		ExpiresAt: &github.Timestamp{
-			Time: time.Now().Add(c.expiredAtDuration),
+			Time: time.Now().Add(c.ExpiredAtDuration),
 		},
 	}, nil
 }

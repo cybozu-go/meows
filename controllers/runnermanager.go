@@ -43,7 +43,7 @@ type RunnerManagerImpl struct {
 
 func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient rc.Client) RunnerManager {
 	return &RunnerManagerImpl{
-		log:             log,
+		log:             log.WithName("RunnerManager"),
 		interval:        interval,
 		k8sClient:       k8sClient,
 		githubClient:    githubClient,
