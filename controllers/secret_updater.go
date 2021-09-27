@@ -82,7 +82,7 @@ type updateProcess struct {
 
 func newUpdateProcess(log logr.Logger, client client.Client, githubClient github.Client, repositoryName, rpNamespacedNameStr string, secretNamespacedName types.NamespacedName) *updateProcess {
 	return &updateProcess{
-		log:                  log.WithValues("RunnerPoolName", rpNamespacedNameStr),
+		log:                  log.WithValues("runnerpool", rpNamespacedNameStr),
 		client:               client,
 		githubClient:         githubClient,
 		secretNamespacedName: secretNamespacedName,

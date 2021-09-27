@@ -128,7 +128,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("confirming the Secret's expires in")
 		expiresAt, err := time.Parse(time.RFC3339, s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey])
 		Expect(err).NotTo(HaveOccurred())
-		Expect(expiresAt).Should(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
+		Expect(expiresAt).To(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
 
 		By("checking that a runner pool is the owner of a secret")
 		Expect(s.OwnerReferences).To(HaveLen(1))
@@ -348,7 +348,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("confirming the Secret's expires in")
 		expiresAt, err := time.Parse(time.RFC3339, s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey])
 		Expect(err).NotTo(HaveOccurred())
-		Expect(expiresAt).Should(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
+		Expect(expiresAt).To(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
 
 		By("checking that a runner pool is the owner of a secret")
 		Expect(s.OwnerReferences).To(HaveLen(1))
@@ -599,20 +599,20 @@ var _ = Describe("RunnerPool reconciler", func() {
 				By("checking to update secret")
 				s = new(corev1.Secret)
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)
-				Expect(err).ShouldNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 				tmStr := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
 				tm, err := time.Parse(time.RFC3339, tmStr)
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(tmStr).ShouldNot(Equal(baseTime))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(tmStr).NotTo(Equal(baseTime))
 				expectedExpiresAt := time.Now().Add(1 * time.Hour)
-				Expect(tm).Should(BeTemporally("~", expectedExpiresAt, 20*time.Second))
+				Expect(tm).To(BeTemporally("~", expectedExpiresAt, 20*time.Second))
 			} else {
 				By("checking to not update secret")
 				s = new(corev1.Secret)
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)
-				Expect(err).ShouldNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 				tmStr := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
-				Expect(tmStr).Should(Equal(baseTime))
+				Expect(tmStr).To(Equal(baseTime))
 			}
 
 			By("deleting the created RunnerPool")

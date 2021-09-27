@@ -86,7 +86,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 
 		if err := r.secretUpdater.stop(ctx, rp); err != nil {
-			log.Error(err, "failed to stop runner updater")
+			log.Error(err, "failed to stop secret updater")
 			return ctrl.Result{}, err
 		}
 
