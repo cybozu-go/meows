@@ -137,7 +137,7 @@ func (p *updateProcess) run(ctx context.Context) {
 		case <-time.After(updateTime):
 			err := p.updateSecret(ctx)
 			if err != nil {
-				p.log.Error(err, "failed to update secret, retry 5 minutes ago")
+				p.log.Error(err, "failed to update secret, retry after 5 minutes")
 				p.metrics.retryCount.Inc()
 				updateTime = 5 * time.Minute
 				continue
@@ -145,7 +145,7 @@ func (p *updateProcess) run(ctx context.Context) {
 		}
 		expiresAt, err := p.getExpiresAt(ctx)
 		if err != nil {
-			p.log.Error(err, "failed to get expires-at, retry 5 minutes ago")
+			p.log.Error(err, "failed to get expires-at, retry after 5 minutes")
 			p.metrics.retryCount.Inc()
 			updateTime = 5 * time.Minute
 			continue
