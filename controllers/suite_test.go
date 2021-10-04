@@ -99,8 +99,8 @@ func makeRunnerPool(name, namespace, repoName string) *meowsv1alpha1.RunnerPool 
 			Finalizers: []string{constants.RunnerPoolFinalizer},
 		},
 		Spec: meowsv1alpha1.RunnerPoolSpec{
-			RepositoryName: repoName,
-			StaleDuration:  "24h",
+			RepositoryName:   repoName,
+			RecreateDeadline: "24h",
 		},
 	}
 }

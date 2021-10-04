@@ -193,7 +193,7 @@ var _ = Describe("RunnerManager", func() {
 		}
 	})
 
-	It("should delete runner pods, if it is stale", func() {
+	It("should delete runner pods, if the recreate deadline has come and gone", func() {
 		type inputPod struct {
 			spec         *corev1.Pod
 			ip           string
@@ -264,9 +264,9 @@ var _ = Describe("RunnerManager", func() {
 			githubClient.SetRunners(tt.inputRunners)
 
 			By("starting runnerpool manager")
-			tt.inputRunnerPool.Spec.StaleDuration = "10s"
+			tt.inputRunnerPool.Spec.RecreateDeadline = "10s"
 			runnerManager.StartOrUpdate(tt.inputRunnerPool)
-			time.Sleep(15 * time.Second) // Wait for the pod to stale.
+			time.Sleep(15 * time.Second) // Wait for the deadline to recreate the pod.
 
 			By("checking pods")
 			var actualPodNames []string

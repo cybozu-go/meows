@@ -45,10 +45,10 @@ type RunnerPoolSpec struct {
 	// +optional
 	SlackAgent SlackAgentConfig `json:"slackAgent,omitempty"`
 
-	// Duration until the pod is recreated
+	// Deadline for the Pod to be recreated.
 	// +kubebuilder:default="24h"
 	// +optional
-	StaleDuration string `json:"staleDuration,omitempty"`
+	RecreateDeadline string `json:"recreateDeadline,omitempty"`
 
 	// Template describes the runner pods that will be created.
 	// +optional
@@ -189,9 +189,9 @@ func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
 		allErrs = append(allErrs, field.Invalid(p.Child("maxRunnerPods"), s.MaxRunnerPods, "this value should be greater-than or equal-to replicas."))
 	}
 
-	_, err := time.ParseDuration(s.StaleDuration)
+	_, err := time.ParseDuration(s.RecreateDeadline)
 	if err != nil {
-		allErrs = append(allErrs, field.Invalid(p.Child("staleDuration"), s.StaleDuration, "this value should be able to parse using time.ParseDuration"))
+		allErrs = append(allErrs, field.Invalid(p.Child("recreateDeadline"), s.RecreateDeadline, "this value should be able to parse using time.ParseDuration"))
 	}
 
 	for i, e := range s.Template.Env {
