@@ -38,7 +38,7 @@ func (l *listenerImpl) configure(ctx context.Context, configArgs []string) error
 func (l *listenerImpl) listen(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 	for {
-		code, err := runCommand(ctx, l.runnerDir, l.listenerCommand, "run", "--startuptype", "service", "--once")
+		code, err := runCommand(ctx, l.runnerDir, l.listenerCommand, "run", "--startuptype", "service")
 		if _, ok := err.(*exec.ExitError); !ok {
 			return err
 		}

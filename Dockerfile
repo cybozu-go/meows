@@ -16,7 +16,7 @@ ENTRYPOINT ["controller"]
 FROM quay.io/cybozu/ubuntu:20.04 as runner
 
 # Even if the version of the runner is out of date, it will self-update at job execution time. So there is no problem to update it when you notice.
-ARG RUNNER_VERSION=2.281.1
+ARG RUNNER_VERSION=2.283.2
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y \
