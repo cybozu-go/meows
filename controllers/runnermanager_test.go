@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 	"time"
@@ -130,6 +131,7 @@ var _ = Describe("RunnerManager", func() {
 		}
 
 		for _, tt := range testCases {
+			ttName := fmt.Sprintf("test case name is '%s'", tt.name)
 			By("preparing fake clients; " + tt.name)
 			runnerPodClient := rc.NewFakeClient()
 			githubClient := github.NewFakeClient("runnermanager-org")
@@ -137,11 +139,11 @@ var _ = Describe("RunnerManager", func() {
 
 			By("preparing pods and runners")
 			for _, inputPod := range tt.inputPods {
-				Expect(k8sClient.Create(ctx, inputPod.spec)).To(Succeed())
+				Expect(k8sClient.Create(ctx, inputPod.spec)).To(Succeed(), ttName)
 				created := &corev1.Pod{}
-				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed())
+				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed(), ttName)
 				created.Status.PodIP = inputPod.ip
-				Expect(k8sClient.Status().Update(ctx, created)).To(Succeed())
+				Expect(k8sClient.Status().Update(ctx, created)).To(Succeed(), ttName)
 				runnerPodClient.SetDeletionTimes(created.Status.PodIP, inputPod.deletionTime)
 			}
 			githubClient.SetRunners(tt.inputRunners)
@@ -155,14 +157,14 @@ var _ = Describe("RunnerManager", func() {
 			By("checking pods")
 			var actualPodNames []string
 			podList := new(corev1.PodList)
-			Expect(k8sClient.List(ctx, podList)).To(Succeed())
+			Expect(k8sClient.List(ctx, podList)).To(Succeed(), ttName)
 			for i := range podList.Items {
 				po := &podList.Items[i]
 				actualPodNames = append(actualPodNames, po.Namespace+"/"+po.Name)
 			}
 			sort.Strings(actualPodNames)
 			sort.Strings(tt.expectedPodNames)
-			Expect(actualPodNames).To(Equal(tt.expectedPodNames))
+			Expect(actualPodNames).To(Equal(tt.expectedPodNames), ttName)
 
 			By("checking runners")
 			var actualRunnerNames []string
@@ -174,14 +176,112 @@ var _ = Describe("RunnerManager", func() {
 			}
 			sort.Strings(actualRunnerNames)
 			sort.Strings(tt.expectedRunnerNames)
-			Expect(actualRunnerNames).To(Equal(tt.expectedRunnerNames))
+			Expect(actualRunnerNames).To(Equal(tt.expectedRunnerNames), ttName)
 
 			for _, rp := range tt.inputRunnerPools {
 				By("stopping runnerpool manager; " + rp.Name)
-				Expect(runnerManager.Stop(ctx, rp)).To(Succeed())
+				Expect(runnerManager.Stop(ctx, rp)).To(Succeed(), ttName)
 				runnerList, _ := githubClient.ListRunners(ctx, rp.Spec.RepositoryName, []string{rp.Name})
-				Expect(runnerList).To(BeEmpty())
+				Expect(runnerList).To(BeEmpty(), ttName)
 			}
+
+			By("tearing down")
+			for _, inputPod := range tt.inputPods {
+				k8sClient.Delete(ctx, inputPod.spec)
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+	})
+
+	It("should delete runner pods, if the recreate deadline has come and gone", func() {
+		type inputPod struct {
+			spec         *corev1.Pod
+			ip           string
+			deletionTime time.Time
+		}
+		testCases := []struct {
+			name             string
+			inputRunnerPool  *meowsv1alpha1.RunnerPool
+			inputPods        []*inputPod
+			inputRunners     map[string][]*github.Runner
+			expectedPodNames []string // slice of "<Namespace>/<Pod name>"
+		}{
+			{
+				name:            "delete pods",
+				inputRunnerPool: makeRunnerPool("rp1", "test-ns1", "repo1"),
+				inputPods: []*inputPod{
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1"},
+					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2"},
+				},
+				expectedPodNames: nil,
+			},
+			{
+				name:            "should not delete pods if that is busy",
+				inputRunnerPool: makeRunnerPool("rp1", "test-ns1", "repo1"),
+				inputPods: []*inputPod{
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1"},
+					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2"},
+				},
+				inputRunners: map[string][]*github.Runner{
+					"repo1": {
+						{Name: "pod1", ID: 1, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}}, // pod exists
+						{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},   // pod exists
+					},
+				},
+				expectedPodNames: []string{
+					"test-ns1/pod2",
+				},
+			},
+			{
+				name:            "should not delete pods if a deletion time has already been set",
+				inputRunnerPool: makeRunnerPool("rp1", "test-ns1", "repo1"),
+				inputPods: []*inputPod{
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1"},
+					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", deletionTime: time.Now().Add(24 * time.Hour).UTC()},
+				},
+				expectedPodNames: []string{
+					"test-ns1/pod2",
+				},
+			},
+		}
+		for _, tt := range testCases {
+			ttName := fmt.Sprintf("test case name is '%s'", tt.name)
+
+			By("preparing fake clients")
+			runnerPodClient := rc.NewFakeClient()
+			githubClient := github.NewFakeClient("runnermanager-org")
+			runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+
+			By("preparing pods and runners")
+			for _, inputPod := range tt.inputPods {
+				Expect(k8sClient.Create(ctx, inputPod.spec)).To(Succeed(), ttName)
+				created := &corev1.Pod{}
+				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed(), ttName)
+				created.Status.PodIP = inputPod.ip
+				Expect(k8sClient.Status().Update(ctx, created)).To(Succeed(), ttName)
+				runnerPodClient.SetDeletionTimes(created.Status.PodIP, inputPod.deletionTime)
+			}
+			githubClient.SetRunners(tt.inputRunners)
+
+			By("starting runnerpool manager")
+			tt.inputRunnerPool.Spec.RecreateDeadline = "10s"
+			runnerManager.StartOrUpdate(tt.inputRunnerPool)
+			time.Sleep(15 * time.Second) // Wait for the deadline to recreate the pod.
+
+			By("checking pods")
+			var actualPodNames []string
+			podList := new(corev1.PodList)
+			Expect(k8sClient.List(ctx, podList)).To(Succeed(), ttName)
+			for i := range podList.Items {
+				po := &podList.Items[i]
+				actualPodNames = append(actualPodNames, po.Namespace+"/"+po.Name)
+			}
+			sort.Strings(actualPodNames)
+			sort.Strings(tt.expectedPodNames)
+			Expect(actualPodNames).To(Equal(tt.expectedPodNames), ttName)
+
+			By("stopping runnerpool manager")
+			Expect(runnerManager.Stop(ctx, tt.inputRunnerPool)).To(Succeed(), ttName)
 
 			By("tearing down")
 			for _, inputPod := range tt.inputPods {

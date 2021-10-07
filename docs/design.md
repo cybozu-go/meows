@@ -43,7 +43,7 @@ Components
   - `Pod` Mutating webhook: A mutating webhook to inject a GitHub Actions
     registration token to `Pod` `env`.
   - Runner manager: A component to manage registered runners and Pods.
-    It sweeps Pods that exceed the deletion time. Also sweeps runners which are offline and do not have a related `Pod`.
+    It sweeps Pods that exceed the deletion time or passed recreate deadline. Also sweeps runners which are offline and do not have a related `Pod`.
 - Slack agent
   - Notifier: HTTP Server which accepts requests from runner `Pod`s and notify user
     whether jobs are failed or not via Slack Webhook.

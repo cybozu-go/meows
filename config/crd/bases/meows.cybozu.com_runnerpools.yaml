@@ -41,6 +41,10 @@ spec:
                 description: Number of desired runner pods to keep. Defaults to 1.
                 format: int32
                 type: integer
+              recreateDeadline:
+                default: 24h
+                description: Deadline for the Pod to be recreated.
+                type: string
               replicas:
                 default: 1
                 description: Number of desired runner pods to accept a new job. Defaults
