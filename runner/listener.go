@@ -59,7 +59,7 @@ func (l *listenerImpl) listen(ctx context.Context) error {
 			metrics.IncrementListenerExitState(constants.ListenerExitStateRetryableError)
 		case 3:
 			logger.Info("Runner listener exit because of updating, re-launch runner in 10 seconds.")
-			metrics.IncrementListenerExitState(constants.ListenerExitStateRetryableError)
+			metrics.IncrementListenerExitState(constants.ListenerExitStateUpdating)
 		default:
 			logger.Info("Runner listener exit with undefined return code, re-launch runner in 10 seconds.")
 			metrics.IncrementListenerExitState(constants.ListenerExitStateUndefined)

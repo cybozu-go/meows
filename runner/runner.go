@@ -161,7 +161,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 	}
 
 	metrics.UpdateRunnerPodState(constants.RunnerPodStateDebugging)
-	r.updateAllStatus(logger)
+	r.updateToDebugginState(logger)
 
 	<-ctx.Done()
 	return nil
@@ -173,7 +173,7 @@ func (r *Runner) updateState(state string) {
 	r.mu.Unlock()
 }
 
-func (r *Runner) updateAllStatus(logger logr.Logger) {
+func (r *Runner) updateToDebugginState(logger logr.Logger) {
 	var result string
 	switch {
 	case isFileExists(r.failureFlagFile):
