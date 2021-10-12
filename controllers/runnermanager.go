@@ -56,6 +56,7 @@ func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.
 func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	rpNamespacedName := namespacedName(rp.Namespace, rp.Name)
 	if _, ok := m.loops[rpNamespacedName]; !ok {
+		recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
 		loop := &managerLoop{
 			log:                   m.log.WithValues("runnerpool", rpNamespacedName),
 			interval:              m.interval,
@@ -69,6 +70,7 @@ func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 			maxRunnerPods:         rp.Spec.MaxRunnerPods,
 			slackChannel:          rp.Spec.SlackAgent.Channel,
 			slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
+			recreateDeadline:      recreateDeadline,
 			lastCheckTime:         time.Now().UTC(),
 		}
 		loop.start()
@@ -117,6 +119,7 @@ type managerLoop struct {
 	maxRunnerPods         int32 // This field will be accessed from multiple goroutines. So use mutex to access.
 	slackChannel          string
 	slackAgentServiceName string
+	recreateDeadline      time.Duration
 
 	// Update internally.
 	lastCheckTime   time.Time
@@ -301,8 +304,7 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 			continue
 		}
 
-		switch status.State {
-		case constants.RunnerPodStateStale:
+		if status.State == constants.RunnerPodStateStale {
 			err = m.k8sClient.Delete(ctx, po)
 			if err != nil && !apierrors.IsNotFound(err) {
 				log.Error(err, "failed to delete stale runner pod")
@@ -310,8 +312,9 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 				log.Info("deleted stale runner pod")
 			}
 			continue
+		}
 
-		case constants.RunnerPodStateDebugging:
+		if status.State == constants.RunnerPodStateDebugging {
 			if status.FinishedAt.After(lastCheckTime) && len(m.slackAgentServiceName) != 0 {
 				err := m.notifyToSlack(ctx, po, status)
 				if err != nil {
@@ -330,6 +333,17 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 				}
 				continue
 			}
+		}
+
+		podRecreateTime := po.CreationTimestamp.Add(m.recreateDeadline)
+		if podRecreateTime.Before(now) && !(runnerBusy(runnerList, po.Name) || status.State == constants.RunnerPodStateDebugging) {
+			err = m.k8sClient.Delete(ctx, po)
+			if err != nil && !apierrors.IsNotFound(err) {
+				m.log.Error(err, "failed to delete runner pod that exceeded recreate deadline", "pod", namespacedName(po.Namespace, po.Name))
+			} else {
+				m.log.Info("deleted runner pod that exceeded recreate deadline", "pod", namespacedName(po.Namespace, po.Name))
+			}
+			continue
 		}
 
 		// When a job is assigned, the runner pod will be removed from replicaset control.

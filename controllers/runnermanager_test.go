@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 	"time"
@@ -46,55 +47,61 @@ var _ = Describe("RunnerManager", func() {
 			expectedRunners  []string                    // slice of "<Repository name>/<Runner name>"
 		}{
 			{
-				name: "delete debugging pods",
+				name: "delete pods",
 				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
 					makeRunnerPool("rp1", "test-ns1", "repo1"),
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
+					makeRunnerPoolWithRecreateDeadline("rp3", "test-ns2", "repo2", "5s"),
 				},
 				inputPods: []*inputPod{
-					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()},
-					{spec: makePod("pod2", "test-ns1", "rp2"), ip: "10.0.0.2", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()},
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()}, // state is debugging.
+					{spec: makePod("pod2", "test-ns1", "rp2"), ip: "10.0.0.2", state: "stale"},                                                       // state is stale.
+					{spec: makePod("pod3", "test-ns2", "rp3"), ip: "10.0.0.3", state: "running"},                                                     // recreate deadline is exceeded and runner is not exist.
+					{spec: makePod("pod4", "test-ns2", "rp3"), ip: "10.0.0.4", state: "running"},                                                     // recreate deadline is exceeded and runner is not busy.
 				},
-				inputRunners:    nil,
-				expectedPods:    nil,
-				expectedRunners: nil,
-			},
-			{
-				name: "delete stale pods",
-				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
-					makeRunnerPool("rp1", "test-ns1", "repo1"),
-					makeRunnerPool("rp2", "test-ns1", "repo2"),
+				inputRunners: map[string][]*github.Runner{
+					"repo2": {
+						{Name: "pod4", ID: 4, Online: true, Busy: false, Labels: []string{"test-ns2/rp3"}},
+					},
 				},
-				inputPods: []*inputPod{
-					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "stale"},
-					{spec: makePod("pod2", "test-ns1", "rp2"), ip: "10.0.0.2", state: "stale"},
+				expectedPods: nil,
+				expectedRunners: []string{
+					"repo2/pod4",
 				},
-				inputRunners:    nil,
-				expectedPods:    nil,
-				expectedRunners: nil,
 			},
 			{
 				name: "should not delete pods",
 				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
 					makeRunnerPool("rp1", "test-ns1", "repo1"),
 					makeRunnerPool("rp2", "test-ns1", "repo2"),
+					makeRunnerPoolWithRecreateDeadline("rp3", "test-ns2", "repo2", "5s"),
 				},
 				inputPods: []*inputPod{
 					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "initializing"},
 					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.1", state: "running"},
 					{spec: makePod("pod3", "test-ns1", "rp2"), ip: "10.0.0.2", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now().Add(24 * time.Hour)},
-					{spec: makePod("pod4", "test-ns1", "rp3"), ip: "10.0.0.3", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()}, // state is debugging but RunnerPool (test-ns1/rp3) is not exists.
-					{spec: makePod("pod1", "test-ns2", "rp1"), ip: "10.0.1.1", state: "stale"},                                                       // state is stale but RunnerPool (test-ns2/rp1) is not exists.
+					{spec: makePod("pod4", "test-ns1", "rp3"), ip: "10.0.0.3", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()},                     // state is debugging but RunnerPool (test-ns1/rp3) is not exists.
+					{spec: makePod("pod1", "test-ns2", "rp1"), ip: "10.0.1.1", state: "stale"},                                                                           // state is stale but RunnerPool (test-ns2/rp1) is not exists.
+					{spec: makePod("pod2", "test-ns2", "rp3"), ip: "10.0.1.2", state: "running"},                                                                         // recreate deadline is exceeded but runner is busy.
+					{spec: makePod("pod3", "test-ns2", "rp3"), ip: "10.0.1.3", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now().Add(24 * time.Hour)}, // recreate deadline is exceeded but state is debugging.
 				},
-				inputRunners: nil,
+				inputRunners: map[string][]*github.Runner{
+					"repo2": {
+						{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns2/rp3"}},
+					},
+				},
 				expectedPods: []string{
 					"test-ns1/pod1",
 					"test-ns1/pod2",
 					"test-ns1/pod3",
 					"test-ns1/pod4",
 					"test-ns2/pod1",
+					"test-ns2/pod2",
+					"test-ns2/pod3",
 				},
-				expectedRunners: nil,
+				expectedRunners: []string{
+					"repo2/pod2",
+				},
 			},
 			{
 				name: "delete runners",
@@ -153,18 +160,21 @@ var _ = Describe("RunnerManager", func() {
 		}
 
 		for _, tt := range testCases {
-			By("preparing fake clients; " + tt.name)
+			By(tt.name)
+			ttName := fmt.Sprintf("test case name is '%s'", tt.name)
+
+			By("preparing fake clients")
 			runnerPodClient := runner.NewFakeClient()
 			githubClient := github.NewFakeClient("runnermanager-org")
 			runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
 
-			By("preparing pods and runners; " + tt.name)
+			By("preparing pods and runners")
 			for _, inputPod := range tt.inputPods {
-				Expect(k8sClient.Create(ctx, inputPod.spec)).To(Succeed())
+				Expect(k8sClient.Create(ctx, inputPod.spec)).To(Succeed(), ttName)
 				created := &corev1.Pod{}
-				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed())
+				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed(), ttName)
 				created.Status.PodIP = inputPod.ip
-				Expect(k8sClient.Status().Update(ctx, created)).To(Succeed())
+				Expect(k8sClient.Status().Update(ctx, created)).To(Succeed(), ttName)
 
 				status := runner.Status{
 					State: inputPod.state,
@@ -179,25 +189,25 @@ var _ = Describe("RunnerManager", func() {
 			}
 			githubClient.SetRunners(tt.inputRunners)
 
-			By("starting runnerpool manager; " + tt.name)
+			By("starting runnerpool manager")
 			for _, rp := range tt.inputRunnerPools {
 				runnerManager.StartOrUpdate(rp)
 			}
-			time.Sleep(3 * time.Second)
+			time.Sleep(10 * time.Second) // Wait for the deadline to recreate the pod.
 
-			By("checking pods; " + tt.name)
+			By("checking pods")
 			var actualPodNames []string
 			podList := new(corev1.PodList)
-			Expect(k8sClient.List(ctx, podList)).To(Succeed())
+			Expect(k8sClient.List(ctx, podList)).To(Succeed(), ttName)
 			for i := range podList.Items {
 				po := &podList.Items[i]
 				actualPodNames = append(actualPodNames, po.Namespace+"/"+po.Name)
 			}
 			sort.Strings(actualPodNames)
 			sort.Strings(tt.expectedPods)
-			Expect(actualPodNames).To(Equal(tt.expectedPods))
+			Expect(actualPodNames).To(Equal(tt.expectedPods), ttName)
 
-			By("checking runners; " + tt.name)
+			By("checking runners")
 			var actualRunnerNames []string
 			for repo := range tt.inputRunners {
 				runnerList, _ := githubClient.ListRunners(ctx, repo, nil)
@@ -207,16 +217,16 @@ var _ = Describe("RunnerManager", func() {
 			}
 			sort.Strings(actualRunnerNames)
 			sort.Strings(tt.expectedRunners)
-			Expect(actualRunnerNames).To(Equal(tt.expectedRunners))
+			Expect(actualRunnerNames).To(Equal(tt.expectedRunners), ttName)
 
 			for _, rp := range tt.inputRunnerPools {
 				By("stopping runnerpool manager; " + rp.Name)
-				Expect(runnerManager.Stop(ctx, rp)).To(Succeed())
+				Expect(runnerManager.Stop(ctx, rp)).To(Succeed(), ttName)
 				runnerList, _ := githubClient.ListRunners(ctx, rp.Spec.RepositoryName, []string{rp.Name})
-				Expect(runnerList).To(BeEmpty())
+				Expect(runnerList).To(BeEmpty(), ttName)
 			}
 
-			By("tearing down; " + tt.name)
+			By("tearing down")
 			for _, inputPod := range tt.inputPods {
 				k8sClient.Delete(ctx, inputPod.spec)
 			}

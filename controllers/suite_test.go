@@ -99,9 +99,16 @@ func makeRunnerPool(name, namespace, repoName string) *meowsv1alpha1.RunnerPool 
 			Finalizers: []string{constants.RunnerPoolFinalizer},
 		},
 		Spec: meowsv1alpha1.RunnerPoolSpec{
-			RepositoryName: repoName,
+			RepositoryName:   repoName,
+			RecreateDeadline: "24h",
 		},
 	}
+}
+
+func makeRunnerPoolWithRecreateDeadline(name, namespace, repoName, recreateDeadline string) *meowsv1alpha1.RunnerPool {
+	rp := makeRunnerPool(name, namespace, repoName)
+	rp.Spec.RecreateDeadline = recreateDeadline
+	return rp
 }
 
 func deleteRunnerPool(ctx context.Context, name, namespace string) {
