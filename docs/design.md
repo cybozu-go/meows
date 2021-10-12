@@ -91,9 +91,10 @@ Runner has the `status` and `busy` state as written [here](https://docs.github.c
   - `true`: The runner is running a workflow.
   - `false`: The runner is NOT running a workflow.
 
-If the `--once` option is given to `Runner.Listener` does not repeat the
+If the `--ephemeral` option is given to `config.sh` does not repeat the
 long polling again, and never gets `online` after the assigned job is done.
 This behavior is useful for ensuring to make a clean environment for each job.
+ref: https://docs.github.com/en/actions/hosting-your-own-runners/autoscaling-with-self-hosted-runners#using-ephemeral-runners-for-autoscaling
 
 #### A job is scheduled only on a `online` runner
 
@@ -108,12 +109,6 @@ and might change unexpectedly.
 - If all the runners are `online` and `busy` at the time a job is created, the
   job is queued first and then scheduled right after any runner finishes its job
   and gets non-`busy`.
-  - Even if `Runner.Listener` runs with the `--once` option, a job is assigned on the
-    runner doing a job and never proceeds. This seems to be because the runner is
-    recognized as `online` at the very time the job is done, but it gets `offline`
-    when the job actually starts. In this situation, the job can be canceled only
-    after 5 minutes or more passed. This happens only when there is no `online`
-    and non-`busy` runner, but might be problematic.
 - If all the runners are `online` and `busy` at the time a job is created and
   then a runner is created before any existing runner finishes its job, the job
   is scheduled on the newly created runner.

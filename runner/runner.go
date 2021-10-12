@@ -149,6 +149,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 		"--url", fmt.Sprintf("https://github.com/%s/%s", r.envs.runnerOrg, r.envs.runnerRepo),
 		"--token", string(b),
 		"--work", r.workDir,
+		"--ephemeral",
 	}
 	if err := r.listener.configure(ctx, configArgs); err != nil {
 		return err
