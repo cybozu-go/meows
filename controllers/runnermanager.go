@@ -11,11 +11,12 @@ import (
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/metrics"
-	rc "github.com/cybozu-go/meows/runner/client"
+	"github.com/cybozu-go/meows/runner"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -36,12 +37,12 @@ type RunnerManagerImpl struct {
 	interval        time.Duration
 	k8sClient       client.Client
 	githubClient    github.Client
-	runnerPodClient rc.Client
+	runnerPodClient runner.Client
 
 	loops map[string]*managerLoop
 }
 
-func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient rc.Client) RunnerManager {
+func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client) RunnerManager {
 	return &RunnerManagerImpl{
 		log:             log.WithName("RunnerManager"),
 		interval:        interval,
@@ -110,7 +111,7 @@ type managerLoop struct {
 	interval              time.Duration
 	k8sClient             client.Client
 	githubClient          github.Client
-	runnerPodClient       rc.Client
+	runnerPodClient       runner.Client
 	rpNamespace           string
 	rpName                string
 	repository            string
@@ -192,25 +193,16 @@ func (m *managerLoop) runOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	m.updateMetrics(podList, runnerList)
-
-	err = m.notifyToSlack(ctx, runnerList, podList)
-	if err != nil {
-		return err
-	}
 
 	err = m.maintainRunnerPods(ctx, runnerList, podList)
 	if err != nil {
 		return err
 	}
-
 	err = m.deleteOfflineRunners(ctx, runnerList, podList)
 	if err != nil {
 		return err
 	}
-
-	m.lastCheckTime = time.Now().UTC()
 
 	return nil
 }
@@ -284,74 +276,78 @@ func difference(prev, current []string) []string {
 	return ret
 }
 
-func (m *managerLoop) notifyToSlack(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
-	for i := range podList.Items {
-		po := &podList.Items[i]
-		jobResult, err := m.runnerPodClient.GetJobResult(ctx, po.Status.PodIP)
-		if err != nil {
-			m.log.Error(err, "skipped notification because failed to get the job result from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
-			continue
-		}
-
-		if jobResult.Status == rc.JobResultUnfinished {
-			m.log.Info("skipped notification because pod is not finished", "pod", namespacedName(po.Namespace, po.Name))
-			continue
-		}
-		if jobResult.FinishedAt.Before(m.lastCheckTime) {
-			m.log.Info("skipped notification because pod status is not updated", "pod", namespacedName(po.Namespace, po.Name))
-			continue
-		}
-
-		if len(m.slackAgentServiceName) != 0 {
-			m.log.Info("send an notification to slack-agent", "pod", namespacedName(po.Namespace, po.Name))
-			c, err := agent.NewClient(fmt.Sprintf("http://%s", m.slackAgentServiceName))
-			if err != nil {
-				return err
-			}
-			return c.PostResult(ctx, m.slackChannel, jobResult.Status, *jobResult.Extend, po.Namespace, po.Name, jobResult.JobInfo)
-		} else {
-			m.log.Info("skip sending a notification to slack-agent because service name is blank", "pod", namespacedName(po.Namespace, po.Name))
-		}
-		return nil
+func (m *managerLoop) notifyToSlack(ctx context.Context, po *corev1.Pod, status *runner.Status) error {
+	// FIXME: create this client in StartOrUpdate()
+	c, err := agent.NewClient(fmt.Sprintf("http://%s", m.slackAgentServiceName))
+	if err != nil {
+		return err
 	}
-	return nil
+	return c.PostResult(ctx, m.slackChannel, status.Result, *status.Extend, po.Namespace, po.Name, status.JobInfo)
 }
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	now := time.Now().UTC()
+	lastCheckTime := m.lastCheckTime
+	m.lastCheckTime = now
+
 	m.mu.Lock()
 	nRemovablePods := m.maxRunnerPods - int32(len(podList.Items))
 	m.mu.Unlock()
 
 	for i := range podList.Items {
 		po := &podList.Items[i]
+		log := m.log.WithValues("pod", namespacedName(po.Namespace, po.Name))
 
-		deletionTime, err := m.runnerPodClient.GetDeletionTime(ctx, po.Status.PodIP)
+		status, err := m.runnerPodClient.GetStatus(ctx, po.Status.PodIP)
 		if err != nil {
-			m.log.Error(err, "skipped deleting pod because failed to get the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
+			log.Error(err, "failed to get status, skipped maintaining runner pod")
 			continue
 		}
 
-		podRecreateTime := po.CreationTimestamp.Add(m.recreateDeadline)
+		if status.State == constants.RunnerPodStateStale {
+			err = m.k8sClient.Delete(ctx, po)
+			if err != nil && !apierrors.IsNotFound(err) {
+				log.Error(err, "failed to delete stale runner pod")
+			} else {
+				log.Info("deleted stale runner pod")
+			}
+			continue
+		}
 
-		switch {
-		case deletionTime.Before(now) && !deletionTime.IsZero():
-			// It means deletion time is exceeded, so the runner pod will be deleted from cluster.
-			err = m.k8sClient.Delete(ctx, po)
-			if err != nil {
-				m.log.Error(err, "failed to delete runner pod", "pod", namespacedName(po.Namespace, po.Name))
-				return err
+		if status.State == constants.RunnerPodStateDebugging {
+			if status.FinishedAt.After(lastCheckTime) && len(m.slackAgentServiceName) != 0 {
+				err := m.notifyToSlack(ctx, po, status)
+				if err != nil {
+					log.Error(err, "failed to send a notification to slack-agent")
+				} else {
+					log.Info("sent a notification to slack-agent")
+				}
 			}
-			m.log.Info("deleted runner pod by the deletion time from the runner pod API", "pod", namespacedName(po.Namespace, po.Name))
-		case podRecreateTime.Before(now) && !runnerBusy(runnerList, po.Name) && deletionTime.IsZero():
-			err = m.k8sClient.Delete(ctx, po)
-			if err != nil {
-				m.log.Error(err, "failed to delete runner pod", "pod", namespacedName(po.Namespace, po.Name))
-				return err
+
+			if now.After(*status.DeletionTime) {
+				err := m.k8sClient.Delete(ctx, po)
+				if err != nil && !apierrors.IsNotFound(err) {
+					log.Error(err, "failed to delete debugging runner pod")
+				} else {
+					log.Info("deleted debugging runner pod")
+				}
+				continue
 			}
-			m.log.Info("deleted runner pod because the recreate deadline has come and gone", "pod", namespacedName(po.Namespace, po.Name))
-		case runnerBusy(runnerList, po.Name) || !deletionTime.IsZero():
-			// It means a job is assigned, so the runner pod will be removed from replicaset control.
+		}
+
+		podRecreateTime := po.CreationTimestamp.Add(m.recreateDeadline)
+		if podRecreateTime.Before(now) && !(runnerBusy(runnerList, po.Name) || status.State == constants.RunnerPodStateDebugging) {
+			err = m.k8sClient.Delete(ctx, po)
+			if err != nil && !apierrors.IsNotFound(err) {
+				m.log.Error(err, "failed to delete runner pod that exceeded recreate deadline", "pod", namespacedName(po.Namespace, po.Name))
+			} else {
+				m.log.Info("deleted runner pod that exceeded recreate deadline", "pod", namespacedName(po.Namespace, po.Name))
+			}
+			continue
+		}
+
+		// When a job is assigned, the runner pod will be removed from replicaset control.
+		if runnerBusy(runnerList, po.Name) || status.State == constants.RunnerPodStateDebugging {
 			if nRemovablePods <= 0 {
 				continue
 			}
@@ -361,11 +357,11 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 			delete(po.Labels, appsv1.DefaultDeploymentUniqueLabelKey)
 			err = m.k8sClient.Update(ctx, po)
 			if err != nil {
-				m.log.Error(err, "failed to unlink (update) runner pod", "pod", namespacedName(po.Namespace, po.Name))
-				return err
+				log.Error(err, "failed to unlink (update) runner pod")
+				continue
 			}
 			nRemovablePods--
-			m.log.Info("unlinked (updated) runner pod", "pod", namespacedName(po.Namespace, po.Name))
+			log.Info("unlinked (updated) runner pod")
 		}
 	}
 	return nil

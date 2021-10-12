@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	constants "github.com/cybozu-go/meows"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -11,34 +12,11 @@ const (
 	runnerSubsystem     = "runner"
 )
 
-type runnerPodState string
-
-const (
-	Initializing = runnerPodState("initializing")
-	Running      = runnerPodState("running")
-	Debugging    = runnerPodState("debugging")
-	Stale        = runnerPodState("stale")
-)
-
-var AllRunnerPodState = []runnerPodState{
-	Initializing,
-	Running,
-	Debugging,
-	Stale,
-}
-
-type listenerExitState string
-
-const (
-	RetryableError = listenerExitState("retryable_error")
-	Updating       = listenerExitState("updating")
-	Undefined      = listenerExitState("undefined")
-)
-
-var AllListenerExitState = []listenerExitState{
-	RetryableError,
-	Updating,
-	Undefined,
+var allRunnerPodState = []string{
+	constants.RunnerPodStateInitializing,
+	constants.RunnerPodStateRunning,
+	constants.RunnerPodStateDebugging,
+	constants.RunnerPodStateStale,
 }
 
 // Runner pod related metrics
@@ -79,16 +57,16 @@ func InitRunnerPodMetrics(registry prometheus.Registerer, name string) {
 	)
 }
 
-func UpdateRunnerPodState(label runnerPodState) {
-	for _, labelState := range AllRunnerPodState {
+func UpdateRunnerPodState(curState string) {
+	for _, state := range allRunnerPodState {
 		var val float64
-		if labelState == label {
+		if state == curState {
 			val = 1
 		}
-		podStateVec.WithLabelValues(string(labelState)).Set(val)
+		podStateVec.WithLabelValues(string(state)).Set(val)
 	}
 }
 
-func IncrementListenerExitState(label listenerExitState) {
-	listenerExitStateCountVec.WithLabelValues(string(label)).Inc()
+func IncrementListenerExitState(state string) {
+	listenerExitStateCountVec.WithLabelValues(string(state)).Inc()
 }

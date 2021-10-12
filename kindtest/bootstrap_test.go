@@ -46,9 +46,7 @@ func testBootstrap() {
 		kubectlSafeWithInput(stdout, "apply", "-f", "-")
 
 		By("confirming all controller pods are ready")
-		Eventually(func() error {
-			return isDeploymentReady("meows-controller", controllerNS, 2)
-		}).ShouldNot(HaveOccurred())
+		waitDeployment(controllerNS, "meows-controller", 2)
 	})
 
 	It("should deploy slack-agent successfully", func() {
@@ -66,8 +64,6 @@ func testBootstrap() {
 		kubectlSafeWithInput(stdout, "apply", "-n", controllerNS, "-f", "-")
 
 		By("confirming all slack-agent pods are ready")
-		Eventually(func() error {
-			return isDeploymentReady("slack-agent", controllerNS, 2)
-		}).ShouldNot(HaveOccurred())
+		waitDeployment(controllerNS, "slack-agent", 2)
 	})
 }

@@ -105,6 +105,12 @@ func makeRunnerPool(name, namespace, repoName string) *meowsv1alpha1.RunnerPool 
 	}
 }
 
+func makeRunnerPoolWithRecreateDeadline(name, namespace, repoName, recreateDeadline string) *meowsv1alpha1.RunnerPool {
+	rp := makeRunnerPool(name, namespace, repoName)
+	rp.Spec.RecreateDeadline = recreateDeadline
+	return rp
+}
+
 func deleteRunnerPool(ctx context.Context, name, namespace string) {
 	rp := &meowsv1alpha1.RunnerPool{}
 	rp.Name = name

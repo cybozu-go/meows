@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cybozu-go/meows/runner/client"
+	"github.com/cybozu-go/meows/runner"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/logr"
 	"github.com/slack-go/slack"
@@ -42,7 +42,7 @@ type Server struct {
 	smClient       *socketmode.Client
 	devMood        bool
 	clientset      *kubernetes.Clientset
-	runnerClient   client.Client
+	runnerClient   runner.Client
 }
 
 // NewServer creates slack agent server.
@@ -79,7 +79,7 @@ func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, app
 		smClient:       smClient,
 		devMood:        devMode,
 		clientset:      clientset,
-		runnerClient:   client.NewClient(),
+		runnerClient:   runner.NewClient(),
 	}, nil
 }
 

@@ -51,8 +51,23 @@ const (
 	// DeletionTimeEndpoint is the endpoint to get deletion time for runner container.
 	DeletionTimeEndpoint = "deletion_time"
 
-	// JobResultEndPoint is the endpoint to get job result used by runner manager.
-	JobResultEndPoint = "job_result"
+	// StatusEndPoint is the endpoint to get status of a runner pod.
+	StatusEndPoint = "status"
+)
+
+// Runner pods state.
+const (
+	RunnerPodStateInitializing = "initializing"
+	RunnerPodStateRunning      = "running"
+	RunnerPodStateDebugging    = "debugging"
+	RunnerPodStateStale        = "stale"
+)
+
+// Exit state of Actions Listener.
+const (
+	ListenerExitStateRetryableError = "retryable_error"
+	ListenerExitStateUpdating       = "updating"
+	ListenerExitStateUndefined      = "undefined"
 )
 
 // Directory path for runner pods.
