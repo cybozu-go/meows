@@ -56,23 +56,7 @@ func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.
 func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
 	rpNamespacedName := namespacedName(rp.Namespace, rp.Name)
 	if _, ok := m.loops[rpNamespacedName]; !ok {
-		recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
-		loop := &managerLoop{
-			log:                   m.log.WithValues("runnerpool", rpNamespacedName),
-			interval:              m.interval,
-			k8sClient:             m.k8sClient,
-			githubClient:          m.githubClient,
-			runnerPodClient:       m.runnerPodClient,
-			rpNamespace:           rp.Namespace,
-			rpName:                rp.Name,
-			repository:            rp.Spec.RepositoryName,
-			replicas:              rp.Spec.Replicas,
-			maxRunnerPods:         rp.Spec.MaxRunnerPods,
-			slackChannel:          rp.Spec.SlackAgent.Channel,
-			slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
-			recreateDeadline:      recreateDeadline,
-			lastCheckTime:         time.Now().UTC(),
-		}
+		loop := newManagerLoop(m.log.WithValues("runnerpool", rpNamespacedName), m.interval, m.k8sClient, m.githubClient, m.runnerPodClient, rp)
 		loop.start()
 		m.loops[rpNamespacedName] = loop
 	} else {
@@ -129,6 +113,36 @@ type managerLoop struct {
 	mu              sync.Mutex
 }
 
+func newManagerLoop(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, rp *meowsv1alpha1.RunnerPool) *managerLoop {
+	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
+	loop := &managerLoop{
+		log:                   log,
+		interval:              interval,
+		k8sClient:             k8sClient,
+		githubClient:          githubClient,
+		runnerPodClient:       runnerPodClient,
+		rpNamespace:           rp.Namespace,
+		rpName:                rp.Name,
+		repository:            rp.Spec.RepositoryName,
+		replicas:              rp.Spec.Replicas,
+		maxRunnerPods:         rp.Spec.MaxRunnerPods,
+		slackChannel:          rp.Spec.SlackAgent.Channel,
+		slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
+		recreateDeadline:      recreateDeadline,
+		lastCheckTime:         time.Now().UTC(),
+	}
+	return loop
+}
+
+func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.replicas = rp.Spec.Replicas
+	m.maxRunnerPods = rp.Spec.MaxRunnerPods
+	m.slackChannel = rp.Spec.SlackAgent.Channel
+	m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
+}
+
 func (m *managerLoop) rpNamespacedName() string {
 	return m.rpNamespace + "/" + m.rpName
 }
@@ -173,15 +187,6 @@ func (m *managerLoop) stop(ctx context.Context) error {
 	}
 	metrics.DeleteRunnerPoolMetrics(m.rpNamespacedName())
 	return nil
-}
-
-func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.replicas = rp.Spec.Replicas
-	m.maxRunnerPods = rp.Spec.MaxRunnerPods
-	m.slackChannel = rp.Spec.SlackAgent.Channel
-	m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
 }
 
 func (m *managerLoop) runOnce(ctx context.Context) error {
@@ -290,9 +295,19 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 	lastCheckTime := m.lastCheckTime
 	m.lastCheckTime = now
 
+	var numUnlabeledPods int32
+	for i := range podList.Items {
+		po := &podList.Items[i]
+		if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
+			numUnlabeledPods++
+		}
+	}
 	m.mu.Lock()
-	nRemovablePods := m.maxRunnerPods - int32(len(podList.Items))
+	numRemovablePods := m.maxRunnerPods - m.replicas - numUnlabeledPods
 	m.mu.Unlock()
+	if numRemovablePods < 0 {
+		numRemovablePods = 0
+	}
 
 	for i := range podList.Items {
 		po := &podList.Items[i]
@@ -348,7 +363,7 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 
 		// When a job is assigned, the runner pod will be removed from replicaset control.
 		if runnerBusy(runnerList, po.Name) || status.State == constants.RunnerPodStateDebugging {
-			if nRemovablePods <= 0 {
+			if numRemovablePods <= 0 {
 				continue
 			}
 			if _, ok := po.Labels[appsv1.DefaultDeploymentUniqueLabelKey]; !ok {
@@ -360,7 +375,7 @@ func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*gith
 				log.Error(err, "failed to unlink (update) runner pod")
 				continue
 			}
-			nRemovablePods--
+			numRemovablePods--
 			log.Info("unlinked (updated) runner pod")
 		}
 	}

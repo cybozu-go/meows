@@ -19,12 +19,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("RunnerManager", func() {
 	ctx := context.Background()
 	metricsPort := ":12345"
 	metricsURL := "http://localhost" + metricsPort
+
+	AfterEach(func() {
+		k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace("test-ns1"))
+		k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace("test-ns2"))
+		time.Sleep(500 * time.Millisecond)
+	})
 
 	It("should create namespace", func() {
 		createNamespaces(ctx, "test-ns1", "test-ns2")
@@ -78,9 +85,9 @@ var _ = Describe("RunnerManager", func() {
 				},
 				inputPods: []*inputPod{
 					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "initializing"},
-					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.1", state: "running"},
-					{spec: makePod("pod3", "test-ns1", "rp2"), ip: "10.0.0.2", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now().Add(24 * time.Hour)},
-					{spec: makePod("pod4", "test-ns1", "rp3"), ip: "10.0.0.3", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()},                     // state is debugging but RunnerPool (test-ns1/rp3) is not exists.
+					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", state: "running"},
+					{spec: makePod("pod3", "test-ns1", "rp2"), ip: "10.0.0.3", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now().Add(24 * time.Hour)},
+					{spec: makePod("pod4", "test-ns1", "rp3"), ip: "10.0.0.4", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()},                     // state is debugging but RunnerPool (test-ns1/rp3) is not exists.
 					{spec: makePod("pod1", "test-ns2", "rp1"), ip: "10.0.1.1", state: "stale"},                                                                           // state is stale but RunnerPool (test-ns2/rp1) is not exists.
 					{spec: makePod("pod2", "test-ns2", "rp3"), ip: "10.0.1.2", state: "running"},                                                                         // recreate deadline is exceeded but runner is busy.
 					{spec: makePod("pod3", "test-ns2", "rp3"), ip: "10.0.1.3", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now().Add(24 * time.Hour)}, // recreate deadline is exceeded but state is debugging.
@@ -227,11 +234,89 @@ var _ = Describe("RunnerManager", func() {
 			}
 
 			By("tearing down")
-			for _, inputPod := range tt.inputPods {
-				k8sClient.Delete(ctx, inputPod.spec)
-			}
+			k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace("test-ns1"))
+			k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace("test-ns2"))
 			time.Sleep(500 * time.Millisecond)
 		}
+	})
+
+	It("should remove pod-template-hash label from pods", func() {
+		By("preparing fake clients")
+		runnerPodClient := runner.NewFakeClient()
+		githubClient := github.NewFakeClient("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+
+		By("starting runnerpool manager")
+		rp := makeRunnerPool("rp1", "test-ns1", "repo1")
+		rp.Spec.Replicas = 5
+		rp.Spec.MaxRunnerPods = 8
+		runnerManager.StartOrUpdate(rp)
+
+		By("creating pods and runners")
+		inputPods := []struct {
+			spec  *corev1.Pod
+			ip    string
+			state string
+		}{
+			{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "running"}, // runner is idle. The label should not be removed from this pod.
+			{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", state: "running"}, // runner is busy.
+			{spec: makePod("pod3", "test-ns1", "rp1"), ip: "10.0.0.3", state: "running"}, // runner is busy.
+			{spec: makePod("pod4", "test-ns1", "rp1"), ip: "10.0.0.4", state: "debugging"},
+			{spec: makePod("pod5", "test-ns1", "rp1"), ip: "10.0.0.5", state: "debugging"},
+		}
+		inputRunners := []*github.Runner{
+			{Name: "pod1", ID: 1, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
+			{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+			{Name: "pod3", ID: 3, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
+		}
+		for _, inputPod := range inputPods {
+			inputPod.spec.Labels["pod-template-hash"] = "foo"
+			Expect(k8sClient.Create(ctx, inputPod.spec)).To(Succeed())
+			created := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed())
+			created.Status.PodIP = inputPod.ip
+			Expect(k8sClient.Status().Update(ctx, created)).To(Succeed())
+
+			status := runner.Status{State: inputPod.state}
+			if inputPod.state == "debugging" {
+				t1 := time.Now()
+				t2 := time.Now().Add(24 * time.Hour)
+				status.FinishedAt = &t1
+				status.DeletionTime = &t2
+			}
+			runnerPodClient.SetStatus(created.Status.PodIP, &status)
+		}
+		githubClient.SetRunners(map[string][]*github.Runner{"repo1": inputRunners})
+		time.Sleep(2 * time.Second)
+
+		By("checking pods")
+		podList := new(corev1.PodList)
+		Expect(k8sClient.List(ctx, podList, client.InNamespace("test-ns1"))).To(Succeed())
+
+		var unlabeledPod *corev1.Pod
+		var labeledPodNames []string
+		for i := range podList.Items {
+			po := &podList.Items[i]
+			if _, ok := po.Labels["pod-template-hash"]; ok {
+				labeledPodNames = append(labeledPodNames, po.Name)
+			} else {
+				unlabeledPod = po
+			}
+		}
+		Expect(labeledPodNames).To(HaveLen(2))
+		Expect(labeledPodNames).To(ContainElement("pod1"))
+
+		By("deleting one of the unlabeled pods")
+		Expect(k8sClient.Delete(ctx, unlabeledPod)).To(Succeed())
+		time.Sleep(2 * time.Second)
+
+		By("checking pods")
+		Expect(k8sClient.List(ctx, podList, client.InNamespace("test-ns1"), client.MatchingLabels{"pod-template-hash": "foo"})).To(Succeed())
+		Expect(podList.Items).To(HaveLen(1))
+		Expect(podList.Items[0].Name).To(Equal("pod1"))
+
+		By("tearing down")
+		Expect(runnerManager.Stop(ctx, rp)).To(Succeed())
 	})
 
 	It("should expose metrics about runnerpools", func() {
@@ -437,11 +522,6 @@ var _ = Describe("RunnerManager", func() {
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 		MetricsShouldNotExist(metricsURL, "meows_runner_online")
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
-
-		By("tearing down")
-		for _, po := range dummyPods {
-			Expect(k8sClient.Delete(ctx, po)).To(Succeed())
-		}
 	})
 
 	It("should expose metrics about runners (some runnerpools)", func() {
@@ -704,11 +784,6 @@ var _ = Describe("RunnerManager", func() {
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 		runnerList, _ := githubClient.ListRunners(ctx, "repo1", nil)
 		Expect(runnerList).To(BeEmpty())
-
-		By("tearing down")
-		for _, po := range dummyPods {
-			Expect(k8sClient.Delete(ctx, po)).To(Succeed())
-		}
 	})
 
 })
