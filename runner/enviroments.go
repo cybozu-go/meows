@@ -67,9 +67,6 @@ func (e *environments) validateRequiredEnvs() error {
 	if len(e.runnerOrg) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerOrgEnvName)
 	}
-	if len(e.runnerRepo) == 0 {
-		return fmt.Errorf("%s must be set", constants.RunnerRepoEnvName)
-	}
 	if len(e.runnerPoolName) == 0 {
 		return fmt.Errorf("%s must be set", constants.RunnerPoolNameEnvName)
 	}

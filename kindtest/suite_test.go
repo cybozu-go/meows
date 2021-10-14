@@ -25,10 +25,13 @@ var (
 	testBranch          = "test-branch-" + testID
 	runner1NS           = testID + "-test-runner1"
 	runner2NS           = testID + "-test-runner2"
+	runner3NS           = testID + "-test-runner3"
 	runnerPool1Name     = "runnerpool1"
 	runnerPool2Name     = "runnerpool2"
+	runnerPool3Name     = "runnerpool3"
 	runnerPool1Replicas = 3
 	runnerPool2Replicas = 1
+	runnerPool3Replicas = 1
 	githubClient        *github.Client
 )
 

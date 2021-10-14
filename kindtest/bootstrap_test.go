@@ -22,6 +22,8 @@ func testBootstrap() {
 		kubectlSafe("label", "ns", runner1NS, "runner-test=true")
 		createNamespace(runner2NS)
 		kubectlSafe("label", "ns", runner2NS, "runner-test=true")
+		createNamespace(runner3NS)
+		kubectlSafe("label", "ns", runner3NS, "runner-test=true")
 	})
 
 	It("should deploy CRD", func() {

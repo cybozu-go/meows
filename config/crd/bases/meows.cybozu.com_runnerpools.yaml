@@ -3370,8 +3370,6 @@ spec:
                         type: object
                     type: object
                 type: object
-            required:
-            - repositoryName
             type: object
           status:
             description: RunnerPoolStatus defines status of RunnerPool

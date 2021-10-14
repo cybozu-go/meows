@@ -141,12 +141,17 @@ func (r *Runner) runListener(ctx context.Context) error {
 		return fmt.Errorf("failed load %s; %w", r.tokenPath, err)
 	}
 
+	configURL := fmt.Sprintf("https://github.com/%s", r.envs.runnerOrg)
+	if r.envs.runnerRepo != "" {
+		configURL = configURL + "/" + r.envs.runnerRepo
+	}
+
 	configArgs := []string{
 		"--unattended",
 		"--replace",
 		"--name", r.envs.podName,
 		"--labels", r.envs.podNamespace + "/" + r.envs.runnerPoolName,
-		"--url", fmt.Sprintf("https://github.com/%s/%s", r.envs.runnerOrg, r.envs.runnerRepo),
+		"--url", configURL,
 		"--token", string(b),
 		"--work", r.workDir,
 		"--ephemeral",
