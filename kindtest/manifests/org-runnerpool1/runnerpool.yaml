@@ -7,6 +7,7 @@ spec:
   maxRunnerPods: 1
   slackAgent:
     serviceName: slack-agent.meows.svc
+    channel: "#test1"
   template:
     image: meows-runner:kindtest
     imagePullPolicy: Never

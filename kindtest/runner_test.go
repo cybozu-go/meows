@@ -55,6 +55,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": Equal("#test2"),
 		})))
 
 		By("confirming the pod deletion")
@@ -65,7 +66,7 @@ func testRunner() {
 		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
 
 		By("confirming a slack message is successfully sent")
-		slackMessageShouldBeSent(assignedPod, "#test1")
+		slackMessageShouldBeSent(assignedPod, "#test2")
 	})
 
 	It("should run the job-cancelled on a runner pod and delete the pod immediately", func() {
@@ -83,6 +84,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": BeEmpty(),
 		})))
 
 		By("confirming the pod deletion")
@@ -111,6 +113,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(30*time.Second), 3*time.Second)),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": BeEmpty(),
 		})))
 
 		By("confirming the pod deletion")
@@ -139,6 +142,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(30*time.Second), 3*time.Second)),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": BeEmpty(),
 		})))
 
 		By("sending request to the pod")
@@ -156,6 +160,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("==", extendTo)),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": BeEmpty(),
 		})))
 
 		By("confirming the pod deletion")
@@ -184,6 +189,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": BeEmpty(),
 		})))
 
 		By("confirming the pod deletion")
@@ -212,6 +218,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": BeEmpty(),
 		})))
 
 		By("confirming the pod deletion")
@@ -228,7 +235,7 @@ func testRunner() {
 	It("should run the job-success on a organization level runner pod and delete the pod immediately", func() {
 		By("running 'job-success' workflow")
 		waitOrganizationRunnerPods(orgRunner1NS, orgRunnerPool1Name, orgRunnerPool1Replicas)
-		pushWorkflowFile("job-success-org-runner.tmpl.yaml", orgRunner1NS, orgRunnerPool1Name)
+		pushWorkflowFile("job-success.tmpl.yaml", orgRunner1NS, orgRunnerPool1Name)
 		assignedPod, status := waitJobCompletion(orgRunner1NS, orgRunnerPool1Name)
 		finishedAt := time.Now()
 
@@ -240,6 +247,7 @@ func testRunner() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      Not(BeNil()),
+			"SlackChannel": Equal("#test2"),
 		})))
 
 		By("confirming the pod deletion")
@@ -249,7 +257,36 @@ func testRunner() {
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
 
-		By("confirming a slack message is successfully sent")
+		By("confirming a slack message is successfully sent to the channel specified by environment variable")
+		slackMessageShouldBeSent(assignedPod, "#test2")
+	})
+
+	It("should run the slack-channel-specified on a organization level runner pod and delete the pod immediately", func() {
+		By("running 'slack-channel-specified' workflow")
+		waitOrganizationRunnerPods(orgRunner1NS, orgRunnerPool1Name, orgRunnerPool1Replicas)
+		pushWorkflowFile("slack-channel-specified.tmpl.yaml", orgRunner1NS, orgRunnerPool1Name)
+		assignedPod, status := waitJobCompletion(orgRunner1NS, orgRunnerPool1Name)
+		finishedAt := time.Now()
+
+		By("checking status")
+		Expect(status).To(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("success"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+			"Extend":       PointTo(BeFalse()),
+			"JobInfo":      Not(BeNil()),
+			"SlackChannel": Equal("#test1"),
+		})))
+
+		By("confirming the pod deletion")
+		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
+		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
+		fmt.Println("- DeletionTime: ", *status.DeletionTime)
+		fmt.Println("- DeletedAt   : ", deletedAt)
+		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
+
+		By("confirming a slack message is successfully sent to the channel specified in the /var/meows/slack_channel file updated in workflow.")
 		slackMessageShouldBeSent(assignedPod, "#test1")
 	})
 
@@ -275,10 +312,10 @@ func testRunner() {
 		}).ShouldNot(HaveOccurred())
 
 		By("confirming runner2 pods are existing")
-		runner2Pods, err := fetchRunnerPods(repoRunner2NS, repoRunnerPool2Name)
+		repoRunner2Pods, err := fetchRunnerPods(repoRunner2NS, repoRunnerPool2Name)
 		Expect(err).ShouldNot(HaveOccurred())
-		Expect(runner2Pods.Items).Should(HaveLen(repoRunnerPool2Replicas))
-		runner2PodNames := getPodNames(runner2Pods)
+		Expect(repoRunner2Pods.Items).Should(HaveLen(repoRunnerPool2Replicas))
+		runner2PodNames := getPodNames(repoRunner2Pods)
 
 		By("counting the number of self-hosted runners fetched via GitHub Actions API")
 		Eventually(func() error {

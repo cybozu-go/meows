@@ -62,6 +62,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": BeNil(),
 			"Extend":       BeNil(),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -98,6 +99,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": BeNil(),
 			"Extend":       BeNil(),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -142,6 +144,7 @@ var _ = Describe("Runner", func() {
 				"Repository": Equal("meows"),
 				"GitRef":     Equal("branch"),
 			})),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -184,6 +187,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(20*time.Minute), 500*time.Millisecond)),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -227,6 +231,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(time.Hour), 500*time.Millisecond)),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -271,6 +276,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(20*time.Minute), 500*time.Millisecond)),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -306,6 +312,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": PointTo(BeTemporally("~", extendTo, 500*time.Millisecond)),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -345,6 +352,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": BeNil(),
 			"Extend":       BeNil(),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -393,6 +401,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": BeNil(),
 			"Extend":       BeNil(),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 		metricsShouldHaveValue("meows_runner_pod_state",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -435,6 +444,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 	})
 
@@ -456,6 +466,7 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
 	})
 
@@ -477,7 +488,40 @@ var _ = Describe("Runner", func() {
 			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      BeNil(),
+			"SlackChannel": BeEmpty(),
 		})))
+	})
+
+	It("should be update the status SlackChannel when slack_channel file is created", func() {
+		By("starting runner with creating slack_channel file")
+		listener := newListenerMock("success")
+		cancel := startRunner(listener)
+		defer cancel()
+
+		Expect(os.MkdirAll(filepath.Join(testVarDir), 0755)).To(Succeed())
+		slackChannelFile := filepath.Join(testVarDir, "slack_channel")
+		err := os.WriteFile(slackChannelFile, []byte("#test1\n"), 0664)
+		Expect(err).ToNot(HaveOccurred())
+
+		listener.configureCh <- nil
+		listener.listenCh <- nil
+		finishedAt := time.Now()
+		time.Sleep(time.Second)
+
+		By("checking outputs")
+		statusShouldHaveValue(PointTo(MatchAllFields(Fields{
+			"State":        Equal("debugging"),
+			"Result":       Equal("success"),
+			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
+			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
+			"Extend":       PointTo(BeFalse()),
+			"JobInfo":      BeNil(),
+			"SlackChannel": Equal("#test1"),
+		})))
+
+		By("remove slack_channel file")
+		err = os.Remove(slackChannelFile)
+		Expect(err).ToNot(HaveOccurred())
 	})
 })
 

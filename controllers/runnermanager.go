@@ -287,7 +287,11 @@ func (m *managerLoop) notifyToSlack(ctx context.Context, po *corev1.Pod, status 
 	if err != nil {
 		return err
 	}
-	return c.PostResult(ctx, m.slackChannel, status.Result, *status.Extend, po.Namespace, po.Name, status.JobInfo)
+	slackChannel := status.SlackChannel
+	if slackChannel == "" {
+		slackChannel = m.slackChannel
+	}
+	return c.PostResult(ctx, slackChannel, status.Result, *status.Extend, po.Namespace, po.Name, status.JobInfo)
 }
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {

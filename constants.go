@@ -104,4 +104,7 @@ const (
 
 	// ExtendDurationEnvName is a env field key for EXTEND_DURATION
 	ExtendDurationEnvName = "EXTEND_DURATION"
+
+	// SlackChannelEnvName is a env field key for SLACK_CHANNEL
+	SlackChannelEnvName = "MEOWS_SLACK_CHANNEL"
 )
