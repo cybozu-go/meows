@@ -32,8 +32,9 @@ type RunnerPoolSpec struct {
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
 
-	// Number of desired runner pods to keep. Defaults to 1.
-	// +kubebuilder:default=1
+	// Number of desired runner pods to keep. Defaults to 0.
+	// If this field is 0, it will keep the number of pods specified in replicas.
+	// +kubebuilder:default=0
 	// +optional
 	MaxRunnerPods int32 `json:"maxRunnerPods,omitempty"`
 
@@ -185,8 +186,8 @@ func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
 	var allErrs field.ErrorList
 	p := field.NewPath("spec")
 
-	if s.MaxRunnerPods < s.Replicas {
-		allErrs = append(allErrs, field.Invalid(p.Child("maxRunnerPods"), s.MaxRunnerPods, "this value should be greater-than or equal-to replicas."))
+	if !(s.MaxRunnerPods == 0 || s.Replicas <= s.MaxRunnerPods) {
+		allErrs = append(allErrs, field.Invalid(p.Child("maxRunnerPods"), s.MaxRunnerPods, "this value should be 0, or greater-than or equal-to replicas."))
 	}
 
 	_, err := time.ParseDuration(s.RecreateDeadline)
