@@ -21,18 +21,18 @@ const (
 )
 
 var (
-	testID              = "kindtest-" + time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
-	testBranch          = "test-branch-" + testID
-	runner1NS           = testID + "-test-runner1"
-	runner2NS           = testID + "-test-runner2"
-	runner3NS           = testID + "-test-runner3"
-	runnerPool1Name     = "runnerpool1"
-	runnerPool2Name     = "runnerpool2"
-	runnerPool3Name     = "runnerpool3"
-	runnerPool1Replicas = 3
-	runnerPool2Replicas = 1
-	runnerPool3Replicas = 1
-	githubClient        *github.Client
+	testID                  = "kindtest-" + time.Now().UTC().Format("2006-01-02-150405") // Generate unique ID
+	testBranch              = "test-branch-" + testID
+	repoRunner1NS           = testID + "-test-repo-runner1"
+	repoRunner2NS           = testID + "-test-repo-runner2"
+	orgRunner1NS            = testID + "-test-org-runner1"
+	repoRunnerPool1Name     = "repo-runnerpool1"
+	repoRunnerPool2Name     = "repo-runnerpool2"
+	orgRunnerPool1Name      = "org-runnerpool1"
+	repoRunnerPool1Replicas = 3
+	repoRunnerPool2Replicas = 1
+	orgRunnerPool1Replicas  = 1
+	githubClient            *github.Client
 )
 
 // Env variables.

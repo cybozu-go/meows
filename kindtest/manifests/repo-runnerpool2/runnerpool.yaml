@@ -1,12 +1,16 @@
 apiVersion: meows.cybozu.com/v1alpha1
 kind: RunnerPool
 metadata:
-  name: runnerpool3
+  name: repo-runnerpool2
 spec:
-  replicas: 1
-  maxRunnerPods: 1
+  repositoryName: meows-ci
+  setupCommand:
+  - "bash"
+  - "-c"
+  - "date > /tmp/test"
   slackAgent:
     serviceName: slack-agent.meows.svc
+    channel: "#test2"
   template:
     image: meows-runner:kindtest
     imagePullPolicy: Never
