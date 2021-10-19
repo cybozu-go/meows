@@ -14,7 +14,8 @@ Here are the minimal changes from the default setting on the registration page:
 - Fill **GitHub Apps Name**
 - Fill **Homepage URL**
 - Uncheck `Active` under **Webhook** section
-- Set **Administration** `Read & Write` permission to the repository scope
+- Set **Administration** `Read & Write` permission to the repository scope, if you want to use an repository-level runner.
+- Set **Self-hosted runners** `Read & Write` permission to the organization scope, if you want to use an organization-level runner.
 
 Then, you are redirected to the **General** page and what you should do is:
 
@@ -188,6 +189,20 @@ jobs:
       - if: failure()
         run: job-failure
 ```
+
+How to specify the channel for Slack notifications
+--------------------------------------------------
+
+The following methods exist for specifying the channel for Slack notifications.
+The priority order of the specification method is 4>3>2>1.
+Any channel specification method should look like `#<channel_name>`. (e.g. `#general`, `#test1`)
+
+1. Slack app secret to be created in [How to deploy Slack agent](#how-to-deploy-slack-agent)
+2. `RunnerPool` resource in `.spec.slackAgent.channel`. [docs to SlackAgentConfig](crd-runner-pool.md#SlackAgentConfig)
+3. Environment variables in the workflow.
+    - The `MEOWS_SLACK_CHANNEL` environment variable is read when `job-started` is executed.
+4. Create the `/var/meows/slack_channel` file in the workflow step.
+    - By the end of workflow, you can specify it by creating a `/var/meows/slack_channel` file, like `echo "#test1" > /var/meows/slack_channel`.
 
 How to extend GitHub Actions jobs
 ---------------------------------

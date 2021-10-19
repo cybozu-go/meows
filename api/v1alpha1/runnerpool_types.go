@@ -25,6 +25,7 @@ var reservedEnvNames = map[string]bool{
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
 	// RepositoryName describes repository name to register Pods as self-hosted runners.
+	// RepositoryName is not necessary, If you want to use it as an organization-level self-hosted runner
 	// +optional
 	RepositoryName string `json:"repositoryName"`
 

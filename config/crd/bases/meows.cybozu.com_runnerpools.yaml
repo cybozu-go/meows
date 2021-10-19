@@ -55,7 +55,8 @@ spec:
                 type: integer
               repositoryName:
                 description: RepositoryName describes repository name to register
-                  Pods as self-hosted runners.
+                  Pods as self-hosted runners. RepositoryName is not necessary, If
+                  you want to use it as an organization-level self-hosted runner
                 type: string
               setupCommand:
                 description: Command that runs when the runner pods will be created.
