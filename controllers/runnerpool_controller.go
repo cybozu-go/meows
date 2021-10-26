@@ -148,7 +148,6 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *RunnerPoolReconciler) validateRepositoryName(rp *meowsv1alpha1.RunnerPool) error {
 	if rp.IsOrgLevel() {
-		r.log.Info("this RunnerPool is considered to be an organization-level runner, so the repository name is empty.", "runnerpool", namespacedName(rp.Namespace, rp.Name))
 		return nil
 	}
 	for _, n := range r.repositoryNames {
