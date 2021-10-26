@@ -1,0 +1,15 @@
+#!/bin/sh
+
+SLACK_CHANNEL_FILE="/var/meows/slack_channel"
+rm ${SLACK_CHANNEL_FILE}
+if test "${1}" != "" ; then
+    echo "${1}" > ${SLACK_CHANNEL_FILE}
+    echo "Set slack notifications to ${1}"
+else
+    if test "${MEOWS_SLACK_CHANNEL}" != "" ; then
+        echo "${MEOWS_SLACK_CHANNEL}" > ${SLACK_CHANNEL_FILE}
+        echo "Set slack notifications to ${MEOWS_SLACK_CHANNEL}"
+    else
+        echo "Reset slack notifications channel"
+    fi
+fi
