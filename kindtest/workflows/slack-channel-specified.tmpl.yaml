@@ -10,5 +10,5 @@ jobs:
       MEOWS_SLACK_CHANNEL: "#test2"
     steps:
       - run: job-started
-      - run: meows-slack-channel "#test1"
+      - run: meows slackagent set-channel "#test1"
       - run: job-success

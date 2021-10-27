@@ -47,5 +47,5 @@ func Execute() {
 func init() {
 	fs := rootCmd.Flags()
 	fs.StringVarP(&jobInfoFile, "jobinfo-file", "f", constants.RunnerVarDirPath+"/github.env", "Job info file.")
-	fs.StringVarP(&slackChannelFile, "slackchannel-file", "s", constants.RunnerVarDirPath+"/slack_channel", "A file that describes the Slack channel to be notified.")
+	fs.StringVarP(&slackChannelFile, "slackchannel-file", "s", constants.SlackChannelFilePath, "A file that describes the Slack channel to be notified.")
 }

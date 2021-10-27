@@ -34,7 +34,9 @@ RUN mkdir -p ${RUNNER_ASSETS_DIR} \
   && tar xzf ./runner.tar.gz \
   && rm runner.tar.gz \
   && ./bin/installdependencies.sh \
-  && chown -R 10000 ${RUNNER_ASSETS_DIR}
+  && chown -R 10000 ${RUNNER_ASSETS_DIR} \
+  && mkdir -p /var/meows \
+  && chown -R 10000 /var/meows
 
 ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
 RUN mkdir -p ${AGENT_TOOLSDIRECTORY} \

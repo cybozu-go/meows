@@ -80,6 +80,9 @@ const (
 
 	// RunnerVarDirPath is a directory path for storing variable files.
 	RunnerVarDirPath = "/var/meows"
+
+	// SlackChannelFilePath is a file path for the Slack channel to be notified.
+	SlackChannelFilePath = RunnerVarDirPath + "/slack_channel"
 )
 
 // Environment variables

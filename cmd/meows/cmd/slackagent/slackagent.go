@@ -2,6 +2,9 @@ package slackagent
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"os"
 
 	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/agent"
@@ -19,11 +22,14 @@ var config struct {
 	dryRun      bool
 }
 
+var slackChannelFilePath string
+
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "slackagent",
 	}
 	cmd.AddCommand(newSendCmd())
+	cmd.AddCommand(newSetChannelCmd())
 	return cmd
 }
 
@@ -66,5 +72,41 @@ If RESULT is omitted or any other value is specified, it will be treated as 'unk
 	fs.StringVarP(&config.channel, "channel", "c", "", "The Slack channel to notify messages to")
 	fs.BoolVarP(&config.extend, "extend", "e", false, "Enable extend button.")
 
+	return cmd
+}
+
+func newSetChannelCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-channel [SLACK_CHANNEL_NAME]",
+		Short: "set slack channel to notify.",
+		Long:  `This command TODO description`,
+
+		Args: cobra.RangeArgs(0, 1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var channel string
+			if len(args) == 1 {
+				channel = args[0]
+			}
+			err := os.MkdirAll(constants.RunnerVarDirPath, 0755)
+			if err != nil {
+				return err
+			}
+			os.Remove(constants.SlackChannelFilePath)
+
+			if channel == "" {
+				channel = os.Getenv(constants.SlackChannelEnvName)
+			}
+
+			err = ioutil.WriteFile(slackChannelFilePath, []byte(channel), 0644)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Set slack channel to '%s'.\n", channel)
+			return nil
+		},
+	}
+
+	fs := cmd.Flags()
+	fs.StringVarP(&slackChannelFilePath, "file", "f", constants.SlackChannelFilePath, "A file that describes the Slack channel to be notified.")
 	return cmd
 }
