@@ -43,10 +43,9 @@ RUN mkdir -p ${AGENT_TOOLSDIRECTORY} \
   && chmod g+rwx ${AGENT_TOOLSDIRECTORY}
 
 USER 10000
-COPY scripts/job-cancelled       /usr/local/bin
-COPY scripts/job-failure         /usr/local/bin
-COPY scripts/job-success         /usr/local/bin
-COPY scripts/meows-slack-channel /usr/local/bin
+COPY scripts/job-cancelled /usr/local/bin
+COPY scripts/job-failure   /usr/local/bin
+COPY scripts/job-success   /usr/local/bin
 
 COPY --from=builder /workspace/tmp/bin/meows /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/job-started /usr/local/bin
