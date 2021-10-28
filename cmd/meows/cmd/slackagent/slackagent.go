@@ -3,7 +3,6 @@ package slackagent
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	constants "github.com/cybozu-go/meows"
@@ -78,8 +77,10 @@ If RESULT is omitted or any other value is specified, it will be treated as 'unk
 func newSetChannelCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-channel [SLACK_CHANNEL_NAME]",
-		Short: "set slack channel to notify.",
-		Long:  `This command TODO description`,
+		Short: "set Slack channel to notify.",
+		Long: `This command set a Slack channel to notified job result.
+This is used by calling it in the workflow yaml file.
+If SLACK_CHANNEL_NAME is not specified, the environment variable MEOWS_SLACK_CHANNEL is specified as a Slack channel to notified.`,
 
 		Args: cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,17 +88,12 @@ func newSetChannelCmd() *cobra.Command {
 			if len(args) == 1 {
 				channel = args[0]
 			}
-			err := os.MkdirAll(constants.RunnerVarDirPath, 0755)
-			if err != nil {
-				return err
-			}
-			os.Remove(constants.SlackChannelFilePath)
 
 			if channel == "" {
 				channel = os.Getenv(constants.SlackChannelEnvName)
 			}
 
-			err = ioutil.WriteFile(slackChannelFilePath, []byte(channel), 0644)
+			err := os.WriteFile(slackChannelFilePath, []byte(channel), 0644)
 			if err != nil {
 				return err
 			}

@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -357,7 +357,7 @@ func pushWorkflowFile(filename, namespace, runnerPoolName string) {
 		"Namespace":  namespace,
 		"RunnerPool": runnerPoolName,
 	})
-	err := ioutil.WriteFile(filepath.Join(testRepoWorkDir, workflowFile), buf.Bytes(), 0644)
+	err := os.WriteFile(filepath.Join(testRepoWorkDir, workflowFile), buf.Bytes(), 0644)
 	Expect(err).ShouldNot(HaveOccurred())
 
 	gitSafe("add", workflowFile)

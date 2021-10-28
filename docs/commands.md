@@ -88,6 +88,7 @@ This sub command sends a request to the slack-agent.
 
 This sub command set a Slack channel to notified job result.
 This is used by calling it in the workflow yaml file.
+If it is not specified, the environment variable `MEOWS_SLACK_CHANNEL` is specified.
 
 ### `meows runner list REPOSITORY`
 

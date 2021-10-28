@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -66,7 +66,7 @@ func (c *clientImpl) GetStatus(ctx context.Context, ip string) (*Status, error) 
 		return nil, fmt.Errorf("runner pod (%s) return %d", ip, res.StatusCode)
 	}
 
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}

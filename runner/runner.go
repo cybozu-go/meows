@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -141,7 +141,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 		}
 	}
 
-	b, err := ioutil.ReadFile(r.tokenPath)
+	b, err := os.ReadFile(r.tokenPath)
 	if err != nil {
 		return fmt.Errorf("failed load %s; %w", r.tokenPath, err)
 	}
@@ -233,7 +233,7 @@ func (r *Runner) readSlackChannel() (string, error) {
 		return "", err
 	}
 
-	s, err := ioutil.ReadAll(file)
+	s, err := io.ReadAll(file)
 	if err != nil {
 		return "", err
 	}
