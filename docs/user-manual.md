@@ -201,8 +201,23 @@ Any channel specification method should look like `#<channel_name>`. (e.g. `#gen
 2. `RunnerPool` resource in `.spec.slackAgent.channel`. [docs to SlackAgentConfig](crd-runner-pool.md#SlackAgentConfig)
 3. Environment variables in the workflow.
     - The `MEOWS_SLACK_CHANNEL` environment variable is read when `job-started` is executed.
-4. Create the `/var/meows/slack_channel` file in the workflow step.
-    - By the end of workflow, you can specify it by creating a `/var/meows/slack_channel` file, like `echo "#test1" > /var/meows/slack_channel`.
+4. Call command `meows slackagent set-channel "#channel"` in the workflow step.
+    - You can specify the channel to be notified by using the command as follows.
+    ```yaml
+    name: slack-channel-specified
+    on: push
+
+    jobs:
+      build:
+        name: job-name
+        env:
+          MEOWS_SLACK_CHANNEL: "#test2"
+        steps:
+          - run: job-started
+          # The environment variable `MEOWS_SLACK_CHANNEL` is ignored and the job results are reported to the "#test1" channel.
+          - run: meows slackagent set-channel "#test1"
+          - run: job-success
+    ```
 
 How to extend GitHub Actions jobs
 ---------------------------------
