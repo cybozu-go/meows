@@ -195,29 +195,32 @@ How to specify the channel for Slack notifications
 
 The following methods exist for specifying the channel for Slack notifications.
 The priority order of the specification method is 4>3>2>1.
-Any channel specification method should look like `#<channel_name>`. (e.g. `#general`, `#test1`)
+Any method accepts a channel name in the format of `#<channel_name>`. (e.g. `#general`, `#test1`)
 
-1. Slack app secret to be created in [How to deploy Slack agent](#how-to-deploy-slack-agent)
-2. `RunnerPool` resource in `.spec.slackAgent.channel`. [docs to SlackAgentConfig](crd-runner-pool.md#SlackAgentConfig)
-3. Environment variables in the workflow.
-    - The `MEOWS_SLACK_CHANNEL` environment variable is read when `job-started` is executed.
-4. Call command `meows slackagent set-channel "#channel"` in the workflow step.
-    - You can specify the channel to be notified by using the command as follows.
-    ```yaml
-    name: slack-channel-specified
-    on: push
+1. `SLACK_CHANNEL` value in the `slack-app-secret` secret. See [How to deploy Slack agent](#how-to-deploy-slack-agent).
+2. `.spec.slackAgent.channel` field in a `RunnerPool` resource. See [SlackAgentConfig](crd-runner-pool.md#SlackAgentConfig).
+3. `MEOWS_SLACK_CHANNEL` environment variable in a workflow.
+4. Call `meows slackagent set-channel "#channel"` command in a workflow.
 
-    jobs:
-      build:
-        name: job-name
-        env:
-          MEOWS_SLACK_CHANNEL: "#test2"
-        steps:
-          - run: job-started
-          # The environment variable `MEOWS_SLACK_CHANNEL` is ignored and the job results are reported to the "#test1" channel.
-          - run: meows slackagent set-channel "#test1"
-          - run: job-success
-    ```
+For example, you can specify the channel in a workflow as follows.
+
+```yaml
+name: slack-channel-specified
+on: push
+
+jobs:
+  build:
+    name: job-name
+    env:
+      # Basically, a job result will be reported to the "#test1" channel.
+      MEOWS_SLACK_CHANNEL: "#test1"
+    steps:
+      - run: job-started
+      # Only when a job fails, the result will be reported to the "#test2" channel.
+      - run: meows slackagent set-channel "#test2"
+        if: failure()
+      - run: job-success
+```
 
 How to extend GitHub Actions jobs
 ---------------------------------

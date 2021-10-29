@@ -78,9 +78,9 @@ func newSetChannelCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-channel [SLACK_CHANNEL_NAME]",
 		Short: "set Slack channel to notify.",
-		Long: `This command set a Slack channel to notified job result.
-This is used by calling it in the workflow yaml file.
-If SLACK_CHANNEL_NAME is not specified, the environment variable MEOWS_SLACK_CHANNEL is specified as a Slack channel to notified.`,
+		Long: `This command sets a Slack channel that a job result to be notified to.
+This should be called in a workflow.
+If SLACK_CHANNEL_NAME is not specified, the environment variable MEOWS_SLACK_CHANNEL is read.`,
 
 		Args: cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
