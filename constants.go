@@ -80,6 +80,9 @@ const (
 
 	// RunnerVarDirPath is a directory path for storing variable files.
 	RunnerVarDirPath = "/var/meows"
+
+	// SlackChannelFilePath is a file path for the Slack channel to be notified.
+	SlackChannelFilePath = RunnerVarDirPath + "/slack_channel"
 )
 
 // Environment variables
@@ -104,4 +107,7 @@ const (
 
 	// ExtendDurationEnvName is a env field key for EXTEND_DURATION
 	ExtendDurationEnvName = "EXTEND_DURATION"
+
+	// SlackChannelEnvName is a env field key for MEOWS_SLACK_CHANNEL
+	SlackChannelEnvName = "MEOWS_SLACK_CHANNEL"
 )

@@ -147,6 +147,9 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *RunnerPoolReconciler) validateRepositoryName(rp *meowsv1alpha1.RunnerPool) error {
+	if rp.IsOrgLevel() {
+		return nil
+	}
 	for _, n := range r.repositoryNames {
 		if n == rp.Spec.RepositoryName {
 			return nil
@@ -167,7 +170,9 @@ func labelSet(rp *meowsv1alpha1.RunnerPool, component string) map[string]string 
 func labelSetForRunnerPod(rp *meowsv1alpha1.RunnerPool, organizationName string) map[string]string {
 	labels := labelSet(rp, constants.AppComponentRunner)
 	labels[constants.RunnerOrgLabelKey] = organizationName
-	labels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+	if !rp.IsOrgLevel() {
+		labels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
+	}
 	return labels
 }
 
@@ -375,10 +380,6 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *meowsv1alpha1.RunnerPo
 			Value: r.organizationName,
 		},
 		{
-			Name:  constants.RunnerRepoEnvName,
-			Value: rp.Spec.RepositoryName,
-		},
-		{
 			Name:  constants.RunnerPoolNameEnvName,
 			Value: rp.ObjectMeta.Name,
 		},
@@ -386,6 +387,13 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *meowsv1alpha1.RunnerPo
 			Name:  constants.RunnerOptionEnvName,
 			Value: string(optionJson),
 		},
+	}
+
+	if !rp.IsOrgLevel() {
+		envs = append(envs, corev1.EnvVar{
+			Name:  constants.RunnerRepoEnvName,
+			Value: rp.Spec.RepositoryName,
+		})
 	}
 
 	// NOTE:

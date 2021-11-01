@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -253,16 +253,29 @@ func slackMessageShouldBeSent(pod *corev1.Pod, channel string) {
 	ExpectWithOffset(1, matchLine).To(ContainSubstring(channel), "channel is not match")
 }
 
-func fetchOnlineRunnerNames(label string) ([]string, error) {
-	return fetchRunnerNames(label, "online")
+func fetchOnlineRunnerNames(repoName, label string) ([]string, error) {
+	return fetchRunnerNames(repoName, label, "online")
 }
 
-func fetchAllRunnerNames(label string) ([]string, error) {
-	return fetchRunnerNames(label, "")
+func fetchAllRepositoryRunnerNames(label string) ([]string, error) {
+	return fetchRunnerNames(repoName, label, "")
 }
 
-func fetchRunnerNames(label, status string) ([]string, error) {
-	runners, res, err := githubClient.Actions.ListRunners(context.Background(), orgName, repoName, &github.ListOptions{Page: 0, PerPage: 100})
+func fetchAllOrganizationRunnerNames(label string) ([]string, error) {
+	return fetchRunnerNames("", label, "")
+}
+
+func fetchRunnerNames(repoName, label, status string) ([]string, error) {
+	var runners *github.Runners
+	var res *github.Response
+	var err error
+	ctx := context.Background()
+	opts := github.ListOptions{Page: 0, PerPage: 100}
+	if repoName == "" {
+		runners, res, err = githubClient.Actions.ListOrganizationRunners(ctx, orgName, &opts)
+	} else {
+		runners, res, err = githubClient.Actions.ListRunners(ctx, orgName, repoName, &opts)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -289,9 +302,17 @@ OUTER:
 	return runnerNames, nil
 }
 
-func waitRunnerPods(namespace, runnerpool string, replicas int) []string {
+func waitRepositoryRunnerPods(namespace, runnerpool string, replicas int) []string {
+	return waitRunnerPods(namespace, runnerpool, replicas, repoName)
+}
+
+func waitOrganizationRunnerPods(namespace, runnerpool string, replicas int) []string {
+	return waitRunnerPods(namespace, runnerpool, replicas, "")
+}
+
+func waitRunnerPods(namespace, runnerpool string, replicas int, repoName string) []string {
 	var podNames []string
-	EventuallyWithOffset(1, func() error {
+	EventuallyWithOffset(2, func() error {
 		pods, err := fetchRunnerPods(namespace, runnerpool)
 		if err != nil {
 			return err
@@ -303,7 +324,7 @@ func waitRunnerPods(namespace, runnerpool string, replicas int) []string {
 
 		// checking runners is online.
 		label := namespace + "/" + runnerpool
-		runnerNames, err := fetchOnlineRunnerNames(label)
+		runnerNames, err := fetchOnlineRunnerNames(repoName, label)
 		if err != nil {
 			return err
 		}
@@ -336,7 +357,7 @@ func pushWorkflowFile(filename, namespace, runnerPoolName string) {
 		"Namespace":  namespace,
 		"RunnerPool": runnerPoolName,
 	})
-	err := ioutil.WriteFile(filepath.Join(testRepoWorkDir, workflowFile), buf.Bytes(), 0644)
+	err := os.WriteFile(filepath.Join(testRepoWorkDir, workflowFile), buf.Bytes(), 0644)
 	Expect(err).ShouldNot(HaveOccurred())
 
 	gitSafe("add", workflowFile)

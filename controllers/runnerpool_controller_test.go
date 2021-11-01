@@ -105,7 +105,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	It("should create Deployment from minimal RunnerPool", func() {
 		By("deploying RunnerPool resource")
-		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[0])
+		rp := makeRunnerPool(runnerPoolName, namespace, "")
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		By("waiting the RunnerPool become Bound")
@@ -158,7 +158,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 			constants.AppComponentLabelKey: Equal(constants.AppComponentRunner),
 			constants.AppInstanceLabelKey:  Equal(runnerPoolName),
 			constants.RunnerOrgLabelKey:    Equal(organizationName),
-			constants.RunnerRepoLabelKey:   Equal(repositoryNames[0]),
 		}))
 
 		// deployment/pod spec
@@ -214,14 +213,10 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Value": Equal(organizationName),
 				}),
 				"3": MatchFields(IgnoreExtras, Fields{
-					"Name":  Equal(constants.RunnerRepoEnvName),
-					"Value": Equal(repositoryNames[0]),
-				}),
-				"4": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerPoolNameEnvName),
 					"Value": Equal(runnerPoolName),
 				}),
-				"5": MatchFields(IgnoreExtras, Fields{
+				"4": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerOptionEnvName),
 					"Value": Equal("{}"),
 				}),
@@ -450,16 +445,16 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Value": Equal(organizationName),
 				}),
 				"3": MatchFields(IgnoreExtras, Fields{
-					"Name":  Equal(constants.RunnerRepoEnvName),
-					"Value": Equal(repositoryNames[1]),
-				}),
-				"4": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerPoolNameEnvName),
 					"Value": Equal(runnerPoolName),
 				}),
-				"5": MatchFields(IgnoreExtras, Fields{
+				"4": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerOptionEnvName),
 					"Value": Equal("{\"setup_command\":[\"command\",\"arg1\",\"args2\"]}"),
+				}),
+				"5": MatchFields(IgnoreExtras, Fields{
+					"Name":  Equal(constants.RunnerRepoEnvName),
+					"Value": Equal(repositoryNames[1]),
 				}),
 				"6": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal("ENV_VAR"),

@@ -14,7 +14,8 @@ Here are the minimal changes from the default setting on the registration page:
 - Fill **GitHub Apps Name**
 - Fill **Homepage URL**
 - Uncheck `Active` under **Webhook** section
-- Set **Administration** `Read & Write` permission to the repository scope
+- Set **Administration** `Read & Write` permission to the repository scope, if you want to use an repository-level runner.
+- Set **Self-hosted runners** `Read & Write` permission to the organization scope, if you want to use an organization-level runner.
 
 Then, you are redirected to the **General** page and what you should do is:
 
@@ -187,6 +188,38 @@ jobs:
         run: job-cancelled
       - if: failure()
         run: job-failure
+```
+
+How to specify the channel for Slack notifications
+--------------------------------------------------
+
+The following methods exist for specifying the channel for Slack notifications.
+The priority order of the specification method is 4>3>2>1.
+Any method accepts a channel name in the format of `#<channel_name>`. (e.g. `#general`, `#test1`)
+
+1. `SLACK_CHANNEL` value in the `slack-app-secret` secret. See [How to deploy Slack agent](#how-to-deploy-slack-agent).
+2. `.spec.slackAgent.channel` field in a `RunnerPool` resource. See [SlackAgentConfig](crd-runner-pool.md#SlackAgentConfig).
+3. `MEOWS_SLACK_CHANNEL` environment variable in a workflow.
+4. Call `meows slackagent set-channel "#channel"` command in a workflow.
+
+For example, you can specify the channel in a workflow as follows.
+
+```yaml
+name: slack-channel-specified
+on: push
+
+jobs:
+  build:
+    name: job-name
+    env:
+      # Basically, a job result will be reported to the "#test1" channel.
+      MEOWS_SLACK_CHANNEL: "#test1"
+    steps:
+      - run: job-started
+      # Only when a job fails, the result will be reported to the "#test2" channel.
+      - run: meows slackagent set-channel "#test2"
+        if: failure()
+      - run: job-success
 ```
 
 How to extend GitHub Actions jobs

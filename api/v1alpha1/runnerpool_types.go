@@ -25,6 +25,8 @@ var reservedEnvNames = map[string]bool{
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
 	// RepositoryName describes repository name to register Pods as self-hosted runners.
+	// If this field is omitted or the empty string (`""`) is specified, Pods will be registered as organization-level self-hosted runners.
+	// +optional
 	RepositoryName string `json:"repositoryName"`
 
 	// Number of desired runner pods to accept a new job. Defaults to 1.
@@ -159,15 +161,7 @@ func init() {
 }
 
 func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
-	var allErrs field.ErrorList
-	p := field.NewPath("spec")
-
-	if len(s.RepositoryName) == 0 {
-		pp := p.Child("repositoryName")
-		allErrs = append(allErrs, field.Required(pp, "the field is required"))
-	}
-
-	return append(allErrs, s.validateCommon()...)
+	return s.validateCommon()
 }
 
 func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
@@ -212,4 +206,8 @@ func (r *RunnerPool) GetRunnerDeploymentName() string {
 
 func (r *RunnerPool) GetRunnerSecretName() string {
 	return "runner-token-" + r.Name
+}
+
+func (r *RunnerPool) IsOrgLevel() bool {
+	return r.Spec.RepositoryName == ""
 }

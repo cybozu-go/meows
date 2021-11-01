@@ -74,9 +74,12 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 		deleteRunnerPool(ctx, name, namespace)
 	})
 
-	It("should deny creating RunnerPool with empty repository name", func() {
+	It("should creating RunnerPool with empty repository name", func() {
 		rp := makeRunnerPoolTemplate(name, namespace, "")
-		Expect(k8sClient.Create(ctx, rp)).NotTo(Succeed())
+		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
+		By("deleting the created RunnerPool")
+		deleteRunnerPool(ctx, name, namespace)
 	})
 
 	It("should deny updating RunnerPool if repository name is changed", func() {

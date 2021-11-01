@@ -92,11 +92,21 @@ func (c *clientImpl) GetOrganizationName() string {
 
 // CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization.
 func (c *clientImpl) CreateRegistrationToken(ctx context.Context, repositoryName string) (*github.RegistrationToken, error) {
-	token, res, err := c.client.Actions.CreateRegistrationToken(
-		ctx,
-		c.organizationName,
-		repositoryName,
-	)
+	var token *github.RegistrationToken
+	var res *github.Response
+	var err error
+	if repositoryName == "" {
+		token, res, err = c.client.Actions.CreateOrganizationRegistrationToken(
+			ctx,
+			c.organizationName,
+		)
+	} else {
+		token, res, err = c.client.Actions.CreateRegistrationToken(
+			ctx,
+			c.organizationName,
+			repositoryName,
+		)
+	}
 	if e, ok := err.(*url.Error); ok {
 		// When url.Error came back, it was because the raw Responce leaked out as a string.
 		return nil, fmt.Errorf("failed to create registration token: %s %s", e.Op, e.URL)
@@ -117,12 +127,23 @@ func (c *clientImpl) ListRunners(ctx context.Context, repositoryName string, lab
 
 	opts := github.ListOptions{PerPage: 100}
 	for {
-		list, res, err := c.client.Actions.ListRunners(
-			ctx,
-			c.organizationName,
-			repositoryName,
-			&opts,
-		)
+		var list *github.Runners
+		var res *github.Response
+		var err error
+		if repositoryName == "" {
+			list, res, err = c.client.Actions.ListOrganizationRunners(
+				ctx,
+				c.organizationName,
+				&opts,
+			)
+		} else {
+			list, res, err = c.client.Actions.ListRunners(
+				ctx,
+				c.organizationName,
+				repositoryName,
+				&opts,
+			)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -149,12 +170,22 @@ func (c *clientImpl) ListRunners(ctx context.Context, repositoryName string, lab
 
 // RemoveRunner deletes an Actions runner of the organization.
 func (c *clientImpl) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
-	res, err := c.client.Actions.RemoveRunner(
-		ctx,
-		c.organizationName,
-		repositoryName,
-		runnerID,
-	)
+	var res *github.Response
+	var err error
+	if repositoryName == "" {
+		res, err = c.client.Actions.RemoveOrganizationRunner(
+			ctx,
+			c.organizationName,
+			runnerID,
+		)
+	} else {
+		res, err = c.client.Actions.RemoveRunner(
+			ctx,
+			c.organizationName,
+			repositoryName,
+			runnerID,
+		)
+	}
 	if err != nil {
 		return err
 	}

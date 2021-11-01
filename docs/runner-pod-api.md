@@ -67,6 +67,7 @@ $ curl -s -XGET localhost:8080/status
 		"run_id": 123456789,
 		"run_number": 987,
 		"workflow_name": "Work flow"
-	}
+	},
+	"slack_channel": "" ... May be blank. The name of the Slack channel specified in the workflow.
 }
 ```

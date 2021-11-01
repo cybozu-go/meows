@@ -1,13 +1,14 @@
-name: job-success
+name: slack-channel-specified
 on: push
 
 jobs:
   build:
     name: job-success
     runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
-    # It expects a notification to be sent to "#test2".
+    # It expects a notification to be sent to "#test1".
     env:
       MEOWS_SLACK_CHANNEL: "#test2"
     steps:
       - run: job-started
+      - run: meows slackagent set-channel "#test1"
       - run: job-success

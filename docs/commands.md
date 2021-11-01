@@ -84,6 +84,14 @@ It enables to send requests to the slack-agent, or to control the GitHub runners
 
 This sub command sends a request to the slack-agent.
 
+### `meows slackagent set-channel "SLACK_CHANNEL_NAME"`
+
+This sub command sets a Slack channel that a job result will be notified to.
+This command should be called in a workflow.
+
+Users can specify the Slack channel as an argument.
+If the argument is not specified, the environment variable `MEOWS_SLACK_CHANNEL` is read instead.
+
 ### `meows runner list REPOSITORY`
 
 This sub command lists runners on the specified repository.

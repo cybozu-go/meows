@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var jobInfoFile string
+var (
+	jobInfoFile      string
+	slackChannelFile string
+)
 
 var rootCmd = &cobra.Command{
 	Use:  "job-started",
@@ -23,7 +26,13 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(jobInfoFile, data, 0664)
+		err = os.WriteFile(jobInfoFile, data, 0664)
+		if err != nil {
+			return err
+		}
+
+		slackChannel := os.Getenv(constants.SlackChannelEnvName)
+		return os.WriteFile(slackChannelFile, []byte(slackChannel), 0664)
 	},
 }
 
@@ -38,4 +47,5 @@ func Execute() {
 func init() {
 	fs := rootCmd.Flags()
 	fs.StringVarP(&jobInfoFile, "jobinfo-file", "f", constants.RunnerVarDirPath+"/github.env", "Job info file.")
+	fs.StringVarP(&slackChannelFile, "slackchannel-file", "s", constants.SlackChannelFilePath, "A file that describes the Slack channel to be notified.")
 }

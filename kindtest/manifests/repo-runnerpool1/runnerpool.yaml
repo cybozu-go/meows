@@ -1,0 +1,15 @@
+apiVersion: meows.cybozu.com/v1alpha1
+kind: RunnerPool
+metadata:
+  name: repo-runnerpool1
+spec:
+  repositoryName: meows-ci
+  replicas: 3
+  slackAgent:
+    serviceName: slack-agent.meows.svc
+  template:
+    image: meows-runner:kindtest
+    imagePullPolicy: Never
+    env:
+    - name: EXTEND_DURATION
+      value: "30s"

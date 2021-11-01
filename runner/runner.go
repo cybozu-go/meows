@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,12 +41,14 @@ type Runner struct {
 	deletionTime *time.Time
 	extend       *bool
 	jobInfo      *JobInfo
+	slackChannel string
 
 	// Directory/File Paths
 	runnerDir         string
 	workDir           string
 	tokenPath         string
 	jobInfoFile       string
+	slackChannelFile  string
 	startedFlagFile   string
 	extendFlagFile    string
 	failureFlagFile   string
@@ -60,6 +63,7 @@ type Status struct {
 	DeletionTime *time.Time `json:"deletion_time,omitempty"`
 	Extend       *bool      `json:"extend,omitempty"`
 	JobInfo      *JobInfo   `json:"job_info,omitempty"`
+	SlackChannel string     `json:"slack_channel,omitempty"`
 }
 
 type DeletionTimePayload struct {
@@ -80,6 +84,7 @@ func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string)
 		workDir:           workDir,
 		tokenPath:         filepath.Join(varDir, "runnertoken"),
 		jobInfoFile:       filepath.Join(varDir, "github.env"),
+		slackChannelFile:  filepath.Join(varDir, "slack_channel"),
 		startedFlagFile:   filepath.Join(varDir, "started"),
 		extendFlagFile:    filepath.Join(varDir, "extend"),
 		failureFlagFile:   filepath.Join(varDir, "failure"),
@@ -136,9 +141,14 @@ func (r *Runner) runListener(ctx context.Context) error {
 		}
 	}
 
-	b, err := ioutil.ReadFile(r.tokenPath)
+	b, err := os.ReadFile(r.tokenPath)
 	if err != nil {
 		return fmt.Errorf("failed load %s; %w", r.tokenPath, err)
+	}
+
+	configURL := fmt.Sprintf("https://github.com/%s", r.envs.runnerOrg)
+	if r.envs.runnerRepo != "" {
+		configURL = configURL + "/" + r.envs.runnerRepo
 	}
 
 	configArgs := []string{
@@ -146,7 +156,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 		"--replace",
 		"--name", r.envs.podName,
 		"--labels", r.envs.podNamespace + "/" + r.envs.runnerPoolName,
-		"--url", fmt.Sprintf("https://github.com/%s/%s", r.envs.runnerOrg, r.envs.runnerRepo),
+		"--url", configURL,
 		"--token", string(b),
 		"--work", r.workDir,
 		"--ephemeral",
@@ -201,6 +211,11 @@ func (r *Runner) updateToDebugginState(logger logr.Logger) {
 		logger.Error(err, "failed to read job info")
 	}
 
+	slackChannel, err := r.readSlackChannel()
+	if err != nil {
+		logger.Error(err, "failed to read file for slack channel")
+	}
+
 	r.mu.Lock()
 	r.state = constants.RunnerPodStateDebugging
 	r.result = result
@@ -208,7 +223,22 @@ func (r *Runner) updateToDebugginState(logger logr.Logger) {
 	r.deletionTime = &deletionTime
 	r.extend = &extend
 	r.jobInfo = jobInfo
+	r.slackChannel = slackChannel
 	r.mu.Unlock()
+}
+
+func (r *Runner) readSlackChannel() (string, error) {
+	file, err := os.Open(r.slackChannelFile)
+	if err != nil {
+		return "", err
+	}
+
+	s, err := io.ReadAll(file)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimRight(string(s), "\n"), nil
 }
 
 func (r *Runner) deletionTimeHandler(w http.ResponseWriter, req *http.Request) {
@@ -250,6 +280,7 @@ func (r *Runner) statusHandler(w http.ResponseWriter, req *http.Request) {
 	st.DeletionTime = r.deletionTime
 	st.Extend = r.extend
 	st.JobInfo = r.jobInfo
+	st.SlackChannel = r.slackChannel
 	r.mu.Unlock()
 
 	res, err := json.Marshal(st)
