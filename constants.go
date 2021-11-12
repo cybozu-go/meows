@@ -83,6 +83,12 @@ const (
 
 	// SlackChannelFilePath is a file path for the Slack channel to be notified.
 	SlackChannelFilePath = RunnerVarDirPath + "/slack_channel"
+
+	// SecretsDirName is a directory name for storing secret files.
+	SecretsDirName = "secrets"
+
+	// RunnerTokenFileName is a file name for GitHub registration token.
+	RunnerTokenFileName = "runnertoken"
 )
 
 // Environment variables

@@ -243,7 +243,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
 					"Name":      Equal(secretName),
-					"MountPath": Equal(filepath.Join(constants.RunnerVarDirPath, "runnertoken")),
+					"MountPath": Equal(filepath.Join(constants.RunnerVarDirPath, constants.SecretsDirName)),
 				}),
 			}),
 		}))
@@ -493,7 +493,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				}),
 				"4": MatchFields(IgnoreExtras, Fields{
 					"Name":      Equal(secretName),
-					"MountPath": Equal(filepath.Join(constants.RunnerVarDirPath, "runnertoken")),
+					"MountPath": Equal(filepath.Join(constants.RunnerVarDirPath, constants.SecretsDirName)),
 				}),
 			}),
 		}))

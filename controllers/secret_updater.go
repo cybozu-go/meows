@@ -173,7 +173,7 @@ func (p *updateProcess) updateSecret(ctx context.Context) error {
 		constants.RunnerSecretExpiresAtAnnotationKey: runnerToken.GetExpiresAt().Format(time.RFC3339),
 	})
 	newS.StringData = map[string]string{
-		"runnertoken": runnerToken.GetToken(),
+		constants.RunnerTokenFileName: runnerToken.GetToken(),
 	}
 	patch := client.MergeFrom(s)
 
