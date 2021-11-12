@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2021-11-12
+
 ### Fixed
 
 - Fix the way to mount a secret that does not use subPath. (#103)
@@ -60,7 +62,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/cybozu-go/meows/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cybozu-go/meows/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/cybozu-go/meows/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/cybozu-go/meows/compare/v0.2.0...v0.3.0
