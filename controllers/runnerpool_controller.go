@@ -294,8 +294,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      rp.GetRunnerSecretName(),
 			ReadOnly:  true,
-			MountPath: filepath.Join(constants.RunnerVarDirPath, "runnertoken"),
-			SubPath:   "runnertoken",
+			MountPath: filepath.Join(constants.RunnerVarDirPath, "secrets"),
 		})
 		runnerContainer.VolumeMounts = volumeMounts
 
