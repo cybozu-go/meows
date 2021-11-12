@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix the way to mount a secret that does not use subPath. (#103)
+
 ## [0.4.0] - 2021-11-01
 
 ### Added
