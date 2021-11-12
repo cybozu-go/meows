@@ -577,8 +577,8 @@ func startRunner(listener Listener) context.CancelFunc {
 }
 
 func createFakeTokenFile() {
-	ExpectWithOffset(1, os.MkdirAll(filepath.Join(testVarDir, "secrets"), 0755)).To(Succeed())
-	err := os.WriteFile(filepath.Join(testVarDir, "secrets", "runnertoken"), []byte("faketoken"), 0664)
+	ExpectWithOffset(1, os.MkdirAll(filepath.Join(testVarDir, constants.SecretsDirName), 0755)).To(Succeed())
+	err := os.WriteFile(filepath.Join(testVarDir, constants.SecretsDirName, constants.RunnerTokenFileName), []byte("faketoken"), 0664)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 }
 

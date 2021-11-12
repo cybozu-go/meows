@@ -82,7 +82,7 @@ func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string)
 		listener:          listener,
 		runnerDir:         runnerDir,
 		workDir:           workDir,
-		tokenPath:         filepath.Join(varDir, "secrets", "runnertoken"),
+		tokenPath:         filepath.Join(varDir, constants.SecretsDirName, constants.RunnerTokenFileName),
 		jobInfoFile:       filepath.Join(varDir, "github.env"),
 		slackChannelFile:  filepath.Join(varDir, "slack_channel"),
 		startedFlagFile:   filepath.Join(varDir, "started"),
