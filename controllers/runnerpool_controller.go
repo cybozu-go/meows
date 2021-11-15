@@ -127,7 +127,10 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	r.runnerManager.StartOrUpdate(rp)
+	if err := r.runnerManager.StartOrUpdate(rp); err != nil {
+		log.Error(err, "failed to start or update runner manager")
+		return ctrl.Result{}, err
+	}
 
 	rp.Status.Bound = true
 	if err := r.Status().Update(ctx, rp); err != nil {
