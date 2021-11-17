@@ -77,10 +77,11 @@ Here's a procedure for how to configure the Slack App.
    - Create App-Level Token on the windows coming up and keep the generated App Token.
 1. Go to **OAuth & Permissions** from the sidebar.
    - Add the `chat:write` permission under **Bot Token Scopes**.
-   - Click **Install(Reinstall) to Workspace** and (re)install the bot in your desired channel.
+1. Go to **Basic Information** from the sidebar.
+   - Make sure **Bots** is enabled in `Add features and functionality`
+   - Click **Install(Reinstall) to Workspace** in `Install your app` and (re)install the bot in your desired channel.
+1. Go to **OAuth & Permissions** from the sidebar again.
    - Keep **Bot User OAuth Token**.
-1. Go to **Beta features** from the sidebar.
-   - Enable **Time picker element**.
 1. Open your Slack desktop app and go to your desired channel.
    - Click the `i` button on the top right corner.
    - Click **more** and then **Add apps**.
