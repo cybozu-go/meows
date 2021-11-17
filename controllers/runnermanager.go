@@ -148,14 +148,13 @@ func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) error {
 	m.replicas = rp.Spec.Replicas
 	m.maxRunnerPods = rp.Spec.MaxRunnerPods
 	m.slackChannel = rp.Spec.SlackAgent.Channel
-	if m.slackAgentServiceName == rp.Spec.SlackAgent.ServiceName {
-		return nil
+	if m.slackAgentServiceName != rp.Spec.SlackAgent.ServiceName {
+		err := m.slackAgentClient.UpdateServerURL(rp.Spec.SlackAgent.ServiceName)
+		if err != nil {
+			return err
+		}
+		m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
 	}
-	err := m.slackAgentClient.UpdateServerURL(rp.Spec.SlackAgent.ServiceName)
-	if err != nil {
-		return err
-	}
-	m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
 	return nil
 }
 
