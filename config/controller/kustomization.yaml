@@ -2,7 +2,7 @@ namespace: meows
 
 images:
 - name: quay.io/cybozu/meows-controller
-  newTag: 0.4.1
+  newTag: 0.4.2
 
 namePrefix: meows-
 

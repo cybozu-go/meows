@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2021-11-18
+
 ### Fixed
 
 - Reuse the slack-agent client (#107)
@@ -66,7 +68,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/cybozu-go/meows/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/cybozu-go/meows/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cybozu-go/meows/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/cybozu-go/meows/compare/v0.3.0...v0.3.1
