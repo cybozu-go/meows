@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Reuse the slack-agent client (#107)
+
 ## [0.4.1] - 2021-11-12
 
 ### Fixed

@@ -32,9 +32,10 @@ func newRunnerManagerMock() *runnerManagerMock {
 	}
 }
 
-func (m *runnerManagerMock) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
+func (m *runnerManagerMock) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	m.started[rpNamespacedName] = true
+	return nil
 }
 
 func (m *runnerManagerMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {

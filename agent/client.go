@@ -68,6 +68,7 @@ func makePayload(result string, namespaceName, podName string, info *runner.JobI
 // Client is a client for Slack agent.
 type Client struct {
 	serverURL *url.URL
+	client    *http.Client
 }
 
 // NewClient creates Client.
@@ -76,7 +77,24 @@ func NewClient(serverURL string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{u}, nil
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	// The communication with slack-agent does not use Proxy because it is an In-Cluster communication.
+	transport.Proxy = nil
+	return &Client{
+		serverURL: u,
+		client: &http.Client{
+			Transport: transport,
+		},
+	}, nil
+}
+
+func (c *Client) UpdateServerURL(serverURL string) error {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return err
+	}
+	c.serverURL = u
+	return nil
 }
 
 // PostResult sends a result of CI job to server.
@@ -100,9 +118,7 @@ func (c *Client) PostResult(ctx context.Context, channel, result string, extend 
 	}
 	req.Header.Add("Content-Type", "application/json")
 
-	client := &http.Client{}
-
-	res, err := client.Do(req)
+	res, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}

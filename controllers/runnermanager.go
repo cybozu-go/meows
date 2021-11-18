@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -24,7 +23,7 @@ import (
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete;update
 
 type RunnerManager interface {
-	StartOrUpdate(*meowsv1alpha1.RunnerPool)
+	StartOrUpdate(*meowsv1alpha1.RunnerPool) error
 	Stop(context.Context, *meowsv1alpha1.RunnerPool) error
 }
 
@@ -53,15 +52,18 @@ func NewRunnerManager(log logr.Logger, interval time.Duration, k8sClient client.
 	}
 }
 
-func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) {
+func (m *RunnerManagerImpl) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) error {
 	rpNamespacedName := namespacedName(rp.Namespace, rp.Name)
 	if _, ok := m.loops[rpNamespacedName]; !ok {
-		loop := newManagerLoop(m.log.WithValues("runnerpool", rpNamespacedName), m.interval, m.k8sClient, m.githubClient, m.runnerPodClient, rp)
+		loop, err := newManagerLoop(m.log.WithValues("runnerpool", rpNamespacedName), m.interval, m.k8sClient, m.githubClient, m.runnerPodClient, rp)
+		if err != nil {
+			return err
+		}
 		loop.start()
 		m.loops[rpNamespacedName] = loop
-	} else {
-		m.loops[rpNamespacedName].update(rp)
+		return nil
 	}
+	return m.loops[rpNamespacedName].update(rp)
 }
 
 func (m *RunnerManagerImpl) Stop(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
@@ -96,6 +98,7 @@ type managerLoop struct {
 	k8sClient             client.Client
 	githubClient          github.Client
 	runnerPodClient       runner.Client
+	slackAgentClient      *agent.Client
 	rpNamespace           string
 	rpName                string
 	repository            string
@@ -113,8 +116,12 @@ type managerLoop struct {
 	mu              sync.Mutex
 }
 
-func newManagerLoop(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, rp *meowsv1alpha1.RunnerPool) *managerLoop {
+func newManagerLoop(log logr.Logger, interval time.Duration, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, rp *meowsv1alpha1.RunnerPool) (*managerLoop, error) {
 	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
+	agentClient, err := agent.NewClient("http://" + rp.Spec.SlackAgent.ServiceName)
+	if err != nil {
+		return nil, err
+	}
 	loop := &managerLoop{
 		log:                   log,
 		interval:              interval,
@@ -126,21 +133,29 @@ func newManagerLoop(log logr.Logger, interval time.Duration, k8sClient client.Cl
 		repository:            rp.Spec.RepositoryName,
 		replicas:              rp.Spec.Replicas,
 		maxRunnerPods:         rp.Spec.MaxRunnerPods,
+		slackAgentClient:      agentClient,
 		slackChannel:          rp.Spec.SlackAgent.Channel,
 		slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
 		recreateDeadline:      recreateDeadline,
 		lastCheckTime:         time.Now().UTC(),
 	}
-	return loop
+	return loop, nil
 }
 
-func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) {
+func (m *managerLoop) update(rp *meowsv1alpha1.RunnerPool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.replicas = rp.Spec.Replicas
 	m.maxRunnerPods = rp.Spec.MaxRunnerPods
 	m.slackChannel = rp.Spec.SlackAgent.Channel
-	m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
+	if m.slackAgentServiceName != rp.Spec.SlackAgent.ServiceName {
+		err := m.slackAgentClient.UpdateServerURL(rp.Spec.SlackAgent.ServiceName)
+		if err != nil {
+			return err
+		}
+		m.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
+	}
+	return nil
 }
 
 func (m *managerLoop) rpNamespacedName() string {
@@ -282,16 +297,11 @@ func difference(prev, current []string) []string {
 }
 
 func (m *managerLoop) notifyToSlack(ctx context.Context, po *corev1.Pod, status *runner.Status) error {
-	// FIXME: create this client in StartOrUpdate()
-	c, err := agent.NewClient(fmt.Sprintf("http://%s", m.slackAgentServiceName))
-	if err != nil {
-		return err
-	}
 	slackChannel := status.SlackChannel
 	if slackChannel == "" {
 		slackChannel = m.slackChannel
 	}
-	return c.PostResult(ctx, slackChannel, status.Result, *status.Extend, po.Namespace, po.Name, status.JobInfo)
+	return m.slackAgentClient.PostResult(ctx, slackChannel, status.Result, *status.Extend, po.Namespace, po.Name, status.JobInfo)
 }
 
 func (m *managerLoop) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
