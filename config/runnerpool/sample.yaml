@@ -7,5 +7,3 @@ spec:
   replicas: 3
   slackAgent:
     serviceName: slack-agent
-  template:
-    image: quay.io/cybozu/meows-runner:latest

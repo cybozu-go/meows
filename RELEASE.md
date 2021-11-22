@@ -44,7 +44,8 @@ Bump version
 4. Bump image version.
 
     ```console
-    $ sed -i -E "s/newTag:.*/newTag: ${VERSION}/" config/controller/kustomization.yaml config/agent/kustomization.yaml
+    $ sed -i -E "s/(.*newTag: ).*/\1${VERSION}/" config/controller/kustomization.yaml config/agent/kustomization.yaml
+    $ sed -i -E "s/(.*Version = ).*/\1\"${VERSION}\"/" constants.go
     ```
 
 5. Commit the change and push it.

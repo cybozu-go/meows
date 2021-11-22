@@ -6,12 +6,13 @@ import (
 	"os"
 	"time"
 
+	constants "github.com/cybozu-go/meows"
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-const defaultRunnerImage = "quay.io/cybozu/meows-runner:latest"
+const defaultRunnerImage = "quay.io/cybozu/meows-runner:" + constants.Version
 
 var config struct {
 	zapOpts zap.Options
@@ -47,6 +48,12 @@ var rootCmd = &cobra.Command{
 		if len(config.appPrivateKeyPath) == 0 {
 			return errors.New("app-private-key-path should be specified")
 		}
+
+		// Prevent to show the version string in the help, to keep consistent the output of the command and the documentation.
+		// Please fix this when the documentation is revised.
+		if len(config.runnerImage) == 0 {
+			config.runnerImage = defaultRunnerImage
+		}
 		return run()
 	},
 }
@@ -70,7 +77,7 @@ func init() {
 	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key.")
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
 
-	fs.StringVar(&config.runnerImage, "runner-image", defaultRunnerImage, "The image of runner container")
+	fs.StringVar(&config.runnerImage, "runner-image", "", "The image of runner container")
 	fs.DurationVar(&config.runnerManagerInterval, "runner-manager-interval", time.Minute, "Interval to watch and delete Pods.")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
