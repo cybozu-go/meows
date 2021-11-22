@@ -31,7 +31,6 @@ Flags:
       --logtostderr                        log to standard error instead of files (default true)
       --metrics-bind-address string        The address the metric endpoint binds to. (default ":8080")
   -o, --organization-name string           The GitHub organization name
-  -r, --repository-names strings           The GitHub repository names, separated with comma.
       --runner-image string                The image of runner container (default "quay.io/cybozu/meows-runner:latest")
       --runner-manager-interval duration   Interval to watch and delete Pods. (default 1m0s)
       --skip_headers                       If true, avoid header prefixes in the log messages

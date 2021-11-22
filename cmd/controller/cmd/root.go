@@ -24,7 +24,6 @@ var config struct {
 	appInstallationID int64
 	appPrivateKeyPath string
 	organizationName  string
-	repositoryNames   []string
 
 	runnerImage           string
 	runnerManagerInterval time.Duration
@@ -38,9 +37,6 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(config.organizationName) == 0 {
 			return errors.New("organization-name should be specified")
-		}
-		if len(config.repositoryNames) == 0 {
-			return errors.New("repository-names should not be empty")
 		}
 		if config.appID == 0 {
 			return errors.New("app-id should be specified")
@@ -73,7 +69,6 @@ func init() {
 	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App.")
 	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key.")
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
-	fs.StringSliceVarP(&config.repositoryNames, "repository-names", "r", []string{}, "The GitHub repository names, separated with comma.")
 
 	fs.StringVar(&config.runnerImage, "runner-image", defaultRunnerImage, "The image of runner container")
 	fs.DurationVar(&config.runnerManagerInterval, "runner-manager-interval", time.Minute, "Interval to watch and delete Pods.")

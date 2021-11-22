@@ -76,7 +76,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 			mgr.GetClient(),
 			log,
 			mgr.GetScheme(),
-			repositoryNames,
 			organizationName,
 			defaultRunnerImage,
 			RunnerManager(mockManager),
@@ -514,23 +513,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 		By("checking a manager is stopped")
 		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
-	})
-
-	It("should not create Deployment with an invalid repository name", func() {
-		By("deploying RunnerPool resource")
-		rp := makeRunnerPool(runnerPoolName, namespace, "bad-runnerpool-repo")
-		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
-
-		By("confirming the Deployment is not created")
-		Consistently(func() error {
-			return k8sClient.Get(ctx, types.NamespacedName{Name: deploymentName, Namespace: namespace}, &appsv1.Deployment{})
-		}).ShouldNot(Succeed())
-
-		By("checking a manager is not started")
-		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
-
-		By("deleting the created RunnerPool")
-		deleteRunnerPool(ctx, runnerPoolName, namespace)
 	})
 
 	It("should or not update secret by a secretUpdater", func() {

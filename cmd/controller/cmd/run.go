@@ -83,7 +83,6 @@ func run() error {
 		mgr.GetClient(),
 		log,
 		mgr.GetScheme(),
-		config.repositoryNames,
 		config.organizationName,
 		config.runnerImage,
 		runnerManager,
