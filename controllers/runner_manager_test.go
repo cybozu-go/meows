@@ -173,7 +173,7 @@ var _ = Describe("RunnerManager", func() {
 			By("preparing fake clients")
 			runnerPodClient := runner.NewFakeClient()
 			githubClient := github.NewFakeClient("runnermanager-org")
-			runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+			runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
 
 			By("preparing pods and runners")
 			for _, inputPod := range tt.inputPods {
@@ -198,7 +198,7 @@ var _ = Describe("RunnerManager", func() {
 
 			By("starting runnerpool manager")
 			for _, rp := range tt.inputRunnerPools {
-				runnerManager.StartOrUpdate(rp)
+				runnerManager.StartOrUpdate(ctx, rp)
 			}
 			time.Sleep(10 * time.Second) // Wait for the deadline to recreate the pod.
 
@@ -244,13 +244,13 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
 
 		By("starting runnerpool manager")
 		rp := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp.Spec.Replicas = 5
 		rp.Spec.MaxRunnerPods = 8
-		runnerManager.StartOrUpdate(rp)
+		runnerManager.StartOrUpdate(ctx, rp)
 
 		By("creating pods and runners")
 		inputPods := []struct {
@@ -323,7 +323,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -335,13 +335,13 @@ var _ = Describe("RunnerManager", func() {
 
 		By("checking metrics are not exposed")
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
-		MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		// MetricsShouldNotExist(metricsURL, "meows_runner_online")
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 
 		By("creating rp1")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp1.Spec.Replicas = 1
-		runnerManager.StartOrUpdate(rp1)
+		runnerManager.StartOrUpdate(ctx, rp1)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -354,7 +354,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("updating rp1")
 		rp1.Spec.Replicas = 2
-		runnerManager.StartOrUpdate(rp1)
+		runnerManager.StartOrUpdate(ctx, rp1)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -368,7 +368,7 @@ var _ = Describe("RunnerManager", func() {
 		By("creating rp2")
 		rp2 := makeRunnerPool("rp2", "test-ns2", "repo1")
 		rp2.Spec.Replicas = 1
-		runnerManager.StartOrUpdate(rp2)
+		runnerManager.StartOrUpdate(ctx, rp2)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -405,7 +405,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -417,7 +417,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating a runnerpool")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
-		runnerManager.StartOrUpdate(rp1)
+		runnerManager.StartOrUpdate(ctx, rp1)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -528,7 +528,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -542,9 +542,9 @@ var _ = Describe("RunnerManager", func() {
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp2 := makeRunnerPool("rp2", "test-ns1", "repo1")
 		rp3 := makeRunnerPool("rp3", "test-ns2", "repo2")
-		runnerManager.StartOrUpdate(rp1)
-		runnerManager.StartOrUpdate(rp2)
-		runnerManager.StartOrUpdate(rp3)
+		runnerManager.StartOrUpdate(ctx, rp1)
+		runnerManager.StartOrUpdate(ctx, rp2)
+		runnerManager.StartOrUpdate(ctx, rp3)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -700,7 +700,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, time.Second, k8sClient, githubClient, runnerPodClient)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -712,7 +712,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating a runnerpool")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
-		runnerManager.StartOrUpdate(rp1)
+		runnerManager.StartOrUpdate(ctx, rp1)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -785,7 +785,6 @@ var _ = Describe("RunnerManager", func() {
 		runnerList, _ := githubClient.ListRunners(ctx, "repo1", nil)
 		Expect(runnerList).To(BeEmpty())
 	})
-
 })
 
 func MetricsShouldNotExist(url, name string) {

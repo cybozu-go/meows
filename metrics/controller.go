@@ -7,10 +7,10 @@ import (
 // Controller related metrics
 var (
 	RunnerPoolSecretRetryCount *prometheus.GaugeVec
-
-	runnerPoolReplicas *prometheus.GaugeVec
-	runnerOnlineVec    *prometheus.GaugeVec
-	runnerBusyVec      *prometheus.GaugeVec
+	runnerPoolReplicas         *prometheus.GaugeVec
+	runnerOnlineVec            *prometheus.GaugeVec
+	runnerBusyVec              *prometheus.GaugeVec
+	runnerLabelSet             = map[string]map[string]struct{}{}
 )
 
 func InitControllerMetrics(registry prometheus.Registerer) {
@@ -54,6 +54,8 @@ func InitControllerMetrics(registry prometheus.Registerer) {
 		[]string{"runnerpool", "runner"},
 	)
 
+	runnerLabelSet = map[string]map[string]struct{}{}
+
 	registry.MustRegister(
 		RunnerPoolSecretRetryCount,
 		runnerPoolReplicas,
@@ -71,6 +73,11 @@ func DeleteRunnerPoolMetrics(runnerpool string) {
 }
 
 func UpdateRunnerMetrics(runnerpool, runner string, online, busy bool) {
+	if _, ok := runnerLabelSet[runnerpool]; !ok {
+		runnerLabelSet[runnerpool] = map[string]struct{}{}
+	}
+	runnerLabelSet[runnerpool][runner] = struct{}{}
+
 	var val1 float64
 	if online {
 		val1 = 1.0
@@ -84,7 +91,29 @@ func UpdateRunnerMetrics(runnerpool, runner string, online, busy bool) {
 	runnerBusyVec.WithLabelValues(runnerpool, runner).Set(val2)
 }
 
-func DeleteRunnerMetrics(runnerpool, runner string) {
-	runnerOnlineVec.DeleteLabelValues(runnerpool, runner)
-	runnerBusyVec.DeleteLabelValues(runnerpool, runner)
+func DeleteRunnerMetrics(runnerpool string, runners ...string) {
+	labelSet, ok := runnerLabelSet[runnerpool]
+	if !ok {
+		return
+	}
+	for _, r := range runners {
+		runnerOnlineVec.DeleteLabelValues(runnerpool, r)
+		runnerBusyVec.DeleteLabelValues(runnerpool, r)
+		delete(labelSet, r)
+	}
+	if len(labelSet) == 0 {
+		delete(runnerLabelSet, runnerpool)
+	}
+}
+
+func DeleteAllRunnerMetrics(runnerpool string) {
+	labelSet, ok := runnerLabelSet[runnerpool]
+	if !ok {
+		return
+	}
+	runners := make([]string, 0, len(labelSet))
+	for r := range labelSet {
+		runners = append(runners, r)
+	}
+	DeleteRunnerMetrics(runnerpool, runners...)
 }

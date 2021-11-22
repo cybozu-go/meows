@@ -8,7 +8,6 @@ import (
 
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
-	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/runner"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -32,20 +31,19 @@ type RunnerPoolReconciler struct {
 	organizationName string
 	runnerImage      string
 	runnerManager    RunnerManager
-	secretUpdater    secretUpdater
+	secretUpdater    SecretUpdater
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, organizationName, runnerImage string, runnerManager RunnerManager, githubClient github.Client) *RunnerPoolReconciler {
-	l := log.WithName("RunnerPool")
+func NewRunnerPoolReconciler(log logr.Logger, client client.Client, scheme *runtime.Scheme, organizationName, runnerImage string, runnerManager RunnerManager, secretUpdater SecretUpdater) *RunnerPoolReconciler {
 	return &RunnerPoolReconciler{
 		Client:           client,
-		log:              l,
+		log:              log.WithName("RunnerPool"),
 		scheme:           scheme,
 		organizationName: organizationName,
 		runnerImage:      runnerImage,
 		runnerManager:    runnerManager,
-		secretUpdater:    newSecretUpdater(l, client, githubClient),
+		secretUpdater:    secretUpdater,
 	}
 }
 
@@ -82,7 +80,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, err
 		}
 
-		if err := r.secretUpdater.stop(ctx, rp); err != nil {
+		if err := r.secretUpdater.Stop(ctx, rp); err != nil {
 			log.Error(err, "failed to stop secret updater")
 			return ctrl.Result{}, err
 		}
@@ -102,7 +100,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Error(err, "failed to reconcile secret")
 		return ctrl.Result{}, err
 	}
-	if err := r.secretUpdater.start(ctx, rp); err != nil {
+	if err := r.secretUpdater.Start(ctx, rp); err != nil {
 		log.Error(err, "failed to start secret updater")
 		return ctrl.Result{}, err
 	}
@@ -119,7 +117,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	if err := r.runnerManager.StartOrUpdate(rp); err != nil {
+	if err := r.runnerManager.StartOrUpdate(ctx, rp); err != nil {
 		log.Error(err, "failed to start or update runner manager")
 		return ctrl.Result{}, err
 	}
