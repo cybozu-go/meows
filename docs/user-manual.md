@@ -95,13 +95,12 @@ contains the Slack App tokens you created. The command below creates the `Secret
 resource.
 
 ```bash
-$ RUNNER_NAMESPACE=<Runner Namespace>
 $ SLACK_CHANNEL=#<your Slack Channel>
 $ SLACK_APP_TOKEN=<your Slack App Token>
 $ SLACK_BOT_TOKEN=<your Slack Bot Token>
 
 $ kubectl create secret generic slack-app-secret \
-    -n ${RUNNER_NAMESPACE} \
+    -n meows \
     --from-literal=SLACK_CHANNEL=${SLACK_CHANNEL} \
     --from-literal=SLACK_APP_TOKEN=${SLACK_APP_TOKEN} \
     --from-literal=SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
