@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"time"
 
@@ -30,7 +29,6 @@ type RunnerPoolReconciler struct {
 	client.Client
 	log              logr.Logger
 	scheme           *runtime.Scheme
-	repositoryNames  []string
 	organizationName string
 	runnerImage      string
 	runnerManager    RunnerManager
@@ -38,13 +36,12 @@ type RunnerPoolReconciler struct {
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, repositoryNames []string, organizationName, runnerImage string, runnerManager RunnerManager, githubClient github.Client) *RunnerPoolReconciler {
+func NewRunnerPoolReconciler(client client.Client, log logr.Logger, scheme *runtime.Scheme, organizationName, runnerImage string, runnerManager RunnerManager, githubClient github.Client) *RunnerPoolReconciler {
 	l := log.WithName("RunnerPool")
 	return &RunnerPoolReconciler{
 		Client:           client,
 		log:              l,
 		scheme:           scheme,
-		repositoryNames:  repositoryNames,
 		organizationName: organizationName,
 		runnerImage:      runnerImage,
 		runnerManager:    runnerManager,
@@ -100,11 +97,6 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.validateRepositoryName(rp); err != nil {
-		log.Error(err, "failed to validate repository name")
-		return ctrl.Result{}, err
-	}
-
 	isContinuation, err := r.reconcileSecret(ctx, log, rp)
 	if err != nil {
 		log.Error(err, "failed to reconcile secret")
@@ -147,18 +139,6 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Secret{}).
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
-}
-
-func (r *RunnerPoolReconciler) validateRepositoryName(rp *meowsv1alpha1.RunnerPool) error {
-	if rp.IsOrgLevel() {
-		return nil
-	}
-	for _, n := range r.repositoryNames {
-		if n == rp.Spec.RepositoryName {
-			return nil
-		}
-	}
-	return fmt.Errorf("found the invalid repository name %v. Valid repository names are %v", rp.Spec.RepositoryName, r.repositoryNames)
 }
 
 func labelSet(rp *meowsv1alpha1.RunnerPool, component string) map[string]string {

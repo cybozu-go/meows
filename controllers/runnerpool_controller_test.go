@@ -76,7 +76,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 			mgr.GetClient(),
 			log,
 			mgr.GetScheme(),
-			repositoryNames,
 			organizationName,
 			defaultRunnerImage,
 			RunnerManager(mockManager),
