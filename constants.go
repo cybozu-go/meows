@@ -1,5 +1,10 @@
 package constants
 
+const (
+	// Version is the meows version.
+	Version = "0.4.2"
+)
+
 // Container names
 const (
 	// RunnerContainerName is a container name which runs GitHub Actions runner.

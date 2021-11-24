@@ -6,12 +6,13 @@ import (
 	"os"
 	"time"
 
+	constants "github.com/cybozu-go/meows"
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-const defaultRunnerImage = "quay.io/cybozu/meows-runner:latest"
+const defaultRunnerImage = "quay.io/cybozu/meows-runner:" + constants.Version
 
 var config struct {
 	zapOpts zap.Options
