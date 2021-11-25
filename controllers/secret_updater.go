@@ -21,33 +21,37 @@ import (
 // SecretUpdater creates a registration token for self-hosted runners and updates a secret periodically.
 // It generates one goroutine for each RunnerPool CR.
 type SecretUpdater interface {
-	Start(context.Context, *meowsv1alpha1.RunnerPool) error
+	Start(context.Context, *meowsv1alpha1.RunnerPool, *github.ClientCredential) error
 	Stop(context.Context, *meowsv1alpha1.RunnerPool) error
 }
 
 type secretUpdater struct {
-	log          logr.Logger
-	k8sClient    client.Client
-	githubClient github.Client
-	processes    map[string]*updateProcess
+	log                 logr.Logger
+	k8sClient           client.Client
+	githubClientFactory github.ClientFactory
+	processes           map[string]*updateProcess
 }
 
-func NewSecretUpdater(log logr.Logger, k8sClient client.Client, githubClient github.Client) SecretUpdater {
+func NewSecretUpdater(log logr.Logger, k8sClient client.Client, githubClientFactory github.ClientFactory) SecretUpdater {
 	return &secretUpdater{
-		log:          log.WithName("SecretUpdater"),
-		k8sClient:    k8sClient,
-		githubClient: githubClient,
-		processes:    map[string]*updateProcess{},
+		log:                 log.WithName("SecretUpdater"),
+		k8sClient:           k8sClient,
+		githubClientFactory: githubClientFactory,
+		processes:           map[string]*updateProcess{},
 	}
 }
 
-func (u *secretUpdater) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (u *secretUpdater) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
 	if _, ok := u.processes[rpNamespacedName]; !ok {
+		githubClient, err := u.githubClientFactory.New(ctx, cred)
+		if err != nil {
+			return fmt.Errorf("failed to create a github client; %w", err)
+		}
 		process := newUpdateProcess(
 			u.log.WithValues("runnerpool", rpNamespacedName),
 			u.k8sClient,
-			u.githubClient,
+			githubClient,
 			rp,
 		)
 		process.start(ctx)

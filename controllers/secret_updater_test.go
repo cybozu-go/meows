@@ -37,9 +37,9 @@ var _ = Describe("SecretUpdater", func() {
 			},
 		}
 
-		githubClient := github.NewFakeClient("secretupdater-org")
-		githubClient.ExpiredAtDuration = 100 * time.Hour
-		secretUpdater := NewSecretUpdater(ctrl.Log, k8sClient, githubClient)
+		githubClientFactory := github.NewFakeClientFactory("secretupdater-org")
+		githubClientFactory.SetExpiredAtDuration(100 * time.Hour)
+		secretUpdater := NewSecretUpdater(ctrl.Log, k8sClient, githubClientFactory)
 
 		for _, tc := range testCase {
 			rp := makeRunnerPool(tc.name, "secretupdater-test", "")
@@ -52,7 +52,7 @@ var _ = Describe("SecretUpdater", func() {
 			Expect(k8sClient.Create(ctx, beforeSec)).To(Succeed(), tc.name)
 
 			By("starting secret updater")
-			secretUpdater.Start(ctx, rp)
+			secretUpdater.Start(ctx, rp, nil)
 			time.Sleep(3 * time.Second)
 
 			By("getting secret")
@@ -104,9 +104,9 @@ var _ = Describe("SecretUpdater", func() {
 			},
 		}
 
-		githubClient := github.NewFakeClient("secretupdater-org")
-		githubClient.ExpiredAtDuration = 100 * time.Hour
-		secretUpdater := NewSecretUpdater(ctrl.Log, k8sClient, githubClient)
+		githubClientFactory := github.NewFakeClientFactory("secretupdater-org")
+		githubClientFactory.SetExpiredAtDuration(100 * time.Hour)
+		secretUpdater := NewSecretUpdater(ctrl.Log, k8sClient, githubClientFactory)
 
 		for _, tc := range testCase {
 			rp := makeRunnerPool(tc.name, "secretupdater-test", "")
@@ -120,7 +120,7 @@ var _ = Describe("SecretUpdater", func() {
 			Expect(k8sClient.Create(ctx, beforeSec)).To(Succeed(), tc.name)
 
 			By("starting secret updater")
-			secretUpdater.Start(ctx, rp)
+			secretUpdater.Start(ctx, rp, nil)
 			time.Sleep(3 * time.Second)
 
 			By("getting secret")

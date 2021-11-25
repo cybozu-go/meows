@@ -4,6 +4,7 @@ metadata:
   name: org-runnerpool1
 spec:
   replicas: 1
+  credentialSecretName: github-cred-foo
   maxRunnerPods: 1
   slackAgent:
     serviceName: slack-agent.meows.svc

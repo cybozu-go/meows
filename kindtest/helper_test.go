@@ -77,6 +77,16 @@ func createNamespace(ns string) {
 	}).Should(Succeed())
 }
 
+func createGitHubCredSecret(namespace, name, appID, appInstallationID, privateKeyPath string) {
+	stdout, stderr, err := kubectl("create", "secret", "generic", name,
+		"-n", namespace,
+		"--from-literal=app-id="+appID,
+		"--from-literal=app-installation-id="+appInstallationID,
+		"--from-file=app-private-key="+privateKeyPath,
+	)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+}
+
 func waitDeployment(namespace, name string, replicas int) {
 	EventuallyWithOffset(1, func() error {
 		stdout, stderr, err := kubectl("get", "deployment", name, "-n", namespace, "-o", "json")

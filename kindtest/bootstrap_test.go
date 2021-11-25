@@ -40,14 +40,6 @@ func testBootstrap() {
 			"--from-literal=organization="+orgName,
 		)
 
-		By("creating secret for controller")
-		kubectlSafe("create", "secret", "generic", "github-cred",
-			"-n", controllerNS,
-			"--from-literal=app-id="+githubAppID,
-			"--from-literal=app-installation-id="+githubAppInstallationID,
-			"--from-file=app-private-key="+githubAppPrivateKeyPath,
-		)
-
 		By("applying manifests")
 		stdout, stderr, err := kustomizeBuild("./manifests/controller")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)

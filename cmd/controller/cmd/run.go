@@ -70,30 +70,20 @@ func run() error {
 		setupLog.Error(err, "unable to read target organization")
 		return err
 	}
-	cred, err := getGitHubCredential(ctx, reader, config.controllerNamespace, constants.CredentialSecretName)
-	if err != nil {
-		setupLog.Error(err, "unable to read GitHub Credential")
-		return err
-	}
-
-	githubClient, err := github.NewFactory(orgName).New(ctx, cred)
-	if err != nil {
-		setupLog.Error(err, "unable to create github client")
-		return err
-	}
+	factory := github.NewFactory(orgName)
 
 	log := ctrl.Log.WithName("controllers")
 	runnerManager := controllers.NewRunnerManager(
 		log,
 		mgr.GetClient(),
-		githubClient,
+		factory,
 		runner.NewClient(),
 		config.runnerManagerInterval,
 	)
 	secretUpdater := controllers.NewSecretUpdater(
 		log,
 		mgr.GetClient(),
-		githubClient,
+		factory,
 	)
 	reconciler := controllers.NewRunnerPoolReconciler(
 		log,
@@ -145,51 +135,4 @@ func getTargetOrganization(ctx context.Context, reader client.Reader, namespace,
 		return "", fmt.Errorf("missing %s key", constants.OptionConfigMapDataOrganization)
 	}
 	return org, nil
-}
-
-func getGitHubCredential(ctx context.Context, reader client.Reader, namespace, name string) (*github.ClientCredential, error) {
-	s := new(corev1.Secret)
-	err := reader.Get(ctx, types.NamespacedName{Namespace: config.controllerNamespace, Name: constants.CredentialSecretName}, s)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secret; %w", err)
-	}
-
-	if pat, ok := s.Data[constants.CredentialSecretDataPATToken]; ok {
-		return &github.ClientCredential{
-			PersonalAccessToken: string(pat),
-		}, nil
-	}
-
-	return readAppKeySecret(s)
-}
-
-func readAppKeySecret(s *corev1.Secret) (*github.ClientCredential, error) {
-	appIDstr, ok := s.Data[constants.CredentialSecretDataAppID]
-	if !ok {
-		return nil, fmt.Errorf("missing %s key", constants.CredentialSecretDataAppID)
-	}
-	appID, err := strconv.Atoi(string(appIDstr))
-	if err != nil {
-		return nil, fmt.Errorf("invalid %s value; %w", constants.CredentialSecretDataAppID, err)
-	}
-
-	insIDstr, ok := s.Data[constants.CredentialSecretDataAppInstallationID]
-	if !ok {
-		return nil, fmt.Errorf("missing %s key", constants.CredentialSecretDataAppInstallationID)
-	}
-	insID, err := strconv.Atoi(string(insIDstr))
-	if err != nil {
-		return nil, fmt.Errorf("invalid %s value; %w", constants.CredentialSecretDataAppInstallationID, err)
-	}
-
-	key, ok := s.Data[constants.CredentialSecretDataAppPrivateKey]
-	if !ok {
-		return nil, fmt.Errorf("missing %s key", constants.CredentialSecretDataAppPrivateKey)
-	}
-
-	return &github.ClientCredential{
-		AppID:             int64(appID),
-		AppInstallationID: int64(insID),
-		PrivateKey:        key,
-	}, nil
 }

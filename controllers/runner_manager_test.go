@@ -172,8 +172,8 @@ var _ = Describe("RunnerManager", func() {
 
 			By("preparing fake clients")
 			runnerPodClient := runner.NewFakeClient()
-			githubClient := github.NewFakeClient("runnermanager-org")
-			runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
+			githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+			runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 			By("preparing pods and runners")
 			for _, inputPod := range tt.inputPods {
@@ -194,11 +194,11 @@ var _ = Describe("RunnerManager", func() {
 				}
 				runnerPodClient.SetStatus(created.Status.PodIP, &status)
 			}
-			githubClient.SetRunners(tt.inputRunners)
+			githubClientFactory.SetRunners(tt.inputRunners)
 
 			By("starting runnerpool manager")
 			for _, rp := range tt.inputRunnerPools {
-				runnerManager.StartOrUpdate(ctx, rp)
+				runnerManager.StartOrUpdate(ctx, rp, nil)
 			}
 			time.Sleep(10 * time.Second) // Wait for the deadline to recreate the pod.
 
@@ -217,7 +217,7 @@ var _ = Describe("RunnerManager", func() {
 			By("checking runners")
 			var actualRunnerNames []string
 			for repo := range tt.inputRunners {
-				runnerList, _ := githubClient.ListRunners(ctx, repo, nil)
+				runnerList, _ := githubClientFactory.ListRunners(ctx, repo, nil)
 				for _, runner := range runnerList {
 					actualRunnerNames = append(actualRunnerNames, repo+"/"+runner.Name)
 				}
@@ -229,7 +229,7 @@ var _ = Describe("RunnerManager", func() {
 			for _, rp := range tt.inputRunnerPools {
 				By("stopping runnerpool manager; " + rp.Name)
 				Expect(runnerManager.Stop(ctx, rp)).To(Succeed(), ttName)
-				runnerList, _ := githubClient.ListRunners(ctx, rp.Spec.RepositoryName, []string{rp.Name})
+				runnerList, _ := githubClientFactory.ListRunners(ctx, rp.Spec.RepositoryName, []string{rp.Name})
 				Expect(runnerList).To(BeEmpty(), ttName)
 			}
 
@@ -243,14 +243,14 @@ var _ = Describe("RunnerManager", func() {
 	It("should remove pod-template-hash label from pods", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
+		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting runnerpool manager")
 		rp := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp.Spec.Replicas = 5
 		rp.Spec.MaxRunnerPods = 8
-		runnerManager.StartOrUpdate(ctx, rp)
+		runnerManager.StartOrUpdate(ctx, rp, nil)
 
 		By("creating pods and runners")
 		inputPods := []struct {
@@ -286,7 +286,7 @@ var _ = Describe("RunnerManager", func() {
 			}
 			runnerPodClient.SetStatus(created.Status.PodIP, &status)
 		}
-		githubClient.SetRunners(map[string][]*github.Runner{"repo1": inputRunners})
+		githubClientFactory.SetRunners(map[string][]*github.Runner{"repo1": inputRunners})
 		time.Sleep(2 * time.Second)
 
 		By("checking pods")
@@ -322,8 +322,8 @@ var _ = Describe("RunnerManager", func() {
 	It("should expose metrics about runnerpools", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
+		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -341,7 +341,7 @@ var _ = Describe("RunnerManager", func() {
 		By("creating rp1")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp1.Spec.Replicas = 1
-		runnerManager.StartOrUpdate(ctx, rp1)
+		runnerManager.StartOrUpdate(ctx, rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -354,7 +354,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("updating rp1")
 		rp1.Spec.Replicas = 2
-		runnerManager.StartOrUpdate(ctx, rp1)
+		runnerManager.StartOrUpdate(ctx, rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -368,7 +368,7 @@ var _ = Describe("RunnerManager", func() {
 		By("creating rp2")
 		rp2 := makeRunnerPool("rp2", "test-ns2", "repo1")
 		rp2.Spec.Replicas = 1
-		runnerManager.StartOrUpdate(ctx, rp2)
+		runnerManager.StartOrUpdate(ctx, rp2, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -404,8 +404,8 @@ var _ = Describe("RunnerManager", func() {
 	It("should expose metrics about runners (single runnerpool)", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
+		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -417,7 +417,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating a runnerpool")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
-		runnerManager.StartOrUpdate(ctx, rp1)
+		runnerManager.StartOrUpdate(ctx, rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -446,7 +446,7 @@ var _ = Describe("RunnerManager", func() {
 				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
 			},
 		}
-		githubClient.SetRunners(runenrs)
+		githubClientFactory.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -489,7 +489,7 @@ var _ = Describe("RunnerManager", func() {
 				{Name: "pod3", ID: 3, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}}, // metrics should not exist. "Offline" AND "Runner pod is not exist".
 			},
 		}
-		githubClient.SetRunners(runenrs)
+		githubClientFactory.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -527,8 +527,8 @@ var _ = Describe("RunnerManager", func() {
 	It("should expose metrics about runners (some runnerpools)", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
+		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -542,9 +542,9 @@ var _ = Describe("RunnerManager", func() {
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp2 := makeRunnerPool("rp2", "test-ns1", "repo1")
 		rp3 := makeRunnerPool("rp3", "test-ns2", "repo2")
-		runnerManager.StartOrUpdate(ctx, rp1)
-		runnerManager.StartOrUpdate(ctx, rp2)
-		runnerManager.StartOrUpdate(ctx, rp3)
+		runnerManager.StartOrUpdate(ctx, rp1, nil)
+		runnerManager.StartOrUpdate(ctx, rp2, nil)
+		runnerManager.StartOrUpdate(ctx, rp3, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -575,7 +575,7 @@ var _ = Describe("RunnerManager", func() {
 				{Name: "pod6", ID: 6, Online: true, Busy: true, Labels: []string{}},               // metrics should not exist.
 			},
 		}
-		githubClient.SetRunners(runenrs)
+		githubClientFactory.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -626,7 +626,7 @@ var _ = Describe("RunnerManager", func() {
 				{Name: "pod3", ID: 3, Online: true, Busy: true, Labels: []string{"test-ns1/rp2"}},
 			},
 		}
-		githubClient.SetRunners(runenrs)
+		githubClientFactory.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -699,8 +699,8 @@ var _ = Describe("RunnerManager", func() {
 	It("should delete all runners and metrics", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClient := github.NewFakeClient("runnermanager-org")
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClient, runnerPodClient, time.Second)
+		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -712,7 +712,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating a runnerpool")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
-		runnerManager.StartOrUpdate(ctx, rp1)
+		runnerManager.StartOrUpdate(ctx, rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -741,7 +741,7 @@ var _ = Describe("RunnerManager", func() {
 				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
 			},
 		}
-		githubClient.SetRunners(runenrs)
+		githubClientFactory.SetRunners(runenrs)
 		time.Sleep(3 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runner_online",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -782,7 +782,7 @@ var _ = Describe("RunnerManager", func() {
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 		MetricsShouldNotExist(metricsURL, "meows_runner_online")
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
-		runnerList, _ := githubClient.ListRunners(ctx, "repo1", nil)
+		runnerList, _ := githubClientFactory.ListRunners(ctx, "repo1", nil)
 		Expect(runnerList).To(BeEmpty())
 	})
 })
