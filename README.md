@@ -16,7 +16,7 @@ You can run jobs in your GitHub Actions workflows on your Kubernetes cluster wit
 
 ## Features
 
-- Run a self hosted runner on a pod
+- Run a self-hosted runner on a pod
   - We call the pod `runner pod` :)
   - You can customize the runner pod spec. E.g. labels, annotations, environment variables, volumes, and so on.
 - Run GitHub Actions jobs in the clean environment
