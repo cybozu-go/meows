@@ -1,24 +1,11 @@
-Design notes
-============
+# Design notes
 
-Motivation
-----------
+## Motivation
 
 To run GitHub Actions [self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners)
 faster and stably by making full use of idle machine resources.
 
-Word Definition
----------------
-
-- Workflow: GitHub Actions [workflow](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
-  defined in one YAML file as a unit (e.g. `.github/workflows/main.yaml`).
-- Job: Job is a user-defined sequence of commands defined under `jobs`.
-  A workflow consists of a/some job(s).
-- Runner: Machine or container a GitHub Actions workflow runs on. In this document,
-  you can read the word "runner" as "self-hosted runner".
-
-Goals
------
+### Goals
 
 - Deploy and manage GitHub Actions self-hosted runners on multiple servers easily
   by using Kubernetes.
@@ -29,31 +16,82 @@ Goals
 - Notify users whether jobs are failed or not via Slack and extend the lifetime
   from Slack.
 
-Non-Goals
----------
+### Non-Goals
 
 - Autoscaling
 
-Components
-------------
+## Word Definition
 
-- Runner `Pod`: `Pod` to run GitHub Actions self-hosted runner on.
-- Controller manager
-  - `RunnerPool` reconciler: A controller for the `RunnerPool` custom resource(CR).
-  - Runner manager: A component to manage registered runners and Pods.
-    It sweeps Pods that exceed the deletion time or passed recreate deadline. Also sweeps runners which are offline and do not have a related `Pod`.
-  - Secret Updater: A component to update secret that is a registration token
-    for GitHub Actions to be mounted on the runner `Pod`.
-- Slack agent
-  - Notifier: HTTP Server which accepts requests from runner `Pod`s and notify user
-    whether jobs are failed or not via Slack Webhook.
-  - Extender: WebSocket client which watches Slack button events and extends the
-    lifetime of a `Pod` by requesting the `Pod` with the extended deletion time via [API](runner-pod-api.md#put-deletion_time).
+- Workflow: GitHub Actions [workflow](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions)
+  defined in one YAML file as a unit (e.g. `.github/workflows/main.yaml`).
+- Job: Job is a user-defined sequence of commands defined under `jobs`.
+  A workflow consists of a/some job(s).
+- Runner: Machine or container a GitHub Actions workflow runs on. In this document,
+  you can read the word "runner" as "self-hosted runner".
 
-![Diagram](./images/architecture.png)
+## Architecture & Components
 
-Architecture
-------------
+This section provides a brief description of meows. First, the architecture diagram is as follows.
+
+As you see, the meows uses two kinds of namespaces.
+One is the `meows` namespace, and the other is runner's namespaces.
+(As a matter of convenience, I wrote only one runner's namespace in the diagram.
+But you can use multiple namespaces as needed.)
+The `meows` namespace contains controllers which admin users create.
+The runner's namespace contains RunnerPool resources which users create. And some Kubernetes resources which the meows generates are there.
+
+![architecture diagram](./images/architecture.png)
+
+### Kubernetes Custom Resources
+
+The meows provides one Custom Resource.
+
+#### `RunnerPool`
+
+This is a Kubernetes resource for defining the specification of runner pods.
+According to the definition of this resource, the meows will create runner pods and register runners.
+
+Users can create RunnerPool resources in any namespaces.
+
+### Kubernetes workloads
+
+The meows consists of three types of Kubernetes workloads.
+
+#### `meows-controller`
+
+A deployment that controls runner pods on a Kubernetes cluster and runners registered to GitHub.
+
+It consists of 3 sub-components.
+
+1. RunnerPool Reconciler
+    - A controller for the `RunnerPool` custom resource.
+2. Runner manager
+    - A goroutine to manage pods and runners.
+    - It deletes pods that exceed the deletion time or the recreate deadline.
+    - It deletes runners who are offline and do not have a related runner pod.
+3. Secret Updater
+    - A goroutine to update secret for a registration token of GitHub Actions.
+
+#### `slack-agent`
+
+A deployment for extending the lifetime of runner pods.
+With this, you can use Slack to control the pod extension.
+
+It consists of 2 sub-components.
+
+1. Notifier
+    - An HTTP server.
+    - It accepts requests from the `meows-controller` and sends a message to Slack.
+2. Extender
+    - A Socket Mode client of the Slack.
+    - It watches Slack button events and extends the lifetime of a runner pod by calling the extended deletion time [API](runner-pod-api.md#put-deletion_time) of the pod.
+
+#### Runner pod (Runner deployment)
+
+It is a pod (a deployment) to run GitHub Actions self-hosted runner on.
+On this, the [GitHub Actions Runner](https://github.com/actions/runner) will run under our agent program (`endpoint`) controls.
+
+## Operation
 
 ### How GitHub Actions schedules jobs on self-hosted runner
 
