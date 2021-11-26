@@ -5,9 +5,8 @@
 
 # meows
 
-meows is a Kubernetes controller for GitHub Actions [self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners).
-It enables us to run GitHub Actions workflows on `Pod`s running on you Kubernetes
-clusters.
+`meows` is a Kubernetes controller for GitHub Actions [self-hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners).
+You can run jobs in your GitHub Actions workflows on your Kubernetes cluster with meows.
 
 **Project Status**: Initial development
 
@@ -17,12 +16,19 @@ clusters.
 
 ## Features
 
-- Self-hosted runner pool
-  - Run a time-consuming startup script before a job starts
-- Notification
-  - Users can notice that a job succeeds or not with notification
-- Workflow failure investigation
-  - Users can extend the lifetime of a `Pod` and investigate what causes the failure
+- Run a self hosted runner on a pod
+  - We call the pod `runner pod` :)
+  - You can customize the runner pod spec. E.g. labels, annotations, environment variables, volumes, and so on.
+- Run GitHub Actions jobs in the clean environment
+  - meows only runs one job on a single runner pod.
+    When a job is done, meows will delete the runner pod which the job is assigned to and create the new one.
+    So you can always run a job on a clean runner pod.
+- Pool and control some self-hosted runners
+  - meows prepares multiple runner pods as you specified.
+- Extend the lifetime of a runner pod
+  - Basically, when a job is done, the assigned runner pod will be deleted after a while.
+    But if necessary, you can extend the lifetime of the runner pod. It enables you to do failure investigation of a job.
+  - Now you can only extend if a job is failed.
 
 ## Documentation
 
