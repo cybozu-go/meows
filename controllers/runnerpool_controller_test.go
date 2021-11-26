@@ -32,7 +32,7 @@ func newRunnerManagerMock() *runnerManagerMock {
 	}
 }
 
-func (m *runnerManagerMock) StartOrUpdate(rp *meowsv1alpha1.RunnerPool) error {
+func (m *runnerManagerMock) StartOrUpdate(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	m.started[rpNamespacedName] = true
 	return nil
@@ -70,18 +70,16 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		githubFakeClient = github.NewFakeClient(organizationName)
-		log := ctrl.Log.WithName("controllers")
 
 		r := NewRunnerPoolReconciler(
+			ctrl.Log,
 			mgr.GetClient(),
-			log,
 			mgr.GetScheme(),
 			organizationName,
 			defaultRunnerImage,
 			RunnerManager(mockManager),
-			githubFakeClient,
+			NewSecretUpdater(ctrl.Log, mgr.GetClient(), githubFakeClient),
 		)
-
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
 		mgrCtx, mgrCancel = context.WithCancel(context.Background())
@@ -596,6 +594,5 @@ var _ = Describe("RunnerPool reconciler", func() {
 			By("deleting the created RunnerPool")
 			deleteRunnerPool(ctx, runnerPoolName, namespace)
 		}
-
 	})
 })
