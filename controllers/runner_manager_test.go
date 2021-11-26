@@ -335,7 +335,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("checking metrics are not exposed")
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
-		// MetricsShouldNotExist(metricsURL, "meows_runner_online")
+		MetricsShouldNotExist(metricsURL, "meows_runner_online")
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 
 		By("creating rp1")
