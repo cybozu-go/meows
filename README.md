@@ -29,7 +29,7 @@ You can run jobs in your GitHub Actions workflows on your Kubernetes cluster wit
   - When a job has finished, meows will delete the assigned runner pod after a while.
     But if necessary, you can extend the lifetime of the runner pod.
     For example, it enables you to do a failed investigation of a job.
-  - Currently, you can only extend if a job has failed.
+  - Currently, you can only extend it if a job has failed.
 
 ## Documentation
 
