@@ -18,17 +18,18 @@ You can run jobs in your GitHub Actions workflows on your Kubernetes cluster wit
 
 - Run a self-hosted runner on a pod
   - We call the pod `runner pod` :)
-  - You can customize the runner pod spec. E.g. labels, annotations, environment variables, volumes, and so on.
+  - You can customize the runner pod spec. E.g., labels, annotations, environment variables, volumes, and so on.
 - Run GitHub Actions jobs in the clean environment
   - meows only runs one job on a single runner pod.
-    When a job is done, meows will delete the runner pod which the job is assigned to and create the new one.
+    When a job is done, meows will delete the runner pod to which the job is assigned and create the new one.
     So you can always run a job on a clean runner pod.
 - Pool and control some self-hosted runners
   - meows prepares multiple runner pods as you specified.
-- Extend the lifetime of a runner pod
-  - Basically, when a job is done, the assigned runner pod will be deleted after a while.
-    But if necessary, you can extend the lifetime of the runner pod. It enables you to do failure investigation of a job.
-  - Now you can only extend if a job is failed.
+- Extend the lifetime of runner pods
+  - When a job is done, the assigned runner pod will be deleted after a while.
+    But if necessary, you can extend the lifetime of the runner pod.
+    For example, it enables you to do a failed investigation of a job.
+  - Now, you can only extend if a job is failed.
 
 ## Documentation
 
