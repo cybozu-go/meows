@@ -11,7 +11,7 @@ faster and stably by making full use of idle machine resources.
   by using Kubernetes.
 - Enable runners to finish a time-consuming initialization step before jobs are
   assigned in order not to make users wait longer.
-- Extend lifetime of runners from outside when jobs are failed, to investigate
+- Extend lifetimes of runners from outside when jobs are failed, to investigate
   what causes the failure.
 - Notify users whether jobs are failed or not via Slack and extend the lifetime
   from Slack.
@@ -74,7 +74,7 @@ It consists of 3 sub-components.
 
 #### `slack-agent`
 
-A deployment for extending the lifetime of runner pods.
+A deployment for extending the lifetimes of runner pods.
 With this, you can use Slack to control the pod extension.
 
 It consists of 2 sub-components.
