@@ -27,7 +27,7 @@ You can run jobs in your GitHub Actions workflows on your Kubernetes cluster wit
     It allows you to pool various runners and reduce Actions job clagging.
 - Run GitHub Actions jobs in the clean environment
   - meows only runs one job on a single runner pod.
-    When a job in a runner pod gets finished, meows will delete the runner pod to which the job is assigned and create a new one.
+    When a job in a runner pod gets finished, meows will delete the pod and create a new one.
     So you can always run a job on a clean runner pod.
 - Extend the lifetimes of runner pods
   - When a job has finished, meows will delete the assigned runner pod after a while.
