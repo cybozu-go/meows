@@ -6,7 +6,7 @@ import (
 
 // Controller related metrics
 var (
-	RunnerPoolSecretRetryCount *prometheus.GaugeVec
+	RunnerPoolSecretRetryCount *prometheus.CounterVec
 	runnerPoolReplicas         *prometheus.GaugeVec
 	runnerOnlineVec            *prometheus.GaugeVec
 	runnerBusyVec              *prometheus.GaugeVec
@@ -14,8 +14,8 @@ var (
 )
 
 func InitControllerMetrics(registry prometheus.Registerer) {
-	RunnerPoolSecretRetryCount = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
+	RunnerPoolSecretRetryCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: runnerPoolSubsystem,
 			Name:      "secret_retry_count",

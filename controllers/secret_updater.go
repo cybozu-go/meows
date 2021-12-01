@@ -80,7 +80,7 @@ type updateProcess struct {
 	// Update internally.
 	env               *well.Environment
 	cancel            context.CancelFunc
-	retryCountMetrics prometheus.Gauge
+	retryCountMetrics prometheus.Counter
 	deleteMetrics     func()
 }
 
@@ -125,7 +125,6 @@ func (p *updateProcess) stop(ctx context.Context) error {
 }
 
 func (p *updateProcess) run(ctx context.Context) {
-	p.retryCountMetrics.Set(0)
 	p.log.Info("start a secret updater process")
 	waitTime := 1 * time.Second
 	for {
@@ -151,7 +150,6 @@ func (p *updateProcess) run(ctx context.Context) {
 		if need, updateTime := p.needUpdate(s); !need {
 			p.log.Info("wait until next update time", "updateTime", updateTime.Format(time.RFC3339))
 			waitTime = time.Until(updateTime)
-			p.retryCountMetrics.Set(0)
 			continue
 		}
 
@@ -165,7 +163,6 @@ func (p *updateProcess) run(ctx context.Context) {
 
 		p.log.Info("secret is successfully updated", "expiresAt", expiresAt.Format(time.RFC3339))
 		waitTime = 1 * time.Second
-		p.retryCountMetrics.Set(0)
 	}
 }
 
