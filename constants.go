@@ -101,7 +101,7 @@ const (
 	// PodNameEnvName is a env field key for POD_NAME.
 	PodNameEnvName = "POD_NAME"
 
-	// PodNamespaceEnvName is a env field key for POD_NAME.
+	// PodNamespaceEnvName is a env field key for POD_NAMESPACE.
 	PodNamespaceEnvName = "POD_NAMESPACE"
 
 	// RunnerOrgEnvName is a env field key for RUNNER_ORG.
