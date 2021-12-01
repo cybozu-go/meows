@@ -3,13 +3,11 @@ package controllers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
-	"github.com/cybozu-go/meows/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -20,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type runnerManagerMock struct {
@@ -44,6 +43,44 @@ func (m *runnerManagerMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool
 	return nil
 }
 
+type secretUpdaterMock struct {
+	started   map[string]bool
+	k8sClient client.Client
+}
+
+func newSecretUpdaterMock(c client.Client) *secretUpdaterMock {
+	return &secretUpdaterMock{
+		started:   map[string]bool{},
+		k8sClient: c,
+	}
+}
+
+func (m *secretUpdaterMock) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+	rpNamespacedName := rp.Namespace + "/" + rp.Name
+	m.started[rpNamespacedName] = true
+
+	s := new(corev1.Secret)
+	err := m.k8sClient.Get(ctx, types.NamespacedName{Namespace: rp.Namespace, Name: rp.GetRunnerSecretName()}, s)
+	if err != nil {
+		return err
+	}
+	newS := s.DeepCopy()
+	newS.Annotations = mergeMap(s.Annotations, map[string]string{
+		constants.RunnerSecretExpiresAtAnnotationKey: time.Now().Add(2 * time.Hour).Format(time.RFC3339),
+	})
+	newS.StringData = map[string]string{
+		constants.RunnerTokenFileName: "dummy token",
+	}
+	patch := client.MergeFrom(s)
+	return m.k8sClient.Patch(ctx, newS, patch)
+}
+
+func (m *secretUpdaterMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
+	rpNamespacedName := rp.Namespace + "/" + rp.Name
+	delete(m.started, rpNamespacedName)
+	return nil
+}
+
 var _ = Describe("RunnerPool reconciler", func() {
 	organizationName := "runnerpool-org"
 	repositoryNames := []string{"runnerpool-repo-1", "runnerpool-repo-2"}
@@ -54,8 +91,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 	defaultRunnerImage := "sample:latest"
 	serviceAccountName := "customized-sa"
 	wait := 10 * time.Second
-	mockManager := newRunnerManagerMock()
-	var githubFakeClient *github.FakeClient
+	var mockManager *runnerManagerMock
+	var mockUpdater *secretUpdaterMock
 
 	ctx := context.Background()
 	var mgrCtx context.Context
@@ -69,7 +106,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		githubFakeClient = github.NewFakeClient(organizationName)
+		mockManager = newRunnerManagerMock()
+		mockUpdater = newSecretUpdaterMock(mgr.GetClient())
 
 		r := NewRunnerPoolReconciler(
 			ctrl.Log,
@@ -78,7 +116,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			organizationName,
 			defaultRunnerImage,
 			RunnerManager(mockManager),
-			NewSecretUpdater(ctrl.Log, mgr.GetClient(), githubFakeClient),
+			SecretUpdater(mockUpdater),
 		)
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
@@ -122,11 +160,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("getting the created Secret")
 		s := new(corev1.Secret)
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)).To(Succeed())
-
-		By("confirming the Secret's expires in")
-		expiresAt, err := time.Parse(time.RFC3339, s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey])
-		Expect(err).NotTo(HaveOccurred())
-		Expect(expiresAt).To(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
 
 		By("checking that a runner pool is the owner of a secret")
 		Expect(s.OwnerReferences).To(HaveLen(1))
@@ -255,12 +288,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 		By("checking a manager is started")
 		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
+		Expect(mockUpdater.started).To(HaveKey(namespace + "/" + runnerPoolName))
 
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
 		By("checking a manager is stopped")
 		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
+		Expect(mockUpdater.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 	})
 
 	It("should create Deployment from maximum RunnerPool", func() {
@@ -337,11 +372,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("getting the created Secret")
 		s := new(corev1.Secret)
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)).To(Succeed())
-
-		By("confirming the Secret's expires in")
-		expiresAt, err := time.Parse(time.RFC3339, s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey])
-		Expect(err).NotTo(HaveOccurred())
-		Expect(expiresAt).To(BeTemporally("~", time.Now().Add(1*time.Hour), 5*time.Minute))
 
 		By("checking that a runner pool is the owner of a secret")
 		Expect(s.OwnerReferences).To(HaveLen(1))
@@ -505,94 +535,13 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 		By("checking a manager is started")
 		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
+		Expect(mockUpdater.started).To(HaveKey(namespace + "/" + runnerPoolName))
 
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
 		By("checking a manager is stopped")
 		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
-	})
-
-	It("should or not update secret by a secretUpdater", func() {
-		testCase := []struct {
-			expiresAtDuration time.Duration
-			shouldUpdate      bool
-		}{
-			{
-				-10 * time.Minute,
-				true,
-			},
-			{
-				0 * time.Minute,
-				true,
-			},
-			{
-				5 * time.Minute,
-				true,
-			},
-			{
-				20 * time.Minute,
-				false,
-			},
-			{
-				1 * time.Hour,
-				false,
-			},
-		}
-		for _, tc := range testCase {
-			By("set expiresAt for githubFakeClient from test case")
-			githubFakeClient.ExpiredAtDuration = tc.expiresAtDuration
-
-			By("deploying RunnerPool resource")
-			rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[0])
-			Expect(k8sClient.Create(ctx, rp)).To(Succeed())
-
-			By("wating the RunnerPool become Bound")
-			Eventually(func() error {
-				rp := new(meowsv1alpha1.RunnerPool)
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
-					return err
-				}
-				if !rp.Status.Bound {
-					return errors.New(`status "bound" should be true`)
-				}
-				return nil
-			}).Should(Succeed())
-			time.Sleep(wait) // Wait for the reconciliation to run a few times. Please check the controller's log.
-
-			By("getting the created Secret")
-			fmt.Printf("testcase is {expiresAtDuration: %s, should update: %v}\n", tc.expiresAtDuration.String(), tc.shouldUpdate)
-			s := new(corev1.Secret)
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)).To(Succeed())
-			baseTime := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
-
-			By("set expiresAt to the correct value")
-			githubFakeClient.ExpiredAtDuration = 1 * time.Hour
-
-			time.Sleep(10 * time.Second)
-
-			if tc.shouldUpdate {
-				By("checking to update secret")
-				s = new(corev1.Secret)
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)
-				Expect(err).NotTo(HaveOccurred())
-				tmStr := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
-				tm, err := time.Parse(time.RFC3339, tmStr)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(tmStr).NotTo(Equal(baseTime))
-				expectedExpiresAt := time.Now().Add(1 * time.Hour)
-				Expect(tm).To(BeTemporally("~", expectedExpiresAt, 20*time.Second))
-			} else {
-				By("checking to not update secret")
-				s = new(corev1.Secret)
-				err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s)
-				Expect(err).NotTo(HaveOccurred())
-				tmStr := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
-				Expect(tmStr).To(Equal(baseTime))
-			}
-
-			By("deleting the created RunnerPool")
-			deleteRunnerPool(ctx, runnerPoolName, namespace)
-		}
+		Expect(mockUpdater.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 	})
 })
