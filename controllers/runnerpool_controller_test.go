@@ -44,14 +44,14 @@ func (m *runnerManagerMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool
 }
 
 type secretUpdaterMock struct {
-	started   map[string]bool
 	k8sClient client.Client
+	started   map[string]bool
 }
 
 func newSecretUpdaterMock(c client.Client) *secretUpdaterMock {
 	return &secretUpdaterMock{
-		started:   map[string]bool{},
 		k8sClient: c,
+		started:   map[string]bool{},
 	}
 }
 
@@ -286,14 +286,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"Name": Equal(runnerPoolName),
 		}))
 
-		By("checking a manager is started")
+		By("checking sub-processes are started")
 		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
 		Expect(mockUpdater.started).To(HaveKey(namespace + "/" + runnerPoolName))
 
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
-		By("checking a manager is stopped")
+		By("checking sub-processes are stopped")
 		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 		Expect(mockUpdater.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 	})
@@ -533,14 +533,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"Name": Equal(runnerPoolName),
 		}))
 
-		By("checking a manager is started")
+		By("checking sub-processes are started")
 		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
 		Expect(mockUpdater.started).To(HaveKey(namespace + "/" + runnerPoolName))
 
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
-		By("checking a manager is stopped")
+		By("checking sub-processes are stopped")
 		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 		Expect(mockUpdater.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 	})
