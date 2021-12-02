@@ -126,7 +126,7 @@ func (p *updateProcess) stop(ctx context.Context) error {
 
 func (p *updateProcess) run(ctx context.Context) {
 	p.log.Info("start a secret updater process")
-	waitTime := 1 * time.Second
+	waitTime := time.Second
 	for {
 		select {
 		case <-ctx.Done():
@@ -138,12 +138,12 @@ func (p *updateProcess) run(ctx context.Context) {
 		s, err := p.getSecret(ctx)
 		if apierrors.IsNotFound(err) {
 			p.log.Error(err, "secret is not found")
-			waitTime = 1 * time.Second
+			waitTime = time.Second
 			continue
 		} else if err != nil {
-			p.log.Error(err, "failed to get secret, retry after 5 minutes")
+			p.log.Error(err, "failed to get secret, retry after 1 minutes")
 			p.retryCountMetrics.Inc()
-			waitTime = 5 * time.Minute
+			waitTime = time.Minute
 			continue
 		}
 
@@ -155,14 +155,14 @@ func (p *updateProcess) run(ctx context.Context) {
 
 		expiresAt, err := p.updateSecret(ctx, s)
 		if err != nil {
-			p.log.Error(err, "failed to update secret, retry after 5 minutes")
+			p.log.Error(err, "failed to update secret, retry after 1 minutes")
 			p.retryCountMetrics.Inc()
-			waitTime = 5 * time.Minute
+			waitTime = time.Minute
 			continue
 		}
 
 		p.log.Info("secret is successfully updated", "expiresAt", expiresAt.Format(time.RFC3339))
-		waitTime = 1 * time.Second
+		waitTime = time.Second
 	}
 }
 
