@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -78,7 +80,7 @@ type updateProcess struct {
 	// Update internally.
 	env               *well.Environment
 	cancel            context.CancelFunc
-	retryCountMetrics prometheus.Gauge
+	retryCountMetrics prometheus.Counter
 	deleteMetrics     func()
 }
 
@@ -123,90 +125,45 @@ func (p *updateProcess) stop(ctx context.Context) error {
 }
 
 func (p *updateProcess) run(ctx context.Context) {
-	p.retryCountMetrics.Set(0)
-	p.log.Info("wait for an empty secret to be created by reconcile")
-	for {
-		_, err := p.getSecret(ctx)
-		if err == nil {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			p.log.Info("stop a secret updater process")
-			return
-		case <-time.After(1 * time.Second):
-		}
-	}
-
 	p.log.Info("start a secret updater process")
-	updateTime := 1 * time.Second
+	waitTime := time.Second
 	for {
 		select {
 		case <-ctx.Done():
 			p.log.Info("stop a secret updater process")
 			return
-		case <-time.After(updateTime):
-			err := p.updateSecret(ctx)
-			if err != nil {
-				p.log.Error(err, "failed to update secret, retry after 5 minutes")
-				p.retryCountMetrics.Inc()
-				updateTime = 5 * time.Minute
-				continue
-			}
+		case <-time.After(waitTime):
 		}
-		expiresAt, err := p.getExpiresAt(ctx)
-		if err != nil {
-			p.log.Error(err, "failed to get expires-at, retry after 5 minutes")
+
+		s, err := p.getSecret(ctx)
+		if apierrors.IsNotFound(err) {
+			p.log.Error(err, "secret is not found")
+			waitTime = time.Second
+			continue
+		} else if err != nil {
+			p.log.Error(err, "failed to get secret, retry after 1 minutes")
 			p.retryCountMetrics.Inc()
-			updateTime = 5 * time.Minute
+			waitTime = time.Minute
 			continue
 		}
-		updateTime = time.Until(expiresAt.Add(-5 * time.Minute))
-		p.log.Info("decide when to update next", "expiresAt", expiresAt.String(), "updateTime", updateTime.String())
-		p.retryCountMetrics.Set(0)
-	}
-}
 
-func (p *updateProcess) updateSecret(ctx context.Context) error {
-	s, err := p.getSecret(ctx)
-	if err != nil {
-		return err
-	}
+		if need, updateTime := p.needUpdate(s); !need {
+			p.log.Info("wait until next update time", "updateTime", updateTime.Format(time.RFC3339))
+			waitTime = time.Until(updateTime)
+			continue
+		}
 
-	runnerToken, err := p.githubClient.CreateRegistrationToken(ctx, p.repositoryName)
-	if err != nil {
-		p.log.Error(err, "failed to create actions registration token", "repository", p.repositoryName)
-		return err
-	}
+		expiresAt, err := p.updateSecret(ctx, s)
+		if err != nil {
+			p.log.Error(err, "failed to update secret, retry after 1 minutes")
+			p.retryCountMetrics.Inc()
+			waitTime = time.Minute
+			continue
+		}
 
-	newS := s.DeepCopy()
-	newS.Annotations = mergeMap(s.Annotations, map[string]string{
-		constants.RunnerSecretExpiresAtAnnotationKey: runnerToken.GetExpiresAt().Format(time.RFC3339),
-	})
-	newS.StringData = map[string]string{
-		constants.RunnerTokenFileName: runnerToken.GetToken(),
+		p.log.Info("secret is successfully updated", "expiresAt", expiresAt.Format(time.RFC3339))
+		waitTime = time.Second
 	}
-	patch := client.MergeFrom(s)
-
-	err = p.k8sClient.Patch(ctx, newS, patch)
-	if err != nil {
-		p.log.Error(err, "failed to patch secret")
-		return err
-	}
-	return nil
-}
-
-func (p *updateProcess) getExpiresAt(ctx context.Context) (time.Time, error) {
-	s, err := p.getSecret(ctx)
-	if err != nil {
-		return time.Time{}, err
-	}
-	expiresAtStr, ok := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
-	if !ok {
-		p.log.Info("not annotated expires-at")
-		return time.Now(), nil
-	}
-	return time.Parse(time.RFC3339, expiresAtStr)
 }
 
 func (p *updateProcess) getSecret(ctx context.Context) (*corev1.Secret, error) {
@@ -216,4 +173,47 @@ func (p *updateProcess) getSecret(ctx context.Context) (*corev1.Secret, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+func (p *updateProcess) needUpdate(s *corev1.Secret) (bool, time.Time) {
+	expiresAtStr, ok := s.Annotations[constants.RunnerSecretExpiresAtAnnotationKey]
+	if !ok {
+		p.log.Error(nil, "not annotated expires-at")
+		return true, time.Time{}
+	}
+	expiresAt, err := time.Parse(time.RFC3339, expiresAtStr)
+	if err != nil {
+		p.log.Error(err, "invalid value expires-at")
+		return true, time.Time{}
+	}
+	updateTime := expiresAt.Add(-5 * time.Minute)
+
+	if time.Now().After(updateTime) {
+		return true, time.Time{}
+	}
+
+	return false, updateTime
+}
+
+func (p *updateProcess) updateSecret(ctx context.Context, s *corev1.Secret) (time.Time, error) {
+	runnerToken, err := p.githubClient.CreateRegistrationToken(ctx, p.repositoryName)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to create actions registration token; %w", err)
+	}
+	expiresAt := runnerToken.GetExpiresAt().Time
+
+	newS := s.DeepCopy()
+	newS.Annotations = mergeMap(s.Annotations, map[string]string{
+		constants.RunnerSecretExpiresAtAnnotationKey: expiresAt.Format(time.RFC3339),
+	})
+	newS.StringData = map[string]string{
+		constants.RunnerTokenFileName: runnerToken.GetToken(),
+	}
+	patch := client.MergeFrom(s)
+
+	err = p.k8sClient.Patch(ctx, newS, patch)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to patch secret; %w", err)
+	}
+	return expiresAt, nil
 }
