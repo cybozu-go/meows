@@ -16,9 +16,6 @@ Usage:
 Flags:
       --add_dir_header                     If true, adds the file directory to the header
       --alsologtostderr                    log to standard error as well as files
-      --app-id int                         The ID for GitHub App.
-      --app-installation-id int            The installation ID for GitHub App.
-      --app-private-key-path string        The path for GitHub App private key.
       --health-probe-bind-address string   The address the probe endpoint binds to. (default ":8081")
   -h, --help                               help for controller
       --log_backtrace_at traceLocation     when logging hits line file:N, emit a stack trace (default :0)
@@ -30,7 +27,6 @@ Flags:
       --loglevel string                    Log level [critical,error,warning,info,debug]
       --logtostderr                        log to standard error instead of files (default true)
       --metrics-bind-address string        The address the metric endpoint binds to. (default ":8080")
-  -o, --organization-name string           The GitHub organization name
       --runner-image string                The image of runner container
       --runner-manager-interval duration   Interval to watch and delete Pods. (default 1m0s)
       --skip_headers                       If true, avoid header prefixes in the log messages

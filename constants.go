@@ -75,6 +75,29 @@ const (
 	ListenerExitStateUndefined      = "undefined"
 )
 
+// Constants for controller option configmap.
+const (
+	// OptionConfigMapName is a configmap name for the controller option.
+	OptionConfigMapName = "meows-cm"
+
+	// Data keys for controller option.
+	OptionConfigMapDataOrganization = "organization"
+)
+
+// Constants for GitHub credential secret.
+const (
+	// CredentialSecretName is a secret name for GitHub credential secret.
+	CredentialSecretName = "github-cred"
+
+	// Data keys for GitHub App's credential.
+	CredentialSecretDataAppID             = "app-id"
+	CredentialSecretDataAppInstallationID = "app-installation-id"
+	CredentialSecretDataAppPrivateKey     = "app-private-key"
+
+	// Data keys for GitHub personal access token (PAT).
+	CredentialSecretDataPATToken = "token"
+)
+
 // Directory path for runner pods.
 const (
 	// RunnerRootDirPath is a directory path where GitHub Actions Runner will be installed.
