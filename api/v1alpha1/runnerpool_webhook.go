@@ -16,7 +16,7 @@ func (r *RunnerPool) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups=meows.cybozu.com,resources=runnerpools,verbs=create,versions=v1alpha1,name=runnerpool-hook.meows.cybozu.com,path=/mutate-meows-cybozu-com-v1alpha1-runnerpool,mutating=true,sideEffects=none,admissionReviewVersions={v1alpha1,v1,v1beta1}
+// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups=meows.cybozu.com,resources=runnerpools,verbs=create,versions=v1alpha1,name=runnerpool-hook.meows.cybozu.com,path=/mutate-meows-cybozu-com-v1alpha1-runnerpool,mutating=true,sideEffects=none,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &RunnerPool{}
 
@@ -25,7 +25,7 @@ func (r *RunnerPool) Default() {
 	controllerutil.AddFinalizer(r, constants.RunnerPoolFinalizer)
 }
 
-// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups=meows.cybozu.com,resources=runnerpools,verbs=create;update,versions=v1alpha1,name=runnerpool-hook.meows.cybozu.com,path=/validate-meows-cybozu-com-v1alpha1-runnerpool,mutating=false,sideEffects=none,admissionReviewVersions={v1alpha1,v1,v1beta1}
+// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups=meows.cybozu.com,resources=runnerpools,verbs=create;update,versions=v1alpha1,name=runnerpool-hook.meows.cybozu.com,path=/validate-meows-cybozu-com-v1alpha1-runnerpool,mutating=false,sideEffects=none,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RunnerPool{}
 

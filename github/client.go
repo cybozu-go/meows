@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/v33/github"
+	"github.com/google/go-github/v41/github"
 )
 
 const statusOnline = "online"

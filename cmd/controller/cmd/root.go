@@ -8,7 +8,7 @@ import (
 
 	constants "github.com/cybozu-go/meows"
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
