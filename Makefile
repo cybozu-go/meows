@@ -1,4 +1,4 @@
-CONTROLLER_GEN_VERSION := 0.4.1
+CONTROLLER_GEN_VERSION := 0.7.0
 ENVTEST_K8S_VERSION := 1.22.1
 
 PROJECT_DIR := $(CURDIR)
@@ -46,7 +46,7 @@ clean: ## Clean files
 manifests:
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) crd paths="./..." output:crd:artifacts:config=config/crd/bases
 	$(CONTROLLER_GEN) webhook paths="./..." output:stdout > config/controller/webhook.yaml
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role paths="./..." output:rbac:artifacts:config=config/controller
+	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./..." output:rbac:artifacts:config=config/controller
 
 .PHONY: generate
 generate:
