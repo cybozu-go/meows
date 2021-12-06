@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2021-12-06
+
+### Added
+
+- Support Kubernetes 1.22 (#123)
+
+### Changed
+
+- Remove --repository-names option from meows-controller (#113)
+- Stop creating the latest tag images (#114)
+- Build with go 1.17 (#122)
+
 ## [0.4.2] - 2021-11-18
 
 ### Fixed
@@ -20,6 +32,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [0.4.0] - 2021-11-01
 
 ### Added
+
 - Support k8s 1.21 (#76)
 - Add WorkVolume field to RunnerPodTemplateSec (#82)
 - Add MaxRunnerPods field to RunnerPoolSpec (#83, #98)
@@ -68,7 +81,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/cybozu-go/meows/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/cybozu-go/meows/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/cybozu-go/meows/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cybozu-go/meows/compare/v0.3.1...v0.4.0
