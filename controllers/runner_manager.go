@@ -124,7 +124,7 @@ type manageProcess struct {
 
 func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, interval time.Duration, rp *meowsv1alpha1.RunnerPool) (*manageProcess, error) {
 	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
-	agentClient, err := agent.NewClient("http://" + rp.Spec.SlackAgent.ServiceName)
+	agentClient, err := agent.NewClient(rp.Spec.SlackAgent.ServiceName)
 	if err != nil {
 		return nil, err
 	}

@@ -73,25 +73,33 @@ type Client struct {
 
 // NewClient creates Client.
 func NewClient(serverURL string) (*Client, error) {
-	u, err := url.Parse(serverURL)
-	if err != nil {
-		return nil, err
-	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// The communication with slack-agent does not use Proxy because it is an In-Cluster communication.
 	transport.Proxy = nil
-	return &Client{
-		serverURL: u,
+	c := &Client{
 		client: &http.Client{
 			Transport: transport,
 		},
-	}, nil
+	}
+	err := c.UpdateServerURL(serverURL)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 func (c *Client) UpdateServerURL(serverURL string) error {
 	u, err := url.Parse(serverURL)
 	if err != nil {
 		return err
+	}
+	if u.Scheme == "" {
+		// When the `Scheme` is blank, the result of the `Parse` is incorrect.
+		// So retry to parse by adding the `http` scheme.
+		u, err = url.Parse("http://" + serverURL)
+		if err != nil {
+			return err
+		}
 	}
 	c.serverURL = u
 	return nil
