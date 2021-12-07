@@ -1,20 +1,224 @@
-User Manual
-===========
+# User Manual
 
-How to create GitHub App
-------------------------
+## Installation
 
-meows is responsible for the registering/deregistering `Pod`s
-to/from a GitHub Actions runner and the controller requires to have a GitHub App
-secret.
+### Preparation
 
-Please create a GitHub App first on the GitHub page following [the official documentation](https://docs.github.com/en/developers/apps/creating-a-github-app).
+meows depends on the [cert-manager](https://cert-manager.io/docs/). If you are not installing the cert-manager on your Kubernetes cluster, install it as follows:
+
+```bash
+$ curl -fsLO https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+$ kubectl apply -f cert-manager.yaml
+```
+
+You need to manually create some secrets and a configmap in the `meows` namespace at the initial deployment.
+So make the `meows` namespace to prepare.
+
+```bash
+$ kubectl create namespace meows
+```
+
+### Creating GitHub Credential Secret
+
+meows supports two ways of GitHub authentication:
+
+1. GitHub App
+2. Personal Access Token (PAT)
+
+If you want to use a GitHub App, create a GitHub App and download a private key file following [Creating GitHub App](#creating-github-app) section.
+And create a secret as follows:
+
+```bash
+$ GITHUB_APP_ID=<your GitHub App ID>
+$ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
+$ GITHUB_APP_PRIVATE_KEY_PATH=<Path to GitHub App private key file>
+
+$ kubectl create secret generic github-cred -n meows \
+    --from-literal=app-id=${GITHUB_APP_ID} \
+    --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
+    --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
+```
+
+If you want to use a Personal Access Token (PAT), create a PAT following [the official documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token).
+Then you need to set the `repo` scope to the token.
+
+And create a secret as follows:
+
+```bash
+$ GITHUB_TOKEN=<your PAT>
+
+$ kubectl create secret generic github-cred -n meows \
+    --from-literal=token=${GITHUB_TOKEN}
+```
+
+### Deploying Controller
+
+Currently, meows can manage one organization.
+So set the target organization by `meows-cm` ConfigMap.
+
+```bash
+$ GITHUB_ORG=<your Organization>
+$ kubectl create configmap meows-cm -n meows \
+    --from-literal=organization=${GITHUB_ORG}
+```
+
+After that deploy the controller.
+
+```bash
+$ MEOWS_VERSION=v0.5.0
+$ kubectl apply -k github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION}
+```
+
+### Deploying Slack Agent
+
+Next, deploy the slack agent.
+The agent requires Slack App tokens, so create a Slack App following [Creating Slack App](#creating-slack-app) section.
+And create a secret as follows:
+
+```bash
+$ SLACK_CHANNEL="#<your Slack Channel>"
+$ SLACK_APP_TOKEN=<your Slack App Token>
+$ SLACK_BOT_TOKEN=<your Slack Bot Token>
+
+$ kubectl create secret generic slack-app-secret -n meows \
+    --from-literal=SLACK_CHANNEL=${SLACK_CHANNEL} \
+    --from-literal=SLACK_APP_TOKEN=${SLACK_APP_TOKEN} \
+    --from-literal=SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+```
+
+After that deploy the agent.
+
+```bash
+$ MEOWS_VERSION=v0.5.0
+$ kubectl apply -k github.com/cybozu-go/meows/config/agent?ref=${MEOWS_VERSION}
+```
+
+## Creating RunnerPool
+
+After deploying the controller, let's create `RunnerPool` resources to register self-hosted runners.
+
+Here is an example of the RunnerPool resource.
+
+```yaml
+apiVersion: meows.cybozu.com/v1alpha1
+kind: RunnerPool
+metadata:
+  name: runnerpool-sample
+  namespace: <your RunnerPool namespace>
+spec:
+  repositoryName: "<your Repository>"
+  replicas: 3
+  slackAgent:
+    serviceName: slack-agent.meows.svc
+```
+
+When you create the above RunnerPool, meows creates three runner pods (the number is specified by `.spec.replicas`) in `<your RunnerPool namespace>`.
+Then, meows registers each runner pod as a repository-level runner in the specified repository(`.spec.repositoryName`).
+
+After running pods, you can check whether the runners are registered to GitHub on the **Actions** page under each repository's **Settings**.
+E.g. `https://github.com/<your Organization>/<your Repository>/settings/actions/runners`
+
+## Writing Workflow
+
+There are a few tips using runners registered by meows.
+
+1. Runners have a specific label determined from the name and namespace of the RunnerPool.
+   - The format is `<your RunnerPool Namespace>/<your RunnerPool Name>`.
+2. Some commands should be called in jobs.
+   - At the beginning of a job, call `job-started`.
+   - At the ending of a job, call `job-success`, `job-cancelled` and `job-failure` with `steps.if` conditions.
+
+Here is an example of a workflow definition.
+
+```yaml
+name: workflow example
+on: push
+
+jobs:
+  example:
+    name: example
+    runs-on: ["self-hosted", "<your RunnerPool Namespace>/<your RunnerPool Name>"] # Specify `self-hosted` and the RunnerPool-specific label.
+    steps:
+      - run: job-started # Call `job-started` at the beginning of a job.
+
+      - run: ...
+      - run: ...
+      - run: ...
+
+      - if: success() # Call `job-{success, cancelled, failure}` at ending of a job.
+        run: job-success
+      - if: cancelled()
+        run: job-cancelled
+      - if: failure()
+        run: job-failure
+```
+
+## Slack notifications
+
+By default, meows sends the job result to the slack channel specified by the `slack-app-secret` secret.
+However, you can change the slack channel in several methods.
+Each method accepts a channel name in the `#<channel_name>` format. (e.g. `#general`, `#test1`)
+
+1. Call `meows slackagent set-channel "#channel"` command in a workflow.
+2. `MEOWS_SLACK_CHANNEL` environment variable in a job.
+3. `.spec.slackAgent.channel` field in a `RunnerPool` resource. See [SlackAgentConfig](crd-runner-pool.md#SlackAgentConfig).
+4. `SLACK_CHANNEL` value in the `slack-app-secret` secret. See [Deploying Slack Agent](#deploying-slack-agent).
+
+When you specify some channels using some methods, the smaller number is a priority.
+If you don't set any channel in any method, meows does not send a message.
+
+For example, you can specify the channel in a workflow as follows.
+
+```yaml
+name: slack notification example
+on: push
+
+jobs:
+  example:
+    name: example
+    env:
+      # Basically, a job result will be reported to the "#test1" channel.
+      MEOWS_SLACK_CHANNEL: "#test1"
+    steps:
+      - run: job-started
+
+      # Only when a job fails, the result will be reported to the "#test2" channel.
+      - if: failure()
+        run: meows slackagent set-channel "#test2"
+
+      - run: ...
+      - run: ...
+      - run: ...
+
+      - if: success()
+        run: job-success
+      - if: cancelled()
+        run: job-cancelled
+      - if: failure()
+        run: job-failure
+```
+
+## Runner pods extension
+
+When a job fails, meows sends the following Slack message.
+
+![failure message](./images/slack_failure.png)
+
+If you want to extend the pod, choose the time in UTC and click the `Extend` button.
+You can click the button multiple times if the pod still exists.
+
+## Appendix
+
+### Creating GitHub App
+
+If you want to use a GitHub App, please create a GitHub App following [the official documentation](https://docs.github.com/en/developers/apps/creating-a-github-app).
+
 Here are the minimal changes from the default setting on the registration page:
 
 - Fill **GitHub Apps Name**
 - Fill **Homepage URL**
 - Uncheck `Active` under **Webhook** section
-- Set **Administration** `Read & Write` permission to the repository scope, if you want to use an repository-level runner.
+- Set **Administration** `Read & Write` permission to the repository scope, if you want to use a repository-level runner.
 - Set **Self-hosted runners** `Read & Write` permission to the organization scope, if you want to use an organization-level runner.
 
 Then, you are redirected to the **General** page and what you should do is:
@@ -32,198 +236,28 @@ Finally, you should get the installation ID from the URL of the page to which yo
 redirected. The URL should look like `https://github.com/organizations/cybozu-go/settings/installations/12345`
 and `12345` is your installation ID.
 
-How to deploy meows
----------------------------------------
+### Creating Slack App
 
-You should deploy the controller `Deployment` with a `Secret` resource which
-contains the GitHub App private key you created. The command below creates the
-`Secret` resource.
-
-```bash
-$ GITHUB_APP_ID=<your GitHub App ID>
-$ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
-$ GITHUB_APP_PRIVATE_KEY_PATH=<Path of a GitHub App private key file>
-
-$ kubectl create secret generic github-app-secret \
-    -n meows \
-    --from-literal=app-id=${GITHUB_APP_ID} \
-    --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
-    --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
-```
-
-In addition to this, the admission webhook requires a TLS certificate.
-You should use [`github.com/jetstack/cert-manager`](https://github.com/jetstack/cert-manager)
-or create a certificate by yourself.
-
-This document does not give you a comprehensive list of what you should deploy.
-Please refer to the manifests under `config/` for further information.
-
-How to create Slack App
------------------------
-
-Slack agent notifies users whether CI succeeds or not and receives messages to
-extend a `Pod` lifetime.
-So, users have to prepare a Slack App to send messages to and run a WebSocket client
-to watch button events.
+The Slack agent notifies users whether CI succeeds or not and receives messages to extend a runner pod lifetime.
+So, users have to prepare a Slack App to send messages to and run a WebSocket client to watch button events.
 
 Here's a procedure for how to configure the Slack App.
 
 1. Go to [this](https://api.slack.com/apps) page.
-1. Click the **Create New App** button.
+2. Click the **Create New App** button.
    - Choose **From scratch**.
    - Fill the application name field and choose a Slack workspace.
-1. Go to **Socket Mode** from the sidebar.
+3. Go to **Socket Mode** from the sidebar.
    - Enable **Enable Socket Mode**.
    - Create App-Level Token on the windows coming up and keep the generated App Token.
-1. Go to **OAuth & Permissions** from the sidebar.
+4. Go to **OAuth & Permissions** from the sidebar.
    - Add the `chat:write` permission under **Bot Token Scopes**.
-1. Go to **Basic Information** from the sidebar.
+5. Go to **Basic Information** from the sidebar.
    - Make sure **Bots** is enabled in `Add features and functionality`
    - Click **Install(Reinstall) to Workspace** in `Install your app` and (re)install the bot in your desired channel.
-1. Go to **OAuth & Permissions** from the sidebar again.
+6. Go to **OAuth & Permissions** from the sidebar again.
    - Keep **Bot User OAuth Token**.
-1. Open your Slack desktop app and go to your desired channel.
+7. Open your Slack desktop app and go to your desired channel.
    - Click the `i` button on the top right corner.
    - Click **more** and then **Add apps**.
    - Add the created Slack App to the channel.
-
-How to deploy Slack agent
--------------------------
-
-You should deploy the Slack agent `Deployment` with a `Secret` resource which
-contains the Slack App tokens you created. The command below creates the `Secret`
-resource.
-
-```bash
-$ SLACK_CHANNEL=#<your Slack Channel>
-$ SLACK_APP_TOKEN=<your Slack App Token>
-$ SLACK_BOT_TOKEN=<your Slack Bot Token>
-
-$ kubectl create secret generic slack-app-secret \
-    -n meows \
-    --from-literal=SLACK_CHANNEL=${SLACK_CHANNEL} \
-    --from-literal=SLACK_APP_TOKEN=${SLACK_APP_TOKEN} \
-    --from-literal=SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-```
-
-Please refer to the manifest `config/agent/manifests.yaml` for detail.
-
-RunnerPool Custom Resource Example
-----------------------------------
-
-This is an example of the `RunnerPool` custom resource.
-
-```yaml
-apiVersion: meows.cybozu.com/v1alpha1
-kind: RunnerPool
-metadata:
-  name: runnerpool-sample
-spec:
-  repositoryName: repository-sample
-  replicas: 3
-  slackAgent:
-    serviceName: slack-agent
-```
-
-The controller creates a `Deployment` based on `template` in `RunnerPool`.
-It modifies `template` just to satisfy the minimal requirement to run GitHub Actions.
-
-The controller is mainly responsible for:
-
-- Add the GitHub organization name specified with the controller CLI's option and
-  the repository name defined in the `RunnerPool` manifest to `metadata.labels`.
-- Add environment variables needed to run `entrypoint`.
-  `entrypoint` is a default command for the runner container and contains
-  [`github.com/actions/runner`](https://github.com/actions/runner).
-
-You are responsible for:
-
-- `spec/slackAgent/serviceName` is a `Service` name that can be resolved inside a
-  Kubernetes cluster, so a `Service` name is acceptable. If `spec/slackAgent/serviceName`
-  is omitted, the `Pod`s do not send notifications to Slack.
-
-After running `Pod`s, you can check if the runners are actually registered to
-GitHub on the **Actions** page under each repository's **Settings**
-(e.g. https://github.com/cybozu-go/meows/settings/actions).
-
-How to use self-hosted runners
-------------------------------
-
-meows provides the following commands, you have to execute these commands in your workflow.
-
-- `job-started`
-    - Notify a runner pod that a workflow has been started.
-      You need to call this command at the start of the workflow.
-
-- `job-success`, `job-cancelled`, `job-failure`
-    - Notify a runner pod that the result of a workflow.
-      You need to call these commands at the end of the workflow with [Job status check functions](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#job-status-check-functions).
-
-Here is an example of a workflow definition.
-
-```yaml
-name: Main
-on:
-  pull_request:
-  push:
-    branches:
-      - 'main'
-
-jobs:
-  build:
-    name: build
-    runs-on: self-hosted
-    steps:
-      - run: job-started
-
-      - run: ...
-      - run: ...
-      - run: ...
-
-      - if: success()
-        run: job-success
-      - if: cancelled()
-        run: job-cancelled
-      - if: failure()
-        run: job-failure
-```
-
-How to specify the channel for Slack notifications
---------------------------------------------------
-
-The following methods exist for specifying the channel for Slack notifications.
-The priority order of the specification method is 4>3>2>1.
-Any method accepts a channel name in the format of `#<channel_name>`. (e.g. `#general`, `#test1`)
-
-1. `SLACK_CHANNEL` value in the `slack-app-secret` secret. See [How to deploy Slack agent](#how-to-deploy-slack-agent).
-2. `.spec.slackAgent.channel` field in a `RunnerPool` resource. See [SlackAgentConfig](crd-runner-pool.md#SlackAgentConfig).
-3. `MEOWS_SLACK_CHANNEL` environment variable in a workflow.
-4. Call `meows slackagent set-channel "#channel"` command in a workflow.
-
-For example, you can specify the channel in a workflow as follows.
-
-```yaml
-name: slack-channel-specified
-on: push
-
-jobs:
-  build:
-    name: job-name
-    env:
-      # Basically, a job result will be reported to the "#test1" channel.
-      MEOWS_SLACK_CHANNEL: "#test1"
-    steps:
-      - run: job-started
-      # Only when a job fails, the result will be reported to the "#test2" channel.
-      - run: meows slackagent set-channel "#test2"
-        if: failure()
-      - run: job-success
-```
-
-How to extend GitHub Actions jobs
----------------------------------
-
-![failure message](./images/slack_failure.png)
-
-Choose the time in UTC you want to extend the `Pod` by and click `Extend`.
-This button can be clicked multiple times if the `Pod` still exists.
