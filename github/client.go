@@ -10,6 +10,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v41/github"
+	"golang.org/x/oauth2"
 )
 
 const statusOnline = "online"
@@ -57,41 +58,92 @@ type Client interface {
 	RemoveRunner(context.Context, string, int64) error
 }
 
-// clientImpl is GitHub clientImpl wrapper
-type clientImpl struct {
+type ClientCredential struct {
+	PersonalAccessToken string
+	AppID               int64
+	AppInstallationID   int64
+	PrivateKey          []byte
+	PrivateKeyPath      string
+}
+
+// ClientFactory is a factory of Clients.
+type ClientFactory interface {
+	New(context.Context, *ClientCredential) (Client, error)
+}
+
+type defaultFactory struct {
+	organizationName string
+}
+
+func NewFactory(organizationName string) ClientFactory {
+	return &defaultFactory{
+		organizationName: organizationName,
+	}
+}
+
+func (f *defaultFactory) New(ctx context.Context, cred *ClientCredential) (Client, error) {
+	switch {
+	case len(cred.PersonalAccessToken) != 0:
+		return newClientFromPAT(f.organizationName, cred.PersonalAccessToken), nil
+	case len(cred.PrivateKey) != 0:
+		return newClientFromAppKey(f.organizationName, cred.AppID, cred.AppInstallationID, cred.PrivateKey)
+	case len(cred.PrivateKeyPath) != 0:
+		return newClientFromAppKeyFile(f.organizationName, cred.AppID, cred.AppInstallationID, cred.PrivateKeyPath)
+	default:
+		return nil, errors.New("invalid credential")
+	}
+}
+
+// clientWrapper is a wrapper of GitHub client.
+type clientWrapper struct {
 	client           *github.Client
 	organizationName string
 }
 
-// NewClient creates GitHub Actions Client
-func NewClient(
-	appID int64,
-	appInstallationID int64,
-	appPrivateKeyPath string,
-	organizationName string,
-) (Client, error) {
-	rt, err := ghinstallation.NewKeyFromFile(
-		http.DefaultTransport,
-		appID,
-		appInstallationID,
-		appPrivateKeyPath,
+// newClientFromPAT creates GitHub Actions Client from a personal access token (PAT).
+func newClientFromPAT(organizationName string, pat string) Client {
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: pat},
 	)
+	tc := oauth2.NewClient(ctx, ts)
+	return &clientWrapper{
+		client:           github.NewClient(tc),
+		organizationName: organizationName,
+	}
+}
+
+// newClientFromAppKey creates GitHub Actions Client from a private key of a GitHub app.
+func newClientFromAppKey(organizationName string, appID, appInstallationID int64, privateKey []byte) (Client, error) {
+	rt, err := ghinstallation.New(http.DefaultTransport, appID, appInstallationID, privateKey)
 	if err != nil {
 		return nil, err
 	}
-	return &clientImpl{
+	return &clientWrapper{
+		client:           github.NewClient(&http.Client{Transport: rt}),
+		organizationName: organizationName,
+	}, nil
+}
+
+// newClientFromAPIKey creates GitHub Actions Client from a private key of a GitHub app.
+func newClientFromAppKeyFile(organizationName string, appID, appInstallationID int64, privateKeyPath string) (Client, error) {
+	rt, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, appID, appInstallationID, privateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+	return &clientWrapper{
 		client:           github.NewClient(&http.Client{Transport: rt}),
 		organizationName: organizationName,
 	}, nil
 }
 
 // GetOrganizationName returns organizationName.
-func (c *clientImpl) GetOrganizationName() string {
+func (c *clientWrapper) GetOrganizationName() string {
 	return c.organizationName
 }
 
 // CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization.
-func (c *clientImpl) CreateRegistrationToken(ctx context.Context, repositoryName string) (*github.RegistrationToken, error) {
+func (c *clientWrapper) CreateRegistrationToken(ctx context.Context, repositoryName string) (*github.RegistrationToken, error) {
 	var token *github.RegistrationToken
 	var res *github.Response
 	var err error
@@ -122,7 +174,7 @@ func (c *clientImpl) CreateRegistrationToken(ctx context.Context, repositoryName
 }
 
 // ListRunners lists registered self-hosted runners for the organization.
-func (c *clientImpl) ListRunners(ctx context.Context, repositoryName string, labels []string) ([]*Runner, error) {
+func (c *clientWrapper) ListRunners(ctx context.Context, repositoryName string, labels []string) ([]*Runner, error) {
 	var runners []*Runner
 
 	opts := github.ListOptions{PerPage: 100}
@@ -169,7 +221,7 @@ func (c *clientImpl) ListRunners(ctx context.Context, repositoryName string, lab
 }
 
 // RemoveRunner deletes an Actions runner of the organization.
-func (c *clientImpl) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
+func (c *clientWrapper) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
 	var res *github.Response
 	var err error
 	if repositoryName == "" {

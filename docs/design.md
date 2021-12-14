@@ -57,7 +57,7 @@ Users can create RunnerPool resources in any namespaces.
 
 The meows consists of three types of Kubernetes workloads.
 
-#### `meows-controller`
+#### Controller (`meows-controller`)
 
 A deployment that controls runner pods on a Kubernetes cluster and runners registered to GitHub.
 
@@ -66,13 +66,16 @@ It consists of 3 sub-components.
 1. RunnerPool Reconciler
     - A controller for the `RunnerPool` custom resource.
 2. Runner manager
-    - A goroutine to manage pods and runners.
-    - It deletes pods that exceed the deletion time or the recreate deadline.
-    - It deletes runners who are offline and do not have a related runner pod.
+    - A component to manage pods and runners.
+    - It launches one goroutine for each RunnerPool resource and the goroutine manages pods and runners related to the RunnerPool.
+    - The goroutine deletes pods that exceed the deletion time or the recreate deadline.
+    - The goroutine deletes runners who are offline and do not have a related runner pod.
 3. Secret Updater
-    - A goroutine to update secret for a registration token of GitHub Actions.
+    - A component to update secrets for GitHub registration tokens.
+    - It launches one goroutine for each RunnerPool resource.
+    - The goroutine periodically issues a registration token for the RunnerPool and update the secret for the token.
 
-#### `slack-agent`
+#### Slack agent (`slack-agent`)
 
 A deployment for extending the lifetimes of runner pods.
 With this, you can use Slack to control the pod extension.

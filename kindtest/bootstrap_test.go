@@ -34,8 +34,14 @@ func testBootstrap() {
 	})
 
 	It("should deploy controller successfully", func() {
+		By("creating configmap for controller")
+		kubectlSafe("create", "configmap", "meows-cm",
+			"-n", controllerNS,
+			"--from-literal=organization="+orgName,
+		)
+
 		By("creating secret for controller")
-		kubectlSafe("create", "secret", "generic", "github-app-secret",
+		kubectlSafe("create", "secret", "generic", "github-cred",
 			"-n", controllerNS,
 			"--from-literal=app-id="+githubAppID,
 			"--from-literal=app-installation-id="+githubAppInstallationID,

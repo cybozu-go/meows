@@ -1,9 +1,9 @@
 Metrics
 ===========
 
-## Controller manager
+## Controller
 
-Controller manager provides the following kind of metrics in Prometheus format.
+Controller provides the following kind of metrics in Prometheus format.
 Aside from [the standard Go runtime and process metrics][standard], it exposes metrics related to controller-runtime and RunnerPools.
 
 | Name                                  | Description                                                        | Type    | Labels                 |
@@ -15,8 +15,8 @@ Aside from [the standard Go runtime and process metrics][standard], it exposes m
 
 ## Runner Pod
 
-Runner `Pod` provides the following kind of metrics in Prometheus format.
-Aside from [the standard Go runtime and process metrics][standard], it exposes metrics related to the `Pod`.
+Runner pod provides the following kind of metrics in Prometheus format.
+Aside from [the standard Go runtime and process metrics][standard], it exposes metrics related to the pod.
 
 | Name                               | Description                                                                  | Type    | Labels                |
 | ---------------------------------- | ---------------------------------------------------------------------------- | ------- | --------------------- |

@@ -12,8 +12,4 @@ spec:
         image: meows-controller:kindtest
         imagePullPolicy: Never
         args:
-        - "--organization-name=neco-test"
-        - "--app-id=$(GITHUB_APP_ID)"
-        - "--app-installation-id=$(GITHUB_APP_INSTALLATION_ID)"
-        - "--app-private-key-path=/etc/github/app.pem"
         - "--runner-manager-interval=10s"

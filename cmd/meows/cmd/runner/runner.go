@@ -11,10 +11,11 @@ import (
 )
 
 var config struct {
-	appID             int64
-	appInstallationID int64
-	appPrivateKeyPath string
-	organizationName  string
+	appID               int64
+	appInstallationID   int64
+	appPrivateKeyPath   string
+	personalAccessToken string
+	organizationName    string
 }
 
 var githubClient github.Client
@@ -23,13 +24,21 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "runner",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			var cred *github.ClientCredential
+			if config.personalAccessToken != "" {
+				cred = &github.ClientCredential{
+					PersonalAccessToken: config.personalAccessToken,
+				}
+			} else {
+				cred = &github.ClientCredential{
+					AppID:             config.appID,
+					AppInstallationID: config.appInstallationID,
+					PrivateKeyPath:    config.appPrivateKeyPath,
+				}
+			}
+
 			var err error
-			githubClient, err = github.NewClient(
-				config.appID,
-				config.appInstallationID,
-				config.appPrivateKeyPath,
-				config.organizationName,
-			)
+			githubClient, err = github.NewFactory(config.organizationName).New(cmd.Context(), cred)
 			if err != nil {
 				return fmt.Errorf("failed to create github client; %w", err)
 			}
@@ -43,6 +52,7 @@ func NewCommand() *cobra.Command {
 	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App.")
 	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App.")
 	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key.")
+	fs.StringVar(&config.personalAccessToken, "token", "", "The personal access token (PAT) of GitHub.")
 	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
 
 	return cmd

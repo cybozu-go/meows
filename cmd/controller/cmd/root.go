@@ -15,17 +15,11 @@ import (
 const defaultRunnerImage = "quay.io/cybozu/meows-runner:" + constants.Version
 
 var config struct {
-	zapOpts zap.Options
-
-	metricsAddr string
-	probeAddr   string
-	webhookAddr string
-
-	appID             int64
-	appInstallationID int64
-	appPrivateKeyPath string
-	organizationName  string
-
+	zapOpts               zap.Options
+	metricsAddr           string
+	probeAddr             string
+	webhookAddr           string
+	controllerNamespace   string
 	runnerImage           string
 	runnerManagerInterval time.Duration
 }
@@ -36,17 +30,9 @@ var rootCmd = &cobra.Command{
 	Short: "Kubernetes controller for GitHub Actions self-hosted runner",
 	Long:  `Kubernetes controller for GitHub Actions self-hosted runner`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(config.organizationName) == 0 {
-			return errors.New("organization-name should be specified")
-		}
-		if config.appID == 0 {
-			return errors.New("app-id should be specified")
-		}
-		if config.appInstallationID == 0 {
-			return errors.New("app-id should be specified")
-		}
-		if len(config.appPrivateKeyPath) == 0 {
-			return errors.New("app-private-key-path should be specified")
+		config.controllerNamespace = os.Getenv(constants.PodNamespaceEnvName)
+		if config.controllerNamespace == "" {
+			return errors.New(constants.PodNamespaceEnvName + " should be passed")
 		}
 		return run()
 	},
@@ -65,12 +51,6 @@ func init() {
 	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "The address the webhook endpoint binds to")
-
-	fs.Int64Var(&config.appID, "app-id", 0, "The ID for GitHub App.")
-	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App.")
-	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key.")
-	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
-
 	fs.StringVar(&config.runnerImage, "runner-image", defaultRunnerImage, "The image of runner container")
 	fs.DurationVar(&config.runnerManagerInterval, "runner-manager-interval", time.Minute, "Interval to watch and delete Pods.")
 
