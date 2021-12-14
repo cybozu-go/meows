@@ -25,6 +25,8 @@ meows supports two ways of GitHub authentication:
 1. GitHub App
 2. Personal Access Token (PAT)
 
+There is no functional difference between these two authentications.
+
 If you want to use a GitHub App, create a GitHub App and download a private key file following [Creating GitHub App](#creating-github-app) section.
 And create a secret as follows:
 
@@ -40,7 +42,10 @@ $ kubectl create secret generic github-cred -n meows \
 ```
 
 If you want to use a Personal Access Token (PAT), create a PAT following [the official documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token).
-Then you need to set the `repo` scope to the token.
+
+Then:
+- Set the `repo` scope, if you want to use a repository-level runner.
+- Set the `admin:org` scope, if you want to use an organization-level runner.
 
 And create a secret as follows:
 
@@ -65,8 +70,8 @@ $ kubectl create configmap meows-cm -n meows \
 After that deploy the controller.
 
 ```bash
-$ MEOWS_VERSION=v0.5.0
-$ kubectl apply -k github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION}
+$ MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
+$ kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
 ```
 
 ### Deploying Slack Agent
@@ -89,8 +94,8 @@ $ kubectl create secret generic slack-app-secret -n meows \
 After that deploy the agent.
 
 ```bash
-$ MEOWS_VERSION=v0.5.0
-$ kubectl apply -k github.com/cybozu-go/meows/config/agent?ref=${MEOWS_VERSION}
+$ MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
+$ kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
 ```
 
 ## Creating RunnerPool
@@ -124,7 +129,7 @@ There are a few tips using runners registered by meows.
 
 1. Runners have a specific label determined from the name and namespace of the RunnerPool.
    - The format is `<your RunnerPool Namespace>/<your RunnerPool Name>`.
-2. Some commands should be called in jobs.
+2. Users must call these commands in their workflows.
    - At the beginning of a job, call `job-started`.
    - At the ending of a job, call `job-success`, `job-cancelled` and `job-failure` with `steps.if` conditions.
 
@@ -205,7 +210,7 @@ When a job fails, meows sends the following Slack message.
 ![failure message](./images/slack_failure.png)
 
 If you want to extend the pod, choose the time in UTC and click the `Extend` button.
-You can click the button multiple times if the pod still exists.
+As long as the pod exists, you can extend it as many times as you want.
 
 ## Appendix
 
