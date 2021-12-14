@@ -11,49 +11,11 @@ $ curl -fsLO https://github.com/jetstack/cert-manager/releases/latest/download/c
 $ kubectl apply -f cert-manager.yaml
 ```
 
-You need to manually create some secrets and a configmap in the `meows` namespace at the initial deployment.
+You need to manually create a secret and a configmap in the `meows` namespace at the initial deployment.
 So make the `meows` namespace to prepare.
 
 ```bash
 $ kubectl create namespace meows
-```
-
-### Creating GitHub Credential Secret
-
-meows supports two ways of GitHub authentication:
-
-1. GitHub App
-2. Personal Access Token (PAT)
-
-There is no functional difference between these two authentications.
-
-If you want to use a GitHub App, create a GitHub App and download a private key file following [Creating GitHub App](#creating-github-app) section.
-And create a secret as follows:
-
-```bash
-$ GITHUB_APP_ID=<your GitHub App ID>
-$ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
-$ GITHUB_APP_PRIVATE_KEY_PATH=<Path to GitHub App private key file>
-
-$ kubectl create secret generic github-cred -n meows \
-    --from-literal=app-id=${GITHUB_APP_ID} \
-    --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
-    --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
-```
-
-If you want to use a Personal Access Token (PAT), create a PAT following [the official documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token).
-
-Then:
-- Set the `repo` scope, if you want to use a repository-level runner.
-- Set the `admin:org` scope, if you want to use an organization-level runner.
-
-And create a secret as follows:
-
-```bash
-$ GITHUB_TOKEN=<your PAT>
-
-$ kubectl create secret generic github-cred -n meows \
-    --from-literal=token=${GITHUB_TOKEN}
 ```
 
 ### Deploying Controller
@@ -101,6 +63,64 @@ $ kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSI
 ## Creating RunnerPool
 
 After deploying the controller, let's create `RunnerPool` resources to register self-hosted runners.
+
+In meows, you can change the GitHub Credential for each RunnerPool.
+In other words, you need to create a Secret that records the credential in the RunnerPool's namespace before.
+
+### Creating RunnerPool's namespace
+
+If you have not created a RunnerPool's namespace yet, please create as follows.
+
+```bash
+$ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
+$ kubectl create namespace ${RUNNERPOOL_NAMESPACE}
+```
+
+### Creating GitHub Credential Secret
+
+meows supports two ways of GitHub authentication:
+
+1. GitHub App
+2. Personal Access Token (PAT)
+
+There is no functional difference between these two authentications.
+
+If you want to use a GitHub App, create a GitHub App and download a private key file following [Creating GitHub App](#creating-github-app) section.
+And create a secret as follows:
+
+```bash
+$ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
+$ GITHUB_APP_ID=<your GitHub App ID>
+$ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
+$ GITHUB_APP_PRIVATE_KEY_PATH=<Path to GitHub App private key file>
+
+$ kubectl create secret generic github-cred -n ${RUNNERPOOL_NAMESPACE} \
+    --from-literal=app-id=${GITHUB_APP_ID} \
+    --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
+    --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
+```
+
+If you want to use a Personal Access Token (PAT), create a PAT following [the official documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token).
+
+Then:
+- Set the `repo` scope, if you want to use a repository-level runner.
+- Set the `admin:org` scope, if you want to use an organization-level runner.
+
+And create a secret as follows:
+
+```bash
+$ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
+$ GITHUB_TOKEN=<your PAT>
+
+$ kubectl create secret generic github-cred -n ${RUNNERPOOL_NAMESPACE} \
+    --from-literal=token=${GITHUB_TOKEN}
+```
+
+NOTE: The meows controller loads the credential when the controller reconcile the RunnerPool creation or when the controller starts.
+And the controller will not reflect the secret update while running.
+If you want to change the secret, recreate the RunnerPool or restart the controller.
+
+### Deploying RunnerPool resource
 
 Here is an example of the RunnerPool resource.
 
