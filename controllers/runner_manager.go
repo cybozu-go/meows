@@ -188,6 +188,9 @@ func (p *manageProcess) stop(ctx context.Context) error {
 	runnerList, err := p.githubClient.ListRunners(ctx, p.repositoryName, []string{p.rpNamespacedName()})
 	if err != nil {
 		p.log.Error(err, "failed to list runners")
+		// Ignore error.
+		// If an error is returned here, the RunnerPool using an invalid GitHub credential cannot be deleted.
+		// See https://github.com/cybozu-go/meows/issues/127
 		return nil
 	}
 	for _, runner := range runnerList {
