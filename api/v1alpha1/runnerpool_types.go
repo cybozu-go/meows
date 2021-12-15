@@ -30,7 +30,7 @@ type RunnerPoolSpec struct {
 	RepositoryName string `json:"repositoryName"`
 
 	// CredentialSecretName is a Secret name that contains a GitHub Credential.
-	// If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`github-cred`).
+	// If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`meows-github-cred`).
 	// +optional
 	CredentialSecretName string `json:"credentialSecretName"`
 

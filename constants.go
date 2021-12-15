@@ -87,7 +87,7 @@ const (
 // Constants for GitHub credential secret.
 const (
 	// DefaultCredentialSecretName is the default secret name for GitHub credential secret.
-	DefaultCredentialSecretName = "github-cred"
+	DefaultCredentialSecretName = "meows-github-cred"
 
 	// Data keys for GitHub App's credential.
 	CredentialSecretDataAppID             = "app-id"

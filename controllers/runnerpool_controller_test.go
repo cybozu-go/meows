@@ -149,7 +149,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 		By("creating default credential secret")
 		appSecret := new(corev1.Secret)
-		appSecret.SetName("github-cred") // Default name
+		appSecret.SetName("meows-github-cred") // Default name
 		appSecret.SetNamespace(namespace)
 		appSecret.StringData = map[string]string{
 			"app-id":              "1234",

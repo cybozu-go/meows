@@ -39,7 +39,7 @@ spec:
               credentialSecretName:
                 description: CredentialSecretName is a Secret name that contains a
                   GitHub Credential. If this field is omitted or the empty string
-                  (`""`) is specified, meows uses the default secret name (`github-cred`).
+                  (`""`) is specified, meows uses the default secret name (`meows-github-cred`).
                 type: string
               maxRunnerPods:
                 default: 0

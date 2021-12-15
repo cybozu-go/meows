@@ -69,7 +69,7 @@ In other words, you need to create a Secret that records the credential in the R
 
 ### Creating RunnerPool's namespace
 
-If you have not created a RunnerPool's namespace yet, please create as follows.
+If you have not created a RunnerPool's namespace yet, please create it as follows.
 
 ```bash
 $ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
@@ -94,7 +94,7 @@ $ GITHUB_APP_ID=<your GitHub App ID>
 $ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
 $ GITHUB_APP_PRIVATE_KEY_PATH=<Path to GitHub App private key file>
 
-$ kubectl create secret generic github-cred -n ${RUNNERPOOL_NAMESPACE} \
+$ kubectl create secret generic meows-github-cred -n ${RUNNERPOOL_NAMESPACE} \
     --from-literal=app-id=${GITHUB_APP_ID} \
     --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
     --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
@@ -112,7 +112,7 @@ And create a secret as follows:
 $ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
 $ GITHUB_TOKEN=<your PAT>
 
-$ kubectl create secret generic github-cred -n ${RUNNERPOOL_NAMESPACE} \
+$ kubectl create secret generic meows-github-cred -n ${RUNNERPOOL_NAMESPACE} \
     --from-literal=token=${GITHUB_TOKEN}
 ```
 

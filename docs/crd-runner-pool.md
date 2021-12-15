@@ -15,16 +15,16 @@ GitHub Actions self-hosted runners.
 RunnerPoolSpec
 --------------
 
-| Field                  | Type                                            | Description                                                                                                                                                          |
-| ---------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `repositoryName`       | string                                          | Repository Name to register Pods as self-hosted runners. RepositoryName is not necessary, If you want to use it as an organization-level self-hosted runner.         |
-| `credentialSecretName` | string                                          | Secret name that contains a GitHub Credential. If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`github-cred`). |
-| `replicas`             | int32                                           | Number of desired runner pods to accept a new job. Defaults to `1`.                                                                                                  |
-| `maxRunnerPods`        | int32                                           | Number of desired runner pods to keep. Defaults to `0`. If this field is `0`, it will keep the number of pods specified in `replicas`.                               |
-| `setupCommand`         | []string                                        | Command that runs when the runner pods will be created.                                                                                                              |
-| `slackAgent`           | [SlackAgentConfig](#SlackAgentConfig)           | Configuration of a Slack agent.                                                                                                                                      |
-| `recreateDeadline`     | string                                          | Deadline for the Pod to be recreated. Default value is `24h`. This value should be parseable with `time.ParseDuration`.                                              |
-| `template`             | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec) | Pod manifest Template.                                                                                                                                               |
+| Field                  | Type                                            | Description                                                                                                                                                                |
+| ---------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repositoryName`       | string                                          | Repository Name to register Pods as self-hosted runners. RepositoryName is not necessary, If you want to use it as an organization-level self-hosted runner.               |
+| `credentialSecretName` | string                                          | Secret name that contains a GitHub Credential. If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`meows-github-cred`). |
+| `replicas`             | int32                                           | Number of desired runner pods to accept a new job. Defaults to `1`.                                                                                                        |
+| `maxRunnerPods`        | int32                                           | Number of desired runner pods to keep. Defaults to `0`. If this field is `0`, it will keep the number of pods specified in `replicas`.                                     |
+| `setupCommand`         | []string                                        | Command that runs when the runner pods will be created.                                                                                                                    |
+| `slackAgent`           | [SlackAgentConfig](#SlackAgentConfig)           | Configuration of a Slack agent.                                                                                                                                            |
+| `recreateDeadline`     | string                                          | Deadline for the Pod to be recreated. Default value is `24h`. This value should be parseable with `time.ParseDuration`.                                                    |
+| `template`             | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec) | Pod manifest Template.                                                                                                                                                     |
 
 **NOTE**: `maxRunnerPods` is equal-to or greater than `replicas`.
 
