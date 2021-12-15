@@ -68,7 +68,7 @@ type ClientCredential struct {
 
 // ClientFactory is a factory of Clients.
 type ClientFactory interface {
-	New(context.Context, *ClientCredential) (Client, error)
+	New(*ClientCredential) (Client, error)
 }
 
 type defaultFactory struct {
@@ -81,7 +81,7 @@ func NewFactory(organizationName string) ClientFactory {
 	}
 }
 
-func (f *defaultFactory) New(ctx context.Context, cred *ClientCredential) (Client, error) {
+func (f *defaultFactory) New(cred *ClientCredential) (Client, error) {
 	switch {
 	case len(cred.PersonalAccessToken) != 0:
 		return newClientFromPAT(f.organizationName, cred.PersonalAccessToken), nil

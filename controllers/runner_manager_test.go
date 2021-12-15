@@ -198,7 +198,7 @@ var _ = Describe("RunnerManager", func() {
 
 			By("starting runnerpool manager")
 			for _, rp := range tt.inputRunnerPools {
-				runnerManager.StartOrUpdate(ctx, rp, nil)
+				runnerManager.StartOrUpdate(rp, nil)
 			}
 			time.Sleep(10 * time.Second) // Wait for the deadline to recreate the pod.
 
@@ -228,7 +228,7 @@ var _ = Describe("RunnerManager", func() {
 
 			for _, rp := range tt.inputRunnerPools {
 				By("stopping runnerpool manager; " + rp.Name)
-				Expect(runnerManager.Stop(ctx, rp)).To(Succeed(), ttName)
+				Expect(runnerManager.Stop(rp)).To(Succeed(), ttName)
 				runnerList, _ := githubClientFactory.ListRunners(ctx, rp.Spec.RepositoryName, []string{rp.Name})
 				Expect(runnerList).To(BeEmpty(), ttName)
 			}
@@ -250,7 +250,7 @@ var _ = Describe("RunnerManager", func() {
 		rp := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp.Spec.Replicas = 5
 		rp.Spec.MaxRunnerPods = 8
-		runnerManager.StartOrUpdate(ctx, rp, nil)
+		runnerManager.StartOrUpdate(rp, nil)
 
 		By("creating pods and runners")
 		inputPods := []struct {
@@ -316,7 +316,7 @@ var _ = Describe("RunnerManager", func() {
 		Expect(podList.Items[0].Name).To(Equal("pod1"))
 
 		By("tearing down")
-		Expect(runnerManager.Stop(ctx, rp)).To(Succeed())
+		Expect(runnerManager.Stop(rp)).To(Succeed())
 	})
 
 	It("should expose metrics about runnerpools", func() {
@@ -341,7 +341,7 @@ var _ = Describe("RunnerManager", func() {
 		By("creating rp1")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp1.Spec.Replicas = 1
-		runnerManager.StartOrUpdate(ctx, rp1, nil)
+		runnerManager.StartOrUpdate(rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -354,7 +354,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("updating rp1")
 		rp1.Spec.Replicas = 2
-		runnerManager.StartOrUpdate(ctx, rp1, nil)
+		runnerManager.StartOrUpdate(rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -368,7 +368,7 @@ var _ = Describe("RunnerManager", func() {
 		By("creating rp2")
 		rp2 := makeRunnerPool("rp2", "test-ns2", "repo1")
 		rp2.Spec.Replicas = 1
-		runnerManager.StartOrUpdate(ctx, rp2, nil)
+		runnerManager.StartOrUpdate(rp2, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -384,7 +384,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting rp1")
-		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
+		Expect(runnerManager.Stop(rp1)).To(Succeed())
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -396,7 +396,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting rp2")
-		Expect(runnerManager.Stop(ctx, rp2)).To(Succeed())
+		Expect(runnerManager.Stop(rp2)).To(Succeed())
 		time.Sleep(2 * time.Second)
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 	})
@@ -417,7 +417,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating a runnerpool")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
-		runnerManager.StartOrUpdate(ctx, rp1, nil)
+		runnerManager.StartOrUpdate(rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -517,7 +517,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting runnerpool")
-		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
+		Expect(runnerManager.Stop(rp1)).To(Succeed())
 		time.Sleep(2 * time.Second)
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 		MetricsShouldNotExist(metricsURL, "meows_runner_online")
@@ -542,9 +542,9 @@ var _ = Describe("RunnerManager", func() {
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
 		rp2 := makeRunnerPool("rp2", "test-ns1", "repo1")
 		rp3 := makeRunnerPool("rp3", "test-ns2", "repo2")
-		runnerManager.StartOrUpdate(ctx, rp1, nil)
-		runnerManager.StartOrUpdate(ctx, rp2, nil)
-		runnerManager.StartOrUpdate(ctx, rp3, nil)
+		runnerManager.StartOrUpdate(rp1, nil)
+		runnerManager.StartOrUpdate(rp2, nil)
+		runnerManager.StartOrUpdate(rp3, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -662,7 +662,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting runnerpool (1)")
-		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
+		Expect(runnerManager.Stop(rp1)).To(Succeed())
 		time.Sleep(3 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -692,8 +692,8 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("tearing down")
-		Expect(runnerManager.Stop(ctx, rp2)).To(Succeed())
-		Expect(runnerManager.Stop(ctx, rp3)).To(Succeed())
+		Expect(runnerManager.Stop(rp2)).To(Succeed())
+		Expect(runnerManager.Stop(rp3)).To(Succeed())
 	})
 
 	It("should delete all runners and metrics", func() {
@@ -712,7 +712,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating a runnerpool")
 		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
-		runnerManager.StartOrUpdate(ctx, rp1, nil)
+		runnerManager.StartOrUpdate(rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
 			MatchAllElementsWithIndex(IndexIdentity, Elements{
@@ -777,7 +777,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("deleting runnerpool")
-		Expect(runnerManager.Stop(ctx, rp1)).To(Succeed())
+		Expect(runnerManager.Stop(rp1)).To(Succeed())
 		time.Sleep(2 * time.Second)
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 		MetricsShouldNotExist(metricsURL, "meows_runner_online")

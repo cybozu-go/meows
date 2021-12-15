@@ -38,7 +38,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			var err error
-			githubClient, err = github.NewFactory(config.organizationName).New(cmd.Context(), cred)
+			githubClient, err = github.NewFactory(config.organizationName).New(cred)
 			if err != nil {
 				return fmt.Errorf("failed to create github client; %w", err)
 			}

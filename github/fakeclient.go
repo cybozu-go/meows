@@ -24,7 +24,7 @@ func NewFakeClientFactory(organizationName string) *FakeClientFactory {
 	}
 }
 
-func (f *FakeClientFactory) New(_ context.Context, _ *ClientCredential) (Client, error) {
+func (f *FakeClientFactory) New(_ *ClientCredential) (Client, error) {
 	return &FakeClient{parent: f}, nil
 }
 

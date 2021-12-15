@@ -78,12 +78,12 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		log.Info("start finalizing RunnerPool")
 
-		if err := r.runnerManager.Stop(ctx, rp); err != nil {
+		if err := r.runnerManager.Stop(rp); err != nil {
 			log.Error(err, "failed to stop runner manager")
 			return ctrl.Result{}, err
 		}
 
-		if err := r.secretUpdater.Stop(ctx, rp); err != nil {
+		if err := r.secretUpdater.Stop(rp); err != nil {
 			log.Error(err, "failed to stop secret updater")
 			return ctrl.Result{}, err
 		}
@@ -109,7 +109,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Error(err, "failed to reconcile secret")
 		return ctrl.Result{}, err
 	}
-	if err := r.secretUpdater.Start(ctx, rp, cred); err != nil {
+	if err := r.secretUpdater.Start(rp, cred); err != nil {
 		log.Error(err, "failed to start secret updater")
 		return ctrl.Result{}, err
 	}
@@ -126,7 +126,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	if err := r.runnerManager.StartOrUpdate(ctx, rp, cred); err != nil {
+	if err := r.runnerManager.StartOrUpdate(rp, cred); err != nil {
 		log.Error(err, "failed to start or update runner manager")
 		return ctrl.Result{}, err
 	}

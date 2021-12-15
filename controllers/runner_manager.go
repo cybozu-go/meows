@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -27,8 +28,9 @@ import (
 // RunnerManager manages runner pods and runners registered in GitHub.
 // It generates one goroutine for each RunnerPool CR to manage them.
 type RunnerManager interface {
-	StartOrUpdate(context.Context, *meowsv1alpha1.RunnerPool, *github.ClientCredential) error
-	Stop(context.Context, *meowsv1alpha1.RunnerPool) error
+	StartOrUpdate(*meowsv1alpha1.RunnerPool, *github.ClientCredential) error
+	Stop(*meowsv1alpha1.RunnerPool) error
+	StopAll()
 }
 
 type runnerManager struct {
@@ -37,6 +39,8 @@ type runnerManager struct {
 	githubClientFactory github.ClientFactory
 	runnerPodClient     runner.Client
 	interval            time.Duration
+	mu                  sync.Mutex
+	stopped             bool
 	processes           map[string]*manageProcess
 }
 
@@ -51,10 +55,17 @@ func NewRunnerManager(log logr.Logger, k8sClient client.Client, githubClientFact
 	}
 }
 
-func (m *runnerManager) StartOrUpdate(ctx context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
+func (m *runnerManager) StartOrUpdate(rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.stopped {
+		return errors.New("RunnerManager is already stopped")
+	}
+
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
 	if _, ok := m.processes[rpNamespacedName]; !ok {
-		githubClient, err := m.githubClientFactory.New(ctx, cred)
+		githubClient, err := m.githubClientFactory.New(cred)
 		if err != nil {
 			return fmt.Errorf("failed to create a github client; %w", err)
 		}
@@ -69,22 +80,36 @@ func (m *runnerManager) StartOrUpdate(ctx context.Context, rp *meowsv1alpha1.Run
 		if err != nil {
 			return err
 		}
-		process.start(ctx)
+		process.start()
 		m.processes[rpNamespacedName] = process
 		return nil
 	}
 	return m.processes[rpNamespacedName].update(rp)
 }
 
-func (m *runnerManager) Stop(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (m *runnerManager) Stop(rp *meowsv1alpha1.RunnerPool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
 	if process, ok := m.processes[rpNamespacedName]; ok {
-		if err := process.stop(ctx); err != nil {
+		if err := process.stop(); err != nil {
 			return err
 		}
 		delete(m.processes, rpNamespacedName)
 	}
 	return nil
+}
+
+func (m *runnerManager) StopAll() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, process := range m.processes {
+		process.stop()
+	}
+	m.processes = nil
+	m.stopped = true
 }
 
 type manageProcess struct {
@@ -164,39 +189,29 @@ func (p *manageProcess) rpNamespacedName() string {
 	return p.rpNamespace + "/" + p.rpName
 }
 
-func (p *manageProcess) start(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
+func (p *manageProcess) start() {
+	ctx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
 	p.env = well.NewEnvironment(ctx)
 	p.env.Go(func(ctx context.Context) error {
-		defer p.deleteMetrics()
 		p.run(ctx)
+		p.deleteMetrics()
+
+		ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		p.deleteAllRunners(ctx2)
 		return nil
 	})
 	p.env.Stop()
 }
 
-func (p *manageProcess) stop(ctx context.Context) error {
+func (p *manageProcess) stop() error {
 	if p.cancel != nil {
 		p.cancel()
 		p.cancel = nil
 		if err := p.env.Wait(); err != nil {
 			return err
 		}
-	}
-
-	runnerList, err := p.githubClient.ListRunners(ctx, p.repositoryName, []string{p.rpNamespacedName()})
-	if err != nil {
-		p.log.Error(err, "failed to list runners")
-		return nil
-	}
-	for _, runner := range runnerList {
-		err := p.githubClient.RemoveRunner(ctx, p.repositoryName, runner.ID)
-		if err != nil {
-			p.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)
-			return err
-		}
-		p.log.Info("removed runner", "runner", runner.Name, "runner_id", runner.ID)
 	}
 	return nil
 }
@@ -425,6 +440,23 @@ func (p *manageProcess) deleteOfflineRunners(ctx context.Context, runnerList []*
 		if runner.Online || podExists(runner.Name, podList) {
 			continue
 		}
+		err := p.githubClient.RemoveRunner(ctx, p.repositoryName, runner.ID)
+		if err != nil {
+			p.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)
+			return err
+		}
+		p.log.Info("removed runner", "runner", runner.Name, "runner_id", runner.ID)
+	}
+	return nil
+}
+
+func (p *manageProcess) deleteAllRunners(ctx context.Context) error {
+	runnerList, err := p.githubClient.ListRunners(ctx, p.repositoryName, []string{p.rpNamespacedName()})
+	if err != nil {
+		p.log.Error(err, "failed to list runners")
+		return err
+	}
+	for _, runner := range runnerList {
 		err := p.githubClient.RemoveRunner(ctx, p.repositoryName, runner.ID)
 		if err != nil {
 			p.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)

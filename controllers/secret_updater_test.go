@@ -52,7 +52,7 @@ var _ = Describe("SecretUpdater", func() {
 			Expect(k8sClient.Create(ctx, beforeSec)).To(Succeed(), tc.name)
 
 			By("starting secret updater")
-			secretUpdater.Start(ctx, rp, nil)
+			secretUpdater.Start(rp, nil)
 			time.Sleep(3 * time.Second)
 
 			By("getting secret")
@@ -67,7 +67,7 @@ var _ = Describe("SecretUpdater", func() {
 			Expect(tm).To(BeTemporally("~", expectedExpiresAt, 20*time.Second), tc.name)
 
 			By("stopping secret updater")
-			secretUpdater.Stop(ctx, rp)
+			secretUpdater.Stop(rp)
 		}
 	})
 
@@ -120,7 +120,7 @@ var _ = Describe("SecretUpdater", func() {
 			Expect(k8sClient.Create(ctx, beforeSec)).To(Succeed(), tc.name)
 
 			By("starting secret updater")
-			secretUpdater.Start(ctx, rp, nil)
+			secretUpdater.Start(rp, nil)
 			time.Sleep(3 * time.Second)
 
 			By("getting secret")
@@ -142,7 +142,7 @@ var _ = Describe("SecretUpdater", func() {
 			}
 
 			By("stopping secret updater")
-			secretUpdater.Stop(ctx, rp)
+			secretUpdater.Stop(rp)
 		}
 	})
 })

@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -21,14 +23,17 @@ import (
 // SecretUpdater creates a registration token for self-hosted runners and updates a secret periodically.
 // It generates one goroutine for each RunnerPool CR.
 type SecretUpdater interface {
-	Start(context.Context, *meowsv1alpha1.RunnerPool, *github.ClientCredential) error
-	Stop(context.Context, *meowsv1alpha1.RunnerPool) error
+	Start(*meowsv1alpha1.RunnerPool, *github.ClientCredential) error
+	Stop(*meowsv1alpha1.RunnerPool) error
+	StopAll()
 }
 
 type secretUpdater struct {
 	log                 logr.Logger
 	k8sClient           client.Client
 	githubClientFactory github.ClientFactory
+	mu                  sync.Mutex
+	stopped             bool
 	processes           map[string]*updateProcess
 }
 
@@ -41,10 +46,17 @@ func NewSecretUpdater(log logr.Logger, k8sClient client.Client, githubClientFact
 	}
 }
 
-func (u *secretUpdater) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
+func (u *secretUpdater) Start(rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.stopped {
+		return errors.New("SecretUpdater is already stopped")
+	}
+
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
 	if _, ok := u.processes[rpNamespacedName]; !ok {
-		githubClient, err := u.githubClientFactory.New(ctx, cred)
+		githubClient, err := u.githubClientFactory.New(cred)
 		if err != nil {
 			return fmt.Errorf("failed to create a github client; %w", err)
 		}
@@ -54,21 +66,35 @@ func (u *secretUpdater) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool,
 			githubClient,
 			rp,
 		)
-		process.start(ctx)
+		process.start()
 		u.processes[rpNamespacedName] = process
 	}
 	return nil
 }
 
-func (u *secretUpdater) Stop(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (u *secretUpdater) Stop(rp *meowsv1alpha1.RunnerPool) error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
 	if process, ok := u.processes[rpNamespacedName]; ok {
-		if err := process.stop(ctx); err != nil {
+		if err := process.stop(); err != nil {
 			return err
 		}
 		delete(u.processes, rpNamespacedName)
 	}
 	return nil
+}
+
+func (u *secretUpdater) StopAll() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	for _, process := range u.processes {
+		process.stop()
+	}
+	u.processes = nil
+	u.stopped = true
 }
 
 type updateProcess struct {
@@ -105,19 +131,19 @@ func newUpdateProcess(log logr.Logger, k8sClient client.Client, githubClient git
 	}
 }
 
-func (p *updateProcess) start(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
+func (p *updateProcess) start() {
+	ctx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
 	p.env = well.NewEnvironment(ctx)
 	p.env.Go(func(ctx context.Context) error {
-		defer p.deleteMetrics()
 		p.run(ctx)
+		p.deleteMetrics()
 		return nil
 	})
 	p.env.Stop()
 }
 
-func (p *updateProcess) stop(ctx context.Context) error {
+func (p *updateProcess) stop() error {
 	if p.cancel != nil {
 		p.cancel()
 		p.cancel = nil
