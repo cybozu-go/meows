@@ -99,13 +99,14 @@ func (u *secretUpdater) StopAll() {
 
 type updateProcess struct {
 	// Given from outside. Not update internally.
-	log            logr.Logger
-	k8sClient      client.Client
-	githubClient   github.Client
-	rpNamespace    string
-	rpName         string
-	secretName     string
-	repositoryName string
+	log          logr.Logger
+	k8sClient    client.Client
+	githubClient github.Client
+	rpNamespace  string
+	rpName       string
+	secretName   string
+	owner        string
+	repo         string
 
 	// Update internally.
 	env               *well.Environment
@@ -123,7 +124,8 @@ func newUpdateProcess(log logr.Logger, k8sClient client.Client, githubClient git
 		rpNamespace:       rp.Namespace,
 		rpName:            rp.Name,
 		secretName:        rp.GetRunnerSecretName(),
-		repositoryName:    rp.Spec.RepositoryName,
+		owner:             rp.GetOwner(),
+		repo:              rp.GetRepository(),
 		retryCountMetrics: metrics.RunnerPoolSecretRetryCount.WithLabelValues(rpNamespacedName),
 		deleteMetrics: func() {
 			metrics.RunnerPoolSecretRetryCount.DeleteLabelValues(rpNamespacedName)
@@ -226,7 +228,7 @@ func (p *updateProcess) needUpdate(s *corev1.Secret) (bool, time.Time) {
 }
 
 func (p *updateProcess) updateSecret(ctx context.Context, s *corev1.Secret) (time.Time, error) {
-	runnerToken, err := p.githubClient.CreateRegistrationToken(ctx, p.repositoryName)
+	runnerToken, err := p.githubClient.CreateRegistrationToken(ctx, p.owner, p.repo)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to create actions registration token; %w", err)
 	}

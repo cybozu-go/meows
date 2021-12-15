@@ -13,12 +13,6 @@ const (
 
 // Metadata keys
 const (
-	// RunnerOrgLabelKey is a label key for organization name.
-	RunnerOrgLabelKey = "meows.cybozu.com/organization"
-
-	// RunnerRepoLabelKey is a label key for repository name.
-	RunnerRepoLabelKey = "meows.cybozu.com/repository"
-
 	RunnerSecretExpiresAtAnnotationKey = "meows.cybozu.com/expires-at"
 
 	// RunnerPoolFinalizer is a finalizer for runnerpool resource.
@@ -81,7 +75,8 @@ const (
 	OptionConfigMapName = "meows-cm"
 
 	// Data keys for controller option.
-	OptionConfigMapDataOrganization = "organization"
+	OptionConfigMapDataOrganizationRule = "organization-rule"
+	OptionConfigMapDataRepositoryRule   = "repository-rule"
 )
 
 // Constants for GitHub credential secret.
@@ -96,6 +91,10 @@ const (
 
 	// Data keys for GitHub personal access token (PAT).
 	CredentialSecretDataPATToken = "token"
+)
+
+const (
+	DefaultSlackAgentServiceName = "slack-agent.meows.svc"
 )
 
 // Directory path for runner pods.
@@ -138,9 +137,6 @@ const (
 
 	// RunnerOptionEnvName is a env field key for RUNNER_OPTION
 	RunnerOptionEnvName = "RUNNER_OPTION"
-
-	// ExtendDurationEnvName is a env field key for EXTEND_DURATION
-	ExtendDurationEnvName = "EXTEND_DURATION"
 
 	// SlackChannelEnvName is a env field key for MEOWS_SLACK_CHANNEL
 	SlackChannelEnvName = "MEOWS_SLACK_CHANNEL"

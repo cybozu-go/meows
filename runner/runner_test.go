@@ -26,29 +26,13 @@ var (
 )
 
 var _ = Describe("Runner", func() {
-	BeforeEach(func() {
-		Expect(os.RemoveAll(testRunnerDir)).To(Succeed())
-		Expect(os.RemoveAll(testWorkDir)).To(Succeed())
-		Expect(os.RemoveAll(testVarDir)).To(Succeed())
-		Expect(os.MkdirAll(testRunnerDir, 0755)).To(Succeed())
-		Expect(os.MkdirAll(testWorkDir, 0755)).To(Succeed())
-		Expect(os.MkdirAll(testVarDir, 0755)).To(Succeed())
-		createFakeTokenFile()
-
-		os.Setenv(constants.PodNameEnvName, "fake-pod-name")
-		os.Setenv(constants.PodNamespaceEnvName, "fake-pod-ns")
-		os.Setenv(constants.RunnerOrgEnvName, "fake-org")
-		os.Setenv(constants.RunnerRepoEnvName, "fake-repo")
-		os.Setenv(constants.RunnerPoolNameEnvName, "fake-runnerpool")
-		os.Setenv(constants.RunnerOptionEnvName, "{}")
-	})
-
 	AfterEach(func() {
 		time.Sleep(time.Second)
 	})
 
 	It("should change states", func() {
 		By("starting runner")
+		resetEnv(false)
 		listener := newListenerMock()
 		cancel := startRunner(listener)
 		defer cancel()
@@ -137,7 +121,7 @@ var _ = Describe("Runner", func() {
 			"State":        Equal("debugging"),
 			"Result":       Equal("unknown"),
 			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
+			"DeletionTime": BeNil(),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo": PointTo(MatchFields(IgnoreExtras, Fields{
 				"Actor":      Equal("actor"),
@@ -171,6 +155,7 @@ var _ = Describe("Runner", func() {
 
 	It("should extend default duration when extend file exists", func() {
 		By("starting runner")
+		resetEnv(true)
 		listener := newListenerMock("extend")
 		cancel := startRunner(listener)
 		defer cancel()
@@ -184,7 +169,7 @@ var _ = Describe("Runner", func() {
 			"State":        Equal("debugging"),
 			"Result":       Equal("unknown"),
 			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(20*time.Minute), 500*time.Millisecond)),
+			"DeletionTime": BeNil(),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      BeNil(),
 			"SlackChannel": BeEmpty(),
@@ -210,56 +195,11 @@ var _ = Describe("Runner", func() {
 			}),
 		)
 		metricsShouldNotExist("meows_runner_listener_exit_state")
-	})
-
-	It("should extend specified duration when EXTEND_DURATION is specified", func() {
-		By("starting runner with extend duration")
-		os.Setenv(constants.ExtendDurationEnvName, "1h")
-		listener := newListenerMock("extend")
-		cancel := startRunner(listener)
-		defer cancel()
-		listener.configureCh <- nil
-		listener.listenCh <- nil
-		finishedAt := time.Now()
-		time.Sleep(time.Second)
-
-		By("checking outputs")
-		statusShouldHaveValue(PointTo(MatchAllFields(Fields{
-			"State":        Equal("debugging"),
-			"Result":       Equal("unknown"),
-			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(time.Hour), 500*time.Millisecond)),
-			"Extend":       PointTo(BeTrue()),
-			"JobInfo":      BeNil(),
-			"SlackChannel": BeEmpty(),
-		})))
-		metricsShouldHaveValue("meows_runner_pod_state",
-			MatchAllElementsWithIndex(IndexIdentity, Elements{
-				"0": PointTo(MatchAllFields(Fields{
-					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("debugging")}),
-					"Value": BeNumerically("==", 1.0),
-				})),
-				"1": PointTo(MatchAllFields(Fields{
-					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("initializing")}),
-					"Value": BeNumerically("==", 0.0),
-				})),
-				"2": PointTo(MatchAllFields(Fields{
-					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("running")}),
-					"Value": BeNumerically("==", 0.0),
-				})),
-				"3": PointTo(MatchAllFields(Fields{
-					"Label": MatchAllKeys(Keys{"runnerpool": Equal("fake-pod-ns/fake-runnerpool"), "state": Equal("stale")}),
-					"Value": BeNumerically("==", 0.0),
-				})),
-			}),
-		)
-		metricsShouldNotExist("meows_runner_listener_exit_state")
-
-		os.Unsetenv(constants.ExtendDurationEnvName)
 	})
 
 	It("should extend via deletion_time API", func() {
 		By("starting runner")
+		resetEnv(false)
 		listener := newListenerMock("extend", "failure")
 		cancel := startRunner(listener)
 		defer cancel()
@@ -273,7 +213,7 @@ var _ = Describe("Runner", func() {
 			"State":        Equal("debugging"),
 			"Result":       Equal("failure"),
 			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt.Add(20*time.Minute), 500*time.Millisecond)),
+			"DeletionTime": BeNil(),
 			"Extend":       PointTo(BeTrue()),
 			"JobInfo":      BeNil(),
 			"SlackChannel": BeEmpty(),
@@ -339,6 +279,7 @@ var _ = Describe("Runner", func() {
 
 	It("should become stale state when started file exists", func() {
 		By("starting runner with started file")
+		resetEnv(false)
 		createFlagFile("started")
 		listener := newListenerMock()
 		cancel := startRunner(listener)
@@ -379,6 +320,7 @@ var _ = Describe("Runner", func() {
 
 	It("should run setup command", func() {
 		By("starting runner with setup command")
+		resetEnv(false)
 		opt, err := json.Marshal(&Option{
 			SetupCommand: []string{"bash", "-c", "touch ./dummy"},
 		})
@@ -428,6 +370,7 @@ var _ = Describe("Runner", func() {
 
 	It("should become success status when success file is created", func() {
 		By("starting runner with creating success file")
+		resetEnv(false)
 		listener := newListenerMock("success")
 		cancel := startRunner(listener)
 		defer cancel()
@@ -441,7 +384,7 @@ var _ = Describe("Runner", func() {
 			"State":        Equal("debugging"),
 			"Result":       Equal("success"),
 			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
+			"DeletionTime": BeNil(),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      BeNil(),
 			"SlackChannel": BeEmpty(),
@@ -450,6 +393,7 @@ var _ = Describe("Runner", func() {
 
 	It("should become failure status when failure file is created", func() {
 		By("starting runner with creating failure file")
+		resetEnv(false)
 		listener := newListenerMock("failure")
 		cancel := startRunner(listener)
 		defer cancel()
@@ -463,7 +407,7 @@ var _ = Describe("Runner", func() {
 			"State":        Equal("debugging"),
 			"Result":       Equal("failure"),
 			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
+			"DeletionTime": BeNil(),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      BeNil(),
 			"SlackChannel": BeEmpty(),
@@ -472,6 +416,7 @@ var _ = Describe("Runner", func() {
 
 	It("should become cancelled status when cancelled file is created", func() {
 		By("starting runner with creating cancelled file")
+		resetEnv(false)
 		listener := newListenerMock("cancelled")
 		cancel := startRunner(listener)
 		defer cancel()
@@ -485,7 +430,7 @@ var _ = Describe("Runner", func() {
 			"State":        Equal("debugging"),
 			"Result":       Equal("cancelled"),
 			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
+			"DeletionTime": BeNil(),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      BeNil(),
 			"SlackChannel": BeEmpty(),
@@ -494,6 +439,7 @@ var _ = Describe("Runner", func() {
 
 	It("should be update the status SlackChannel when slack_channel file is created", func() {
 		By("starting runner with creating slack_channel file")
+		resetEnv(false)
 		listener := newListenerMock("success")
 		cancel := startRunner(listener)
 		defer cancel()
@@ -513,7 +459,7 @@ var _ = Describe("Runner", func() {
 			"State":        Equal("debugging"),
 			"Result":       Equal("success"),
 			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
-			"DeletionTime": PointTo(BeTemporally("~", finishedAt, 500*time.Millisecond)),
+			"DeletionTime": BeNil(),
 			"Extend":       PointTo(BeFalse()),
 			"JobInfo":      BeNil(),
 			"SlackChannel": Equal("#test1"),
@@ -551,6 +497,7 @@ func newListenerMock(flagFiles ...string) *listenerMock {
 }
 
 func (l *listenerMock) configure(ctx context.Context, configArgs []string) error {
+	fmt.Println(configArgs)
 	return <-l.configureCh
 }
 
@@ -560,6 +507,28 @@ func (l *listenerMock) listen(ctx context.Context) error {
 		createFlagFile(file)
 	}
 	return ret
+}
+
+func resetEnv(orgRunner bool) {
+	ExpectWithOffset(1, os.RemoveAll(testRunnerDir)).To(Succeed())
+	ExpectWithOffset(1, os.RemoveAll(testWorkDir)).To(Succeed())
+	ExpectWithOffset(1, os.RemoveAll(testVarDir)).To(Succeed())
+	ExpectWithOffset(1, os.MkdirAll(testRunnerDir, 0755)).To(Succeed())
+	ExpectWithOffset(1, os.MkdirAll(testWorkDir, 0755)).To(Succeed())
+	ExpectWithOffset(1, os.MkdirAll(testVarDir, 0755)).To(Succeed())
+	createFakeTokenFile()
+
+	os.Setenv(constants.PodNameEnvName, "fake-pod-name")
+	os.Setenv(constants.PodNamespaceEnvName, "fake-pod-ns")
+	os.Setenv(constants.RunnerPoolNameEnvName, "fake-runnerpool")
+	os.Setenv(constants.RunnerOptionEnvName, "{}")
+	if orgRunner {
+		os.Setenv(constants.RunnerOrgEnvName, "fake-org")
+		os.Unsetenv(constants.RunnerRepoEnvName)
+	} else {
+		os.Setenv(constants.RunnerRepoEnvName, "fake-org/fake-repo")
+		os.Unsetenv(constants.RunnerOrgEnvName)
+	}
 }
 
 func startRunner(listener Listener) context.CancelFunc {

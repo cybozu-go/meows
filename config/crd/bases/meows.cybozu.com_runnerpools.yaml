@@ -48,6 +48,10 @@ spec:
                   replicas.
                 format: int32
                 type: integer
+              organization:
+                description: Organization name. If this field is specified, meows
+                  registers pods as organization-level runners.
+                type: string
               recreateDeadline:
                 default: 24h
                 description: Deadline for the Pod to be recreated.
@@ -58,32 +62,43 @@ spec:
                   to 1.
                 format: int32
                 type: integer
-              repositoryName:
-                description: RepositoryName describes repository name to register
-                  Pods as self-hosted runners. If this field is omitted or the empty
-                  string (`""`) is specified, Pods will be registered as organization-level
-                  self-hosted runners.
+              repository:
+                description: Repository name. If this field is specified, meows registers
+                  pods as repository-level runners.
                 type: string
               setupCommand:
                 description: Command that runs when the runner pods will be created.
                 items:
                   type: string
                 type: array
-              slackAgent:
-                description: Configuration of a Slack agent.
+              slackNotification:
+                description: Configuration of the Slack notification.
                 properties:
                   channel:
                     description: Slack channel which the job results are reported.
                       If this field is omitted, the default channel specified in slack-agent
                       options will be used.
                     type: string
-                  serviceName:
-                    description: ServiceName is a Service name of Slack agent.
+                  enable:
+                    description: / Flag to toggle Slack notifications sends or not.
+                    type: boolean
+                  extendDuration:
+                    description: Extension time. If this field is omitted, users cannot
+                      extend the runner pods.
+                    type: string
+                  slackAgentServiceName:
+                    description: Service name of Slack agent. If this field is omitted,
+                      the default name (`slack-agent.meows.svc`) will be used.
                     type: string
                 type: object
               template:
                 description: Template describes the runner pods that will be created.
                 properties:
+                  automountServiceAccountToken:
+                    description: AutomountServiceAccountToken indicates whether a
+                      service account token should be automatically mounted to the
+                      pod.
+                    type: boolean
                   env:
                     description: List of environment variables to set in the runner
                       container.

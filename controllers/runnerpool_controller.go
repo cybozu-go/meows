@@ -3,8 +3,10 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -29,24 +31,29 @@ import (
 // RunnerPoolReconciler reconciles a RunnerPool object
 type RunnerPoolReconciler struct {
 	client.Client
-	log              logr.Logger
-	scheme           *runtime.Scheme
-	organizationName string
-	runnerImage      string
-	runnerManager    RunnerManager
-	secretUpdater    SecretUpdater
+	log                logr.Logger
+	scheme             *runtime.Scheme
+	runnerImage        string
+	runnerManager      RunnerManager
+	secretUpdater      SecretUpdater
+	organizationRegexp *regexp.Regexp
+	repositoryRegexp   *regexp.Regexp
 }
 
 // NewRunnerPoolReconciler creates RunnerPoolReconciler
-func NewRunnerPoolReconciler(log logr.Logger, client client.Client, scheme *runtime.Scheme, organizationName, runnerImage string, runnerManager RunnerManager, secretUpdater SecretUpdater) *RunnerPoolReconciler {
+func NewRunnerPoolReconciler(
+	log logr.Logger, client client.Client, scheme *runtime.Scheme, runnerImage string,
+	runnerManager RunnerManager, secretUpdater SecretUpdater,
+	organizationRegexp, repositoryRegexp *regexp.Regexp) *RunnerPoolReconciler {
 	return &RunnerPoolReconciler{
-		Client:           client,
-		log:              log.WithName("RunnerPool"),
-		scheme:           scheme,
-		organizationName: organizationName,
-		runnerImage:      runnerImage,
-		runnerManager:    runnerManager,
-		secretUpdater:    secretUpdater,
+		Client:             client,
+		log:                log.WithName("RunnerPool"),
+		scheme:             scheme,
+		runnerImage:        runnerImage,
+		runnerManager:      runnerManager,
+		secretUpdater:      secretUpdater,
+		organizationRegexp: organizationRegexp,
+		repositoryRegexp:   repositoryRegexp,
 	}
 }
 
@@ -96,6 +103,12 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		log.Info("finalizing RunnerPool is completed")
 		return ctrl.Result{}, nil
+	}
+
+	err := r.validation(ctx, rp)
+	if err != nil {
+		log.Error(err, "validation error")
+		return ctrl.Result{}, err
 	}
 
 	cred, err := r.getGitHubCredential(ctx, log, rp)
@@ -148,20 +161,11 @@ func (r *RunnerPoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func labelSet(rp *meowsv1alpha1.RunnerPool, component string) map[string]string {
+func labelSet(rp *meowsv1alpha1.RunnerPool) map[string]string {
 	labels := map[string]string{
 		constants.AppNameLabelKey:      constants.AppName,
-		constants.AppComponentLabelKey: component,
+		constants.AppComponentLabelKey: constants.AppComponentRunner,
 		constants.AppInstanceLabelKey:  rp.Name,
-	}
-	return labels
-}
-
-func labelSetForRunnerPod(rp *meowsv1alpha1.RunnerPool, organizationName string) map[string]string {
-	labels := labelSet(rp, constants.AppComponentRunner)
-	labels[constants.RunnerOrgLabelKey] = organizationName
-	if !rp.IsOrgLevel() {
-		labels[constants.RunnerRepoLabelKey] = rp.Spec.RepositoryName
 	}
 	return labels
 }
@@ -235,6 +239,19 @@ func (r *RunnerPoolReconciler) getGitHubCredential(ctx context.Context, log logr
 	return readAppKeySecret(s)
 }
 
+func (r *RunnerPoolReconciler) validation(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+	if rp.IsOrgLevel() {
+		if r.organizationRegexp != nil && !r.organizationRegexp.MatchString(rp.Spec.Organization) {
+			return errors.New("organization is not match")
+		}
+	} else {
+		if r.repositoryRegexp != nil && !r.repositoryRegexp.MatchString(rp.Spec.Repository) {
+			return errors.New("repository is not match")
+		}
+	}
+	return nil
+}
+
 func (r *RunnerPoolReconciler) reconcileSecret(ctx context.Context, log logr.Logger, rp *meowsv1alpha1.RunnerPool) (bool, error) {
 	s := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{
@@ -267,18 +284,19 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 	op, err := ctrl.CreateOrUpdate(ctx, r.Client, d, func() error {
 		orig = d.Spec.DeepCopy()
 
-		d.Labels = mergeMap(d.GetLabels(), labelSet(rp, constants.AppComponentRunner))
-		d.Spec.Selector = &metav1.LabelSelector{
-			MatchLabels: labelSet(rp, constants.AppComponentRunner),
-		}
+		d.Labels = mergeMap(d.GetLabels(), labelSet(rp))
+		d.Spec.Selector = &metav1.LabelSelector{MatchLabels: labelSet(rp)}
 
 		d.Spec.Template.Labels = mergeMap(d.Spec.Template.GetLabels(), rp.Spec.Template.ObjectMeta.Labels)
-		d.Spec.Template.Labels = mergeMap(d.Spec.Template.GetLabels(), labelSetForRunnerPod(rp, r.organizationName))
+		d.Spec.Template.Labels = mergeMap(d.Spec.Template.GetLabels(), labelSet(rp))
 		d.Spec.Template.Annotations = mergeMap(d.Spec.Template.GetAnnotations(), rp.Spec.Template.ObjectMeta.Annotations)
 
 		d.Spec.Replicas = pointer.Int32Ptr(rp.Spec.Replicas)
 		d.Spec.Template.Spec.ServiceAccountName = rp.Spec.Template.ServiceAccountName
 		d.Spec.Template.Spec.ImagePullSecrets = rp.Spec.Template.ImagePullSecrets
+		if rp.Spec.Template.AutomountServiceAccountToken != nil {
+			d.Spec.Template.Spec.AutomountServiceAccountToken = rp.Spec.Template.AutomountServiceAccountToken
+		}
 
 		varDir := "var-dir"
 		workDir := "work-dir"
@@ -420,10 +438,6 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *meowsv1alpha1.RunnerPo
 			},
 		},
 		{
-			Name:  constants.RunnerOrgEnvName,
-			Value: r.organizationName,
-		},
-		{
 			Name:  constants.RunnerPoolNameEnvName,
 			Value: rp.ObjectMeta.Name,
 		},
@@ -433,10 +447,15 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *meowsv1alpha1.RunnerPo
 		},
 	}
 
-	if !rp.IsOrgLevel() {
+	if rp.IsOrgLevel() {
+		envs = append(envs, corev1.EnvVar{
+			Name:  constants.RunnerOrgEnvName,
+			Value: rp.Spec.Organization,
+		})
+	} else {
 		envs = append(envs, corev1.EnvVar{
 			Name:  constants.RunnerRepoEnvName,
-			Value: rp.Spec.RepositoryName,
+			Value: rp.Spec.Repository,
 		})
 	}
 

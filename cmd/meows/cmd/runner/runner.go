@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/well"
@@ -15,10 +16,21 @@ var config struct {
 	appInstallationID   int64
 	appPrivateKeyPath   string
 	personalAccessToken string
-	organizationName    string
 }
 
 var githubClient github.Client
+
+func splitOwnerRepo(str string) (string, string, error) {
+	split := strings.Split(str, "/")
+	switch len(split) {
+	case 1:
+		return split[0], "", nil
+	case 2:
+		return split[0], split[1], nil
+	default:
+		return "", "", fmt.Errorf("invalid format: %s", str)
+	}
+}
 
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -38,7 +50,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			var err error
-			githubClient, err = github.NewFactory(config.organizationName).New(cred)
+			githubClient, err = github.NewFactory().New(cred)
 			if err != nil {
 				return fmt.Errorf("failed to create github client; %w", err)
 			}
@@ -53,22 +65,24 @@ func NewCommand() *cobra.Command {
 	fs.Int64Var(&config.appInstallationID, "app-installation-id", 0, "The installation ID for GitHub App.")
 	fs.StringVar(&config.appPrivateKeyPath, "app-private-key-path", "", "The path for GitHub App private key.")
 	fs.StringVar(&config.personalAccessToken, "token", "", "The personal access token (PAT) of GitHub.")
-	fs.StringVarP(&config.organizationName, "organization-name", "o", "", "The GitHub organization name")
-
 	return cmd
 }
 
 func newListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list REPOSITORY",
+		Use:   "list [ORGANIZATION | REPOSITORY]",
 		Short: "list runners",
-		Long:  "This command lists all runners on the specified repository.",
+		Long:  "This command lists all runners on the specified organization or repository.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
+			owner, repo, err := splitOwnerRepo(args[0])
+			if err != nil {
+				return err
+			}
 
 			well.Go(func(ctx context.Context) error {
-				runners, err := githubClient.ListRunners(ctx, args[0], nil)
+				runners, err := githubClient.ListRunners(ctx, owner, repo, nil)
 				if err != nil {
 					return fmt.Errorf("failed to create github client; %w", err)
 				}
@@ -90,15 +104,19 @@ func newListCmd() *cobra.Command {
 
 func newRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove REPOSITORY",
+		Use:   "remove  [ORGANIZATION | REPOSITORY]",
 		Short: "remove offline runners",
-		Long:  "This command removes offline runners on the specified repository.",
+		Long:  "This command removes offline runners on the specified organization or repository.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
+			owner, repo, err := splitOwnerRepo(args[0])
+			if err != nil {
+				return err
+			}
 
 			well.Go(func(ctx context.Context) error {
-				runners, err := githubClient.ListRunners(ctx, args[0], nil)
+				runners, err := githubClient.ListRunners(ctx, owner, repo, nil)
 				if err != nil {
 					return fmt.Errorf("failed to create github client; %w", err)
 				}
@@ -106,7 +124,7 @@ func newRemoveCmd() *cobra.Command {
 					if r.Online {
 						continue
 					}
-					err := githubClient.RemoveRunner(ctx, args[0], r.ID)
+					err := githubClient.RemoveRunner(ctx, owner, repo, r.ID)
 					if err != nil {
 						return fmt.Errorf("failed to remove runner %s (id: %d); %w", r.Name, r.ID, err)
 					}

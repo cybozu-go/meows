@@ -5,6 +5,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -24,15 +25,18 @@ var reservedEnvNames = map[string]bool{
 
 // RunnerPoolSpec defines the desired state of RunnerPool
 type RunnerPoolSpec struct {
-	// RepositoryName describes repository name to register Pods as self-hosted runners.
-	// If this field is omitted or the empty string (`""`) is specified, Pods will be registered as organization-level self-hosted runners.
+	// Repository name. If this field is specified, meows registers pods as repository-level runners.
 	// +optional
-	RepositoryName string `json:"repositoryName"`
+	Repository string `json:"repository,omitempty"`
+
+	// Organization name. If this field is specified, meows registers pods as organization-level runners.
+	// +optional
+	Organization string `json:"organization,omitempty"`
 
 	// CredentialSecretName is a Secret name that contains a GitHub Credential.
 	// If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`meows-github-cred`).
 	// +optional
-	CredentialSecretName string `json:"credentialSecretName"`
+	CredentialSecretName string `json:"credentialSecretName,omitempty"`
 
 	// Number of desired runner pods to accept a new job. Defaults to 1.
 	// +kubebuilder:default=1
@@ -49,32 +53,42 @@ type RunnerPoolSpec struct {
 	// +optional
 	SetupCommand []string `json:"setupCommand,omitempty"`
 
-	// Configuration of a Slack agent.
-	// +optional
-	SlackAgent SlackAgentConfig `json:"slackAgent,omitempty"`
-
 	// Deadline for the Pod to be recreated.
 	// +kubebuilder:default="24h"
 	// +optional
 	RecreateDeadline string `json:"recreateDeadline,omitempty"`
 
+	// Configuration of the Slack notification.
+	// +optional
+	SlackNotification SlackNotificationConfig `json:"slackNotification,omitempty"`
+
 	// Template describes the runner pods that will be created.
 	// +optional
-	Template RunnerPodTemplateSec `json:"template,omitempty"`
+	Template RunnerPodTemplateSpec `json:"template,omitempty"`
 }
 
-type SlackAgentConfig struct {
-	// ServiceName is a Service name of Slack agent.
+type SlackNotificationConfig struct {
+	/// Flag to toggle Slack notifications sends or not.
 	// +optional
-	ServiceName string `json:"serviceName,omitempty"`
+	Enable bool `json:"enable,omitempty"`
 
 	// Slack channel which the job results are reported.
 	// If this field is omitted, the default channel specified in slack-agent options will be used.
 	// +optional
 	Channel string `json:"channel,omitempty"`
+
+	// Extension time.
+	// If this field is omitted, users cannot extend the runner pods.
+	// +optional
+	ExtendDuration string `json:"extendDuration,omitempty"`
+
+	// Service name of Slack agent.
+	// If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.
+	// +optional
+	SlackAgentServiceName string `json:"slackAgentServiceName,omitempty"`
 }
 
-type RunnerPodTemplateSec struct {
+type RunnerPodTemplateSpec struct {
 	// Standard object's metadata.  Only `annotations` and `labels` are valid.
 	// +optional
 	ObjectMeta `json:"metadata"`
@@ -120,6 +134,10 @@ type RunnerPodTemplateSec struct {
 	// +kubebuilder:default="default"
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// AutomountServiceAccountToken indicates whether a service account token should be automatically mounted to the pod.
+	// +optional
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
 }
 
 // ObjectMeta is metadata of objects.
@@ -173,8 +191,13 @@ func (s *RunnerPoolSpec) validateUpdate(old RunnerPoolSpec) field.ErrorList {
 	var allErrs field.ErrorList
 	p := field.NewPath("spec")
 
-	if s.RepositoryName != old.RepositoryName {
-		pp := p.Child("repositoryName")
+	if s.Repository != old.Repository {
+		pp := p.Child("repository")
+		allErrs = append(allErrs, field.Forbidden(pp, "the field is immutable"))
+	}
+
+	if s.Organization != old.Organization {
+		pp := p.Child("organization")
 		allErrs = append(allErrs, field.Forbidden(pp, "the field is immutable"))
 	}
 
@@ -185,6 +208,16 @@ func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
 	var allErrs field.ErrorList
 	p := field.NewPath("spec")
 
+	if (s.Repository == "" && s.Organization == "") || (s.Repository != "" && s.Organization != "") {
+		allErrs = append(allErrs, field.Invalid(p, s.Repository, "only one of repository and organization can be set"))
+	}
+	if s.Repository != "" {
+		split := strings.Split(s.Repository, "/")
+		if len(split) != 2 || split[0] == "" || split[1] == "" {
+			allErrs = append(allErrs, field.Invalid(p.Child("repository"), s.Repository, "this value should be '<owner>/<repo>'"))
+		}
+	}
+
 	if !(s.MaxRunnerPods == 0 || s.Replicas <= s.MaxRunnerPods) {
 		allErrs = append(allErrs, field.Invalid(p.Child("maxRunnerPods"), s.MaxRunnerPods, "this value should be 0, or greater-than or equal-to replicas."))
 	}
@@ -192,6 +225,13 @@ func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
 	_, err := time.ParseDuration(s.RecreateDeadline)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(p.Child("recreateDeadline"), s.RecreateDeadline, "this value should be able to parse using time.ParseDuration"))
+	}
+
+	if s.SlackNotification.ExtendDuration != "" {
+		_, err := time.ParseDuration(s.SlackNotification.ExtendDuration)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(p.Child("slackNotification").Child("extendDuration"), s.SlackNotification.ExtendDuration, "this value should be able to parse using time.ParseDuration"))
+		}
 	}
 
 	for i, e := range s.Template.Env {
@@ -214,5 +254,21 @@ func (r *RunnerPool) GetRunnerSecretName() string {
 }
 
 func (r *RunnerPool) IsOrgLevel() bool {
-	return r.Spec.RepositoryName == ""
+	return r.Spec.Organization != ""
+}
+
+func (r *RunnerPool) GetOwner() string {
+	if r.IsOrgLevel() {
+		return r.Spec.Organization
+	}
+	split := strings.Split(r.Spec.Repository, "/")
+	return split[0]
+}
+
+func (r *RunnerPool) GetRepository() string {
+	if r.IsOrgLevel() {
+		return ""
+	}
+	split := strings.Split(r.Spec.Repository, "/")
+	return split[1]
 }
