@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -26,37 +27,41 @@ import (
 // RunnerManager manages runner pods and runners registered in GitHub.
 // It generates one goroutine for each RunnerPool CR to manage them.
 type RunnerManager interface {
-	StartOrUpdate(context.Context, *meowsv1alpha1.RunnerPool) error
+	StartOrUpdate(context.Context, *meowsv1alpha1.RunnerPool, *github.ClientCredential) error
 	Stop(context.Context, *meowsv1alpha1.RunnerPool) error
 }
 
 type runnerManager struct {
-	log             logr.Logger
-	k8sClient       client.Client
-	githubClient    github.Client
-	runnerPodClient runner.Client
-	interval        time.Duration
-	processes       map[string]*manageProcess
+	log                 logr.Logger
+	k8sClient           client.Client
+	githubClientFactory github.ClientFactory
+	runnerPodClient     runner.Client
+	interval            time.Duration
+	processes           map[string]*manageProcess
 }
 
-func NewRunnerManager(log logr.Logger, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, interval time.Duration) RunnerManager {
+func NewRunnerManager(log logr.Logger, k8sClient client.Client, githubClientFactory github.ClientFactory, runnerPodClient runner.Client, interval time.Duration) RunnerManager {
 	return &runnerManager{
-		log:             log.WithName("RunnerManager"),
-		k8sClient:       k8sClient,
-		githubClient:    githubClient,
-		runnerPodClient: runnerPodClient,
-		interval:        interval,
-		processes:       map[string]*manageProcess{},
+		log:                 log.WithName("RunnerManager"),
+		k8sClient:           k8sClient,
+		githubClientFactory: githubClientFactory,
+		runnerPodClient:     runnerPodClient,
+		interval:            interval,
+		processes:           map[string]*manageProcess{},
 	}
 }
 
-func (m *runnerManager) StartOrUpdate(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (m *runnerManager) StartOrUpdate(ctx context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
 	if _, ok := m.processes[rpNamespacedName]; !ok {
+		githubClient, err := m.githubClientFactory.New(ctx, cred)
+		if err != nil {
+			return fmt.Errorf("failed to create a github client; %w", err)
+		}
 		process, err := newManageProcess(
 			m.log.WithValues("runnerpool", rpNamespacedName),
 			m.k8sClient,
-			m.githubClient,
+			githubClient,
 			m.runnerPodClient,
 			m.interval,
 			rp,
@@ -78,20 +83,6 @@ func (m *runnerManager) Stop(ctx context.Context, rp *meowsv1alpha1.RunnerPool) 
 			return err
 		}
 		delete(m.processes, rpNamespacedName)
-	}
-
-	runnerList, err := m.githubClient.ListRunners(ctx, rp.Spec.RepositoryName, []string{rpNamespacedName})
-	if err != nil {
-		m.log.Error(err, "failed to list runners")
-		return err
-	}
-	for _, runner := range runnerList {
-		err := m.githubClient.RemoveRunner(ctx, rp.Spec.RepositoryName, runner.ID)
-		if err != nil {
-			m.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)
-			return err
-		}
-		m.log.Info("removed runner", "runner", runner.Name, "runner_id", runner.ID)
 	}
 	return nil
 }
@@ -192,6 +183,20 @@ func (p *manageProcess) stop(ctx context.Context) error {
 		if err := p.env.Wait(); err != nil {
 			return err
 		}
+	}
+
+	runnerList, err := p.githubClient.ListRunners(ctx, p.repositoryName, []string{p.rpNamespacedName()})
+	if err != nil {
+		p.log.Error(err, "failed to list runners")
+		return nil
+	}
+	for _, runner := range runnerList {
+		err := p.githubClient.RemoveRunner(ctx, p.repositoryName, runner.ID)
+		if err != nil {
+			p.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)
+			return err
+		}
+		p.log.Info("removed runner", "runner", runner.Name, "runner_id", runner.ID)
 	}
 	return nil
 }

@@ -3,11 +3,14 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/runner"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -95,12 +98,18 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
+	cred, err := r.getGitHubCredential(ctx, log, rp)
+	if err != nil {
+		log.Error(err, "failed to get github credential")
+		return ctrl.Result{}, err
+	}
+
 	isContinuation, err := r.reconcileSecret(ctx, log, rp)
 	if err != nil {
 		log.Error(err, "failed to reconcile secret")
 		return ctrl.Result{}, err
 	}
-	if err := r.secretUpdater.Start(ctx, rp); err != nil {
+	if err := r.secretUpdater.Start(ctx, rp, cred); err != nil {
 		log.Error(err, "failed to start secret updater")
 		return ctrl.Result{}, err
 	}
@@ -117,7 +126,7 @@ func (r *RunnerPoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	if err := r.runnerManager.StartOrUpdate(ctx, rp); err != nil {
+	if err := r.runnerManager.StartOrUpdate(ctx, rp, cred); err != nil {
 		log.Error(err, "failed to start or update runner manager")
 		return ctrl.Result{}, err
 	}
@@ -169,6 +178,61 @@ func mergeMap(m1, m2 map[string]string) map[string]string {
 		return nil
 	}
 	return m
+}
+
+func readAppKeySecret(s *corev1.Secret) (*github.ClientCredential, error) {
+	appIDstr, ok := s.Data[constants.CredentialSecretDataAppID]
+	if !ok {
+		return nil, fmt.Errorf("missing %s key", constants.CredentialSecretDataAppID)
+	}
+	appID, err := strconv.Atoi(string(appIDstr))
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s value; %w", constants.CredentialSecretDataAppID, err)
+	}
+
+	insIDstr, ok := s.Data[constants.CredentialSecretDataAppInstallationID]
+	if !ok {
+		return nil, fmt.Errorf("missing %s key", constants.CredentialSecretDataAppInstallationID)
+	}
+	insID, err := strconv.Atoi(string(insIDstr))
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s value; %w", constants.CredentialSecretDataAppInstallationID, err)
+	}
+
+	key, ok := s.Data[constants.CredentialSecretDataAppPrivateKey]
+	if !ok {
+		return nil, fmt.Errorf("missing %s key", constants.CredentialSecretDataAppPrivateKey)
+	}
+
+	return &github.ClientCredential{
+		AppID:             int64(appID),
+		AppInstallationID: int64(insID),
+		PrivateKey:        key,
+	}, nil
+}
+
+func (r *RunnerPoolReconciler) getGitHubCredential(ctx context.Context, log logr.Logger, rp *meowsv1alpha1.RunnerPool) (*github.ClientCredential, error) {
+	secretName := constants.DefaultCredentialSecretName
+	if rp.Spec.CredentialSecretName != "" {
+		secretName = rp.Spec.CredentialSecretName
+	}
+
+	s := &corev1.Secret{}
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      secretName,
+		Namespace: rp.Namespace,
+	}, s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get credential secret; %w", err)
+	}
+
+	if pat, ok := s.Data[constants.CredentialSecretDataPATToken]; ok {
+		return &github.ClientCredential{
+			PersonalAccessToken: string(pat),
+		}, nil
+	}
+
+	return readAppKeySecret(s)
 }
 
 func (r *RunnerPoolReconciler) reconcileSecret(ctx context.Context, log logr.Logger, rp *meowsv1alpha1.RunnerPool) (bool, error) {

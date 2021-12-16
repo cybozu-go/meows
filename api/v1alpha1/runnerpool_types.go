@@ -29,6 +29,11 @@ type RunnerPoolSpec struct {
 	// +optional
 	RepositoryName string `json:"repositoryName"`
 
+	// CredentialSecretName is a Secret name that contains a GitHub Credential.
+	// If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`meows-github-cred`).
+	// +optional
+	CredentialSecretName string `json:"credentialSecretName"`
+
 	// Number of desired runner pods to accept a new job. Defaults to 1.
 	// +kubebuilder:default=1
 	// +optional

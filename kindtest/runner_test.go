@@ -13,16 +13,19 @@ import (
 func testRunner() {
 	It("should create runner pods", func() {
 		By("creating repo-runnerpool1")
+		createGitHubCredSecret(repoRunner1NS, "meows-github-cred", githubAppID, githubAppInstallationID, githubAppPrivateKeyPath)
 		stdout, stderr, err := kustomizeBuild("./manifests/repo-runnerpool1")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 		kubectlSafeWithInput(stdout, "apply", "-n", repoRunner1NS, "-f", "-")
 
 		By("creating repo-runnerpool2")
+		createGitHubCredSecret(repoRunner2NS, "meows-github-cred", githubAppID, githubAppInstallationID, githubAppPrivateKeyPath)
 		stdout, stderr, err = kustomizeBuild("./manifests/repo-runnerpool2")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 		kubectlSafeWithInput(stdout, "apply", "-n", repoRunner2NS, "-f", "-")
 
 		By("creating org-runnerpool1")
+		createGitHubCredSecret(orgRunner1NS, "github-cred-foo", githubAppID, githubAppInstallationID, githubAppPrivateKeyPath)
 		stdout, stderr, err = kustomizeBuild("./manifests/org-runnerpool1")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 		kubectlSafeWithInput(stdout, "apply", "-n", orgRunner1NS, "-f", "-")

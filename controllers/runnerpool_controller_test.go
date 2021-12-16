@@ -8,6 +8,7 @@ import (
 
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
+	"github.com/cybozu-go/meows/github"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -22,42 +23,49 @@ import (
 )
 
 type runnerManagerMock struct {
-	started map[string]bool
+	started     map[string]bool
+	githubCreds map[string]*github.ClientCredential
 }
 
 func newRunnerManagerMock() *runnerManagerMock {
 	return &runnerManagerMock{
-		started: map[string]bool{},
+		started:     map[string]bool{},
+		githubCreds: map[string]*github.ClientCredential{},
 	}
 }
 
-func (m *runnerManagerMock) StartOrUpdate(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (m *runnerManagerMock) StartOrUpdate(_ context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	m.started[rpNamespacedName] = true
+	m.githubCreds[rpNamespacedName] = cred
 	return nil
 }
 
 func (m *runnerManagerMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	delete(m.started, rpNamespacedName)
+	delete(m.githubCreds, rpNamespacedName)
 	return nil
 }
 
 type secretUpdaterMock struct {
-	k8sClient client.Client
-	started   map[string]bool
+	k8sClient   client.Client
+	started     map[string]bool
+	githubCreds map[string]*github.ClientCredential
 }
 
 func newSecretUpdaterMock(c client.Client) *secretUpdaterMock {
 	return &secretUpdaterMock{
-		k8sClient: c,
-		started:   map[string]bool{},
+		k8sClient:   c,
+		started:     map[string]bool{},
+		githubCreds: map[string]*github.ClientCredential{},
 	}
 }
 
-func (m *secretUpdaterMock) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (m *secretUpdaterMock) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	m.started[rpNamespacedName] = true
+	m.githubCreds[rpNamespacedName] = cred
 
 	s := new(corev1.Secret)
 	err := m.k8sClient.Get(ctx, types.NamespacedName{Namespace: rp.Namespace, Name: rp.GetRunnerSecretName()}, s)
@@ -78,6 +86,7 @@ func (m *secretUpdaterMock) Start(ctx context.Context, rp *meowsv1alpha1.RunnerP
 func (m *secretUpdaterMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	delete(m.started, rpNamespacedName)
+	delete(m.githubCreds, rpNamespacedName)
 	return nil
 }
 
@@ -137,6 +146,26 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	It("should create Namespace", func() {
 		createNamespaces(ctx, namespace)
+
+		By("creating default credential secret")
+		appSecret := new(corev1.Secret)
+		appSecret.SetName("meows-github-cred") // Default name
+		appSecret.SetNamespace(namespace)
+		appSecret.StringData = map[string]string{
+			"app-id":              "1234",
+			"app-installation-id": "5678",
+			"app-private-key":     "dummy-private-key",
+		}
+		Expect(k8sClient.Create(ctx, appSecret)).To(Succeed())
+
+		By("creating another credential secret")
+		patSecret := new(corev1.Secret)
+		patSecret.SetName("github-cred-foo")
+		patSecret.SetNamespace(namespace)
+		patSecret.StringData = map[string]string{
+			"token": "dummy-pat",
+		}
+		Expect(k8sClient.Create(ctx, patSecret)).To(Succeed())
 	})
 
 	It("should create Deployment from minimal RunnerPool", func() {
@@ -290,6 +319,18 @@ var _ = Describe("RunnerPool reconciler", func() {
 		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
 		Expect(mockUpdater.started).To(HaveKey(namespace + "/" + runnerPoolName))
 
+		By("checking credentials have been passed to sub-processes")
+		Expect(mockManager.githubCreds[namespace+"/"+runnerPoolName]).To(PointTo(MatchFields(IgnoreExtras, Fields{
+			"AppID":             Equal(int64(1234)),
+			"AppInstallationID": Equal(int64(5678)),
+			"PrivateKey":        Equal([]byte("dummy-private-key")),
+		})))
+		Expect(mockUpdater.githubCreds[namespace+"/"+runnerPoolName]).To(PointTo(MatchFields(IgnoreExtras, Fields{
+			"AppID":             Equal(int64(1234)),
+			"AppInstallationID": Equal(int64(5678)),
+			"PrivateKey":        Equal([]byte("dummy-private-key")),
+		})))
+
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
 
@@ -301,6 +342,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 	It("should create Deployment from maximum RunnerPool", func() {
 		By("deploying RunnerPool resource")
 		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[1])
+		rp.Spec.CredentialSecretName = "github-cred-foo"
 		rp.Spec.Replicas = 3
 		rp.Spec.SetupCommand = []string{"command", "arg1", "args2"}
 		rp.Spec.SlackAgent.ServiceName = "slack-agent"
@@ -536,6 +578,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("checking sub-processes are started")
 		Expect(mockManager.started).To(HaveKey(namespace + "/" + runnerPoolName))
 		Expect(mockUpdater.started).To(HaveKey(namespace + "/" + runnerPoolName))
+
+		By("checking credentials have been passed to sub-processes")
+		Expect(mockManager.githubCreds[namespace+"/"+runnerPoolName]).To(PointTo(MatchFields(IgnoreExtras, Fields{
+			"PersonalAccessToken": Equal("dummy-pat"),
+		})))
+		Expect(mockUpdater.githubCreds[namespace+"/"+runnerPoolName]).To(PointTo(MatchFields(IgnoreExtras, Fields{
+			"PersonalAccessToken": Equal("dummy-pat"),
+		})))
 
 		By("deleting the created RunnerPool")
 		deleteRunnerPool(ctx, runnerPoolName, namespace)
