@@ -73,6 +73,7 @@ func run() error {
 	factory := github.NewFactory(orgName)
 
 	log := ctrl.Log.WithName("controllers")
+
 	runnerManager := controllers.NewRunnerManager(
 		log,
 		mgr.GetClient(),
@@ -80,11 +81,15 @@ func run() error {
 		runner.NewClient(),
 		config.runnerManagerInterval,
 	)
+	defer runnerManager.StopAll()
+
 	secretUpdater := controllers.NewSecretUpdater(
 		log,
 		mgr.GetClient(),
 		factory,
 	)
+	defer secretUpdater.StopAll()
+
 	reconciler := controllers.NewRunnerPoolReconciler(
 		log,
 		mgr.GetClient(),

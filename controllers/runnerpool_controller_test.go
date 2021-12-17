@@ -34,18 +34,21 @@ func newRunnerManagerMock() *runnerManagerMock {
 	}
 }
 
-func (m *runnerManagerMock) StartOrUpdate(_ context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
+func (m *runnerManagerMock) StartOrUpdate(rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	m.started[rpNamespacedName] = true
 	m.githubCreds[rpNamespacedName] = cred
 	return nil
 }
 
-func (m *runnerManagerMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (m *runnerManagerMock) Stop(rp *meowsv1alpha1.RunnerPool) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	delete(m.started, rpNamespacedName)
 	delete(m.githubCreds, rpNamespacedName)
 	return nil
+}
+
+func (m *runnerManagerMock) StopAll() {
 }
 
 type secretUpdaterMock struct {
@@ -62,11 +65,12 @@ func newSecretUpdaterMock(c client.Client) *secretUpdaterMock {
 	}
 }
 
-func (m *secretUpdaterMock) Start(ctx context.Context, rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
+func (m *secretUpdaterMock) Start(rp *meowsv1alpha1.RunnerPool, cred *github.ClientCredential) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	m.started[rpNamespacedName] = true
 	m.githubCreds[rpNamespacedName] = cred
 
+	ctx := context.Background()
 	s := new(corev1.Secret)
 	err := m.k8sClient.Get(ctx, types.NamespacedName{Namespace: rp.Namespace, Name: rp.GetRunnerSecretName()}, s)
 	if err != nil {
@@ -83,11 +87,14 @@ func (m *secretUpdaterMock) Start(ctx context.Context, rp *meowsv1alpha1.RunnerP
 	return m.k8sClient.Patch(ctx, newS, patch)
 }
 
-func (m *secretUpdaterMock) Stop(_ context.Context, rp *meowsv1alpha1.RunnerPool) error {
+func (m *secretUpdaterMock) Stop(rp *meowsv1alpha1.RunnerPool) error {
 	rpNamespacedName := rp.Namespace + "/" + rp.Name
 	delete(m.started, rpNamespacedName)
 	delete(m.githubCreds, rpNamespacedName)
 	return nil
+}
+
+func (m *secretUpdaterMock) StopAll() {
 }
 
 var _ = Describe("RunnerPool reconciler", func() {
