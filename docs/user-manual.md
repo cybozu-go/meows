@@ -29,7 +29,7 @@ $ kubectl create configmap meows-cm -n meows \
     --from-literal=repository-rule='^neco-test/.*' \
 ```
 
-Both `organization-rule` and `repository-rul` accepts golang's regular expressions.
+Both `organization-rule` and `repository-rule` accepts golang's regular expressions.
 
 ### Deploying Controller
 
