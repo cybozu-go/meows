@@ -5,8 +5,10 @@ metadata:
 spec:
   repository: neco-test/meows-ci
   replicas: 3
-  slackNotification:
-    enable: true
+  notification:
+    slack:
+      enable: true
+      channel: "#test1"
     extendDuration: "30s"
   template:
     image: meows-runner:kindtest

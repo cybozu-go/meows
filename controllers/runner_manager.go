@@ -142,12 +142,12 @@ type manageProcess struct {
 }
 
 func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, interval time.Duration, rp *meowsv1alpha1.RunnerPool) (*manageProcess, error) {
-	extendDuration, _ := time.ParseDuration(rp.Spec.SlackNotification.ExtendDuration)
+	extendDuration, _ := time.ParseDuration(rp.Spec.Notification.ExtendDuration)
 	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
 
 	agentName := constants.DefaultSlackAgentServiceName
-	if rp.Spec.SlackNotification.SlackAgentServiceName != "" {
-		agentName = rp.Spec.SlackNotification.SlackAgentServiceName
+	if rp.Spec.Notification.Slack.AgentServiceName != "" {
+		agentName = rp.Spec.Notification.Slack.AgentServiceName
 	}
 	agentClient, err := agent.NewClient(agentName)
 	if err != nil {
@@ -168,8 +168,8 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient git
 		replicas:              rp.Spec.Replicas,
 		maxRunnerPods:         rp.Spec.MaxRunnerPods,
 		slackAgentClient:      agentClient,
-		needSlackNotification: rp.Spec.SlackNotification.Enable,
-		slackChannel:          rp.Spec.SlackNotification.Channel,
+		needSlackNotification: rp.Spec.Notification.Slack.Enable,
+		slackChannel:          rp.Spec.Notification.Slack.Channel,
 		slackAgentServiceName: agentName,
 		extendDuration:        extendDuration,
 		recreateDeadline:      recreateDeadline,
@@ -187,17 +187,17 @@ func (p *manageProcess) update(rp *meowsv1alpha1.RunnerPool) error {
 	defer p.mu.Unlock()
 	p.replicas = rp.Spec.Replicas
 	p.maxRunnerPods = rp.Spec.MaxRunnerPods
-	p.needSlackNotification = rp.Spec.SlackNotification.Enable
-	p.slackChannel = rp.Spec.SlackNotification.Channel
+	p.needSlackNotification = rp.Spec.Notification.Slack.Enable
+	p.slackChannel = rp.Spec.Notification.Slack.Channel
 
-	extendDuration, _ := time.ParseDuration(rp.Spec.SlackNotification.ExtendDuration)
+	extendDuration, _ := time.ParseDuration(rp.Spec.Notification.ExtendDuration)
 	p.extendDuration = extendDuration
 	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
 	p.recreateDeadline = recreateDeadline
 
 	agentName := constants.DefaultSlackAgentServiceName
-	if rp.Spec.SlackNotification.SlackAgentServiceName != "" {
-		agentName = rp.Spec.SlackNotification.SlackAgentServiceName
+	if rp.Spec.Notification.Slack.AgentServiceName != "" {
+		agentName = rp.Spec.Notification.Slack.AgentServiceName
 	}
 	if p.slackAgentServiceName != agentName {
 		err := p.slackAgentClient.UpdateServerURL(agentName)

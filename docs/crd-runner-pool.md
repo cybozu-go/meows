@@ -13,28 +13,34 @@ GitHub Actions self-hosted runners.
 
 ## RunnerPoolSpec
 
-| Field                  | Type                                                | Description                                                                                                                                                                |
-| ---------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `repository`           | string                                              | Repository name. If this field is specified, meows registers pods as repository-level runners.                                                                             |
-| `organization`         | string                                              | Organization name. If this field is specified, meows registers pods as organization-level runners.                                                                         |
-| `credentialSecretName` | string                                              | Secret name that contains a GitHub Credential. If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`meows-github-cred`). |
-| `replicas`             | int32                                               | Number of desired runner pods to accept a new job. Defaults to `1`.                                                                                                        |
-| `maxRunnerPods`        | int32                                               | Number of desired runner pods to keep. Defaults to `0`. If this field is `0`, it will keep the number of pods specified in `replicas`.                                     |
-| `setupCommand`         | []string                                            | Command that runs when the runner pods will be created.                                                                                                                    |
-| `slackNotification`    | [SlackNotificationConfig](#SlackNotificationConfig) | Configuration of the Slack notification.                                                                                                                                   |
-| `recreateDeadline`     | string                                              | Deadline for the Pod to be recreated. Default value is `24h`. This value should be parseable with `time.ParseDuration`.                                                    |
-| `template`             | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec)     | Pod manifest Template.                                                                                                                                                     |
+| Field                  | Type                                            | Description                                                                                                                                                                |
+| ---------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repository`           | string                                          | Repository name. If this field is specified, meows registers pods as repository-level runners.                                                                             |
+| `organization`         | string                                          | Organization name. If this field is specified, meows registers pods as organization-level runners.                                                                         |
+| `credentialSecretName` | string                                          | Secret name that contains a GitHub Credential. If this field is omitted or the empty string (`""`) is specified, meows uses the default secret name (`meows-github-cred`). |
+| `replicas`             | int32                                           | Number of desired runner pods to accept a new job. Defaults to `1`.                                                                                                        |
+| `maxRunnerPods`        | int32                                           | Number of desired runner pods to keep. Defaults to `0`. If this field is `0`, it will keep the number of pods specified in `replicas`.                                     |
+| `setupCommand`         | []string                                        | Command that runs when the runner pods will be created.                                                                                                                    |
+| `notification`         | [NotificationConfig](#NotificationConfig)       | Configuration of the notification.                                                                                                                                         |
+| `recreateDeadline`     | string                                          | Deadline for the Pod to be recreated. Default value is `24h`. This value should be parseable with `time.ParseDuration`.                                                    |
+| `template`             | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec) | Pod manifest Template.                                                                                                                                                     |
 
 **NOTE**: `maxRunnerPods` is equal-to or greater than `replicas`.
 
-## SlackNotificationConfig
+## NotificationConfig
 
-| Field                   | Type   | Description                                                                                                                                                                    |
-| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `enable`                | string | Flag to toggle Slack notifications sends or not.                                                                                                                               |
-| `channel`               | string | Slack channel which the job results are reported. If this field is omitted, the default channel specified in the `--channel`(`-c`) option of slack-agent command will be used. |
-| `extendDuration`        | string | Extension time. If this field is omitted, users cannot extend the runner pods.                                                                                                 |
-| `slackAgentServiceName` | string | Service name of Slack agent. If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.                                                                |
+| Field            | Type                        | Description                                                                    |
+| ---------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| `slack`          | [SlackConfig](#SlackConfig) | Configuration of the Slack notification.                                       |
+| `extendDuration` | string                      | Extension time. If this field is omitted, users cannot extend the runner pods. |
+
+## SlackConfig
+
+| Field              | Type   | Description                                                                                                                                                                    |
+| ------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `enable`           | string | Flag to toggle Slack notifications sends or not.                                                                                                                               |
+| `channel`          | string | Slack channel which the job results are reported. If this field is omitted, the default channel specified in the `--channel`(`-c`) option of slack-agent command will be used. |
+| `agentServiceName` | string | Service name of Slack agent. If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.                                                                |
 
 ## RunnerPodTemplateSpec
 

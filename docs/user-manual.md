@@ -201,9 +201,10 @@ metadata:
 spec:
   repository: "<Owner>/<your Repository>"
   replicas: 3
-  slackNotification:
-    enable: true               # Enable Slack notifications
-    channel: "#<channel_name>"
+  notification:
+    slack:
+      enable: true               # Enable Slack notifications
+      channel: "#<channel_name>"
     extendDuration: "30s"      # If you want to extend the Pod in case of job failure, set this field.
 ```
 

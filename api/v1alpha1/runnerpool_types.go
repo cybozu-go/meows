@@ -58,16 +58,27 @@ type RunnerPoolSpec struct {
 	// +optional
 	RecreateDeadline string `json:"recreateDeadline,omitempty"`
 
-	// Configuration of the Slack notification.
+	// Configuration of the notification.
 	// +optional
-	SlackNotification SlackNotificationConfig `json:"slackNotification,omitempty"`
+	Notification NotificationConfig `json:"notification,omitempty"`
 
 	// Template describes the runner pods that will be created.
 	// +optional
 	Template RunnerPodTemplateSpec `json:"template,omitempty"`
 }
 
-type SlackNotificationConfig struct {
+type NotificationConfig struct {
+	// Configuration of the Slack notification.
+	// +optional
+	Slack SlackConfig `json:"slack,omitempty"`
+
+	// Extension time.
+	// If this field is omitted, users cannot extend the runner pods.
+	// +optional
+	ExtendDuration string `json:"extendDuration,omitempty"`
+}
+
+type SlackConfig struct {
 	/// Flag to toggle Slack notifications sends or not.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
@@ -77,15 +88,10 @@ type SlackNotificationConfig struct {
 	// +optional
 	Channel string `json:"channel,omitempty"`
 
-	// Extension time.
-	// If this field is omitted, users cannot extend the runner pods.
-	// +optional
-	ExtendDuration string `json:"extendDuration,omitempty"`
-
 	// Service name of Slack agent.
 	// If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.
 	// +optional
-	SlackAgentServiceName string `json:"slackAgentServiceName,omitempty"`
+	AgentServiceName string `json:"agentServiceName,omitempty"`
 }
 
 type RunnerPodTemplateSpec struct {
@@ -227,10 +233,10 @@ func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
 		allErrs = append(allErrs, field.Invalid(p.Child("recreateDeadline"), s.RecreateDeadline, "this value should be able to parse using time.ParseDuration"))
 	}
 
-	if s.SlackNotification.ExtendDuration != "" {
-		_, err := time.ParseDuration(s.SlackNotification.ExtendDuration)
+	if s.Notification.ExtendDuration != "" {
+		_, err := time.ParseDuration(s.Notification.ExtendDuration)
 		if err != nil {
-			allErrs = append(allErrs, field.Invalid(p.Child("slackNotification").Child("extendDuration"), s.SlackNotification.ExtendDuration, "this value should be able to parse using time.ParseDuration"))
+			allErrs = append(allErrs, field.Invalid(p.Child("slackNotification").Child("extendDuration"), s.Notification.ExtendDuration, "this value should be able to parse using time.ParseDuration"))
 		}
 	}
 

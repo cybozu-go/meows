@@ -8,9 +8,10 @@ spec:
   - "bash"
   - "-c"
   - "date > /tmp/test"
-  slackNotification:
-    enable: true
-    channel: "#test2"
+  notification:
+    slack:
+      enable: true
+      channel: "#test2"
     extendDuration: "30s"
   template:
     image: meows-runner:kindtest

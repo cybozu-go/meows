@@ -354,9 +354,9 @@ var _ = Describe("RunnerPool reconciler", func() {
 		rp.Spec.CredentialSecretName = "github-cred-foo"
 		rp.Spec.Replicas = 3
 		rp.Spec.SetupCommand = []string{"command", "arg1", "args2"}
-		rp.Spec.SlackNotification.Enable = true
-		rp.Spec.SlackNotification.Channel = "#test"
-		rp.Spec.SlackNotification.ExtendDuration = "20m"
+		rp.Spec.Notification.Slack.Enable = true
+		rp.Spec.Notification.Slack.Channel = "#test"
+		rp.Spec.Notification.ExtendDuration = "20m"
 		rp.Spec.Template.ObjectMeta.Labels = map[string]string{
 			"test-label": "test",
 		}

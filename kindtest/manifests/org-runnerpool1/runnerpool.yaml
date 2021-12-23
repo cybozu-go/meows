@@ -7,9 +7,10 @@ spec:
   organization: neco-test
   credentialSecretName: github-cred-foo
   maxRunnerPods: 1
-  slackNotification:
-    enable: true
-    channel: "#test1"
+  notification:
+    slack:
+      enable: true
+      channel: "#test1"
     extendDuration: "30s"
   template:
     image: meows-runner:kindtest

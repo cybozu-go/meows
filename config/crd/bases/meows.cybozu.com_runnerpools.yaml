@@ -48,6 +48,32 @@ spec:
                   replicas.
                 format: int32
                 type: integer
+              notification:
+                description: Configuration of the notification.
+                properties:
+                  extendDuration:
+                    description: Extension time. If this field is omitted, users cannot
+                      extend the runner pods.
+                    type: string
+                  slack:
+                    description: Configuration of the Slack notification.
+                    properties:
+                      agentServiceName:
+                        description: Service name of Slack agent. If this field is
+                          omitted, the default name (`slack-agent.meows.svc`) will
+                          be used.
+                        type: string
+                      channel:
+                        description: Slack channel which the job results are reported.
+                          If this field is omitted, the default channel specified
+                          in slack-agent options will be used.
+                        type: string
+                      enable:
+                        description: / Flag to toggle Slack notifications sends or
+                          not.
+                        type: boolean
+                    type: object
+                type: object
               organization:
                 description: Organization name. If this field is specified, meows
                   registers pods as organization-level runners.
@@ -71,26 +97,6 @@ spec:
                 items:
                   type: string
                 type: array
-              slackNotification:
-                description: Configuration of the Slack notification.
-                properties:
-                  channel:
-                    description: Slack channel which the job results are reported.
-                      If this field is omitted, the default channel specified in slack-agent
-                      options will be used.
-                    type: string
-                  enable:
-                    description: / Flag to toggle Slack notifications sends or not.
-                    type: boolean
-                  extendDuration:
-                    description: Extension time. If this field is omitted, users cannot
-                      extend the runner pods.
-                    type: string
-                  slackAgentServiceName:
-                    description: Service name of Slack agent. If this field is omitted,
-                      the default name (`slack-agent.meows.svc`) will be used.
-                    type: string
-                type: object
               template:
                 description: Template describes the runner pods that will be created.
                 properties:
