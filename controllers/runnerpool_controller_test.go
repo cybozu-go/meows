@@ -387,7 +387,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			{Name: "volume1", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			{Name: "volume2", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
-		rp.Spec.Template.WorkVolume = &corev1.VolumeSource{
+		rp.Spec.WorkVolume = &corev1.VolumeSource{
 			Ephemeral: &corev1.EphemeralVolumeSource{
 				VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
 					ObjectMeta: metav1.ObjectMeta{

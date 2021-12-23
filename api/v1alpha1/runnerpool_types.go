@@ -49,6 +49,11 @@ type RunnerPoolSpec struct {
 	// +optional
 	MaxRunnerPods int32 `json:"maxRunnerPods,omitempty"`
 
+	// WorkVolume is the volume source for the working directory.
+	// If pod is not given a volume definition, it uses an empty dir.
+	// +optional
+	WorkVolume *corev1.VolumeSource `json:"workVolume,omitempty"`
+
 	// Command that runs when the runner pods will be created.
 	// +optional
 	SetupCommand []string `json:"setupCommand,omitempty"`
@@ -122,11 +127,6 @@ type RunnerPodTemplateSpec struct {
 	// Compute Resources required by the runner container.
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// WorkVolume is the volume source for the working directory.
-	// If pod is not given a volume definition, it uses an empty dir.
-	// +optional
-	WorkVolume *corev1.VolumeSource `json:"workVolume,omitempty"`
 
 	// Pod volumes to mount into the runner container's filesystem.
 	// +optional

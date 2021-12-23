@@ -306,7 +306,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		})
-		if rp.Spec.Template.WorkVolume == nil {
+		if rp.Spec.WorkVolume == nil {
 			// use emptyDir (default)
 			volumes = append(volumes, corev1.Volume{
 				Name: workDir,
@@ -317,7 +317,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		} else {
 			volumes = append(volumes, corev1.Volume{
 				Name:         workDir,
-				VolumeSource: *rp.Spec.Template.WorkVolume,
+				VolumeSource: *rp.Spec.WorkVolume,
 			})
 		}
 
