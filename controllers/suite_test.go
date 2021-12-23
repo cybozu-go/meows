@@ -90,7 +90,7 @@ func createNamespaces(ctx context.Context, namespaces ...string) {
 	}
 }
 
-func makeRunnerPool(name, namespace, repoName string) *meowsv1alpha1.RunnerPool {
+func makeRunnerPool(name, namespace string) *meowsv1alpha1.RunnerPool {
 	return &meowsv1alpha1.RunnerPool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -99,14 +99,25 @@ func makeRunnerPool(name, namespace, repoName string) *meowsv1alpha1.RunnerPool 
 			Finalizers: []string{constants.RunnerPoolFinalizer},
 		},
 		Spec: meowsv1alpha1.RunnerPoolSpec{
-			RepositoryName:   repoName,
 			RecreateDeadline: "24h",
 		},
 	}
 }
 
+func makeRunnerPoolWithOrganization(name, namespace, orgName string) *meowsv1alpha1.RunnerPool {
+	rp := makeRunnerPool(name, namespace)
+	rp.Spec.Organization = orgName
+	return rp
+}
+
+func makeRunnerPoolWithRepository(name, namespace, repoName string) *meowsv1alpha1.RunnerPool {
+	rp := makeRunnerPool(name, namespace)
+	rp.Spec.Repository = repoName
+	return rp
+}
+
 func makeRunnerPoolWithRecreateDeadline(name, namespace, repoName, recreateDeadline string) *meowsv1alpha1.RunnerPool {
-	rp := makeRunnerPool(name, namespace, repoName)
+	rp := makeRunnerPoolWithRepository(name, namespace, repoName)
 	rp.Spec.RecreateDeadline = recreateDeadline
 	return rp
 }

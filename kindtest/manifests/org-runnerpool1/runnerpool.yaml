@@ -4,14 +4,15 @@ metadata:
   name: org-runnerpool1
 spec:
   replicas: 1
+  organization: neco-test
   credentialSecretName: github-cred-foo
   maxRunnerPods: 1
-  slackAgent:
-    serviceName: slack-agent.meows.svc
-    channel: "#test1"
+  notification:
+    slack:
+      enable: true
+      channel: "#test1"
+    extendDuration: "30s"
   template:
-    image: meows-runner:kindtest
-    imagePullPolicy: Never
-    env:
-    - name: EXTEND_DURATION
-      value: "30s"
+    runnerContainer:
+      image: meows-runner:kindtest
+      imagePullPolicy: Never

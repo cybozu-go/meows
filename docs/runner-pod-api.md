@@ -57,7 +57,7 @@ $ curl -s -XGET localhost:8080/status
 	"state": "debugging",
 	"result": "failure",  ... Job result. "success", "failure, "cancelled" or "unknown".
 	"finished_at": "2021-01-01T00:00:00Z", ... The time the job was finished.
-	"deletion_time": "2021-01-01T00:20:00Z", ... Scheduled deletion time. When the "extend" is false, this value is the same as "finished_at".
+	"deletion_time": "2021-01-01T00:20:00Z", ... Scheduled deletion time. This field remains nil until `PUT /deletion_time` is called.
 	"extend": true, ... Pod extension is required or not.
 	"job_info": {
 		"actor": "user",

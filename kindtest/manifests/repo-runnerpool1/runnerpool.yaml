@@ -3,13 +3,14 @@ kind: RunnerPool
 metadata:
   name: repo-runnerpool1
 spec:
-  repositoryName: meows-ci
+  repository: neco-test/meows-ci
   replicas: 3
-  slackAgent:
-    serviceName: slack-agent.meows.svc
+  notification:
+    slack:
+      enable: true
+      channel: "#test1"
+    extendDuration: "30s"
   template:
-    image: meows-runner:kindtest
-    imagePullPolicy: Never
-    env:
-    - name: EXTEND_DURATION
-      value: "30s"
+    runnerContainer:
+      image: meows-runner:kindtest
+      imagePullPolicy: Never

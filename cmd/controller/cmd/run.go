@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 
 	constants "github.com/cybozu-go/meows"
@@ -13,6 +14,7 @@ import (
 	"github.com/cybozu-go/meows/metrics"
 	"github.com/cybozu-go/meows/runner"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -64,15 +66,8 @@ func run() error {
 	}
 	metrics.InitControllerMetrics(k8sMetrics.Registry)
 
-	reader := mgr.GetAPIReader()
-	orgName, err := getTargetOrganization(ctx, reader, config.controllerNamespace, constants.OptionConfigMapName)
-	if err != nil {
-		setupLog.Error(err, "unable to read target organization")
-		return err
-	}
-	factory := github.NewFactory(orgName)
-
 	log := ctrl.Log.WithName("controllers")
+	factory := github.NewFactory()
 
 	runnerManager := controllers.NewRunnerManager(
 		log,
@@ -90,14 +85,21 @@ func run() error {
 	)
 	defer secretUpdater.StopAll()
 
+	orgRegexp, repoRegexp, err := getValidationRule(ctx, mgr.GetAPIReader(), config.controllerNamespace, constants.OptionConfigMapName)
+	if err != nil {
+		setupLog.Error(err, "unable to read validation rule")
+		return err
+	}
+
 	reconciler := controllers.NewRunnerPoolReconciler(
 		log,
 		mgr.GetClient(),
 		mgr.GetScheme(),
-		orgName,
 		config.runnerImage,
 		runnerManager,
 		secretUpdater,
+		orgRegexp,
+		repoRegexp,
 	)
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
@@ -129,15 +131,34 @@ func run() error {
 	return nil
 }
 
-func getTargetOrganization(ctx context.Context, reader client.Reader, namespace, name string) (string, error) {
+func getValidationRule(ctx context.Context, reader client.Reader, namespace, name string) (*regexp.Regexp, *regexp.Regexp, error) {
 	cm := new(corev1.ConfigMap)
 	err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, cm)
-	if err != nil {
-		return "", fmt.Errorf("failed to get configmap; %w", err)
+	if apierrors.IsNotFound(err) {
+		return nil, nil, nil
+	} else if err != nil {
+		return nil, nil, fmt.Errorf("failed to get configmap; %w", err)
 	}
-	org, ok := cm.Data[constants.OptionConfigMapDataOrganization]
-	if !ok || org == "" {
-		return "", fmt.Errorf("missing %s key", constants.OptionConfigMapDataOrganization)
+
+	var orgRegexp *regexp.Regexp
+	orgRegexStr := cm.Data[constants.OptionConfigMapDataOrganizationRule]
+	if orgRegexStr != "" {
+		re, err := regexp.Compile(orgRegexStr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid %s key: %w", constants.OptionConfigMapDataOrganizationRule, err)
+		}
+		orgRegexp = re
 	}
-	return org, nil
+
+	var repoRegexp *regexp.Regexp
+	repoRegexpStr := cm.Data[constants.OptionConfigMapDataRepositoryRule]
+	if repoRegexpStr != "" {
+		re, err := regexp.Compile(repoRegexpStr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid %s key: %w", constants.OptionConfigMapDataRepositoryRule, err)
+		}
+		repoRegexp = re
+	}
+
+	return orgRegexp, repoRegexp, nil
 }

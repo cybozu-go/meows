@@ -52,10 +52,9 @@ func (r *Runner) hasLabels(labels []string) bool {
 
 // Client generates token for GitHub Action selfhosted runner
 type Client interface {
-	GetOrganizationName() string
-	CreateRegistrationToken(context.Context, string) (*github.RegistrationToken, error)
-	ListRunners(context.Context, string, []string) ([]*Runner, error)
-	RemoveRunner(context.Context, string, int64) error
+	CreateRegistrationToken(context.Context, string, string) (*github.RegistrationToken, error)
+	ListRunners(context.Context, string, string, []string) ([]*Runner, error)
+	RemoveRunner(context.Context, string, string, int64) error
 }
 
 type ClientCredential struct {
@@ -71,24 +70,20 @@ type ClientFactory interface {
 	New(*ClientCredential) (Client, error)
 }
 
-type defaultFactory struct {
-	organizationName string
-}
+type defaultFactory struct{}
 
-func NewFactory(organizationName string) ClientFactory {
-	return &defaultFactory{
-		organizationName: organizationName,
-	}
+func NewFactory() ClientFactory {
+	return &defaultFactory{}
 }
 
 func (f *defaultFactory) New(cred *ClientCredential) (Client, error) {
 	switch {
 	case len(cred.PersonalAccessToken) != 0:
-		return newClientFromPAT(f.organizationName, cred.PersonalAccessToken), nil
+		return newClientFromPAT(cred.PersonalAccessToken), nil
 	case len(cred.PrivateKey) != 0:
-		return newClientFromAppKey(f.organizationName, cred.AppID, cred.AppInstallationID, cred.PrivateKey)
+		return newClientFromAppKey(cred.AppID, cred.AppInstallationID, cred.PrivateKey)
 	case len(cred.PrivateKeyPath) != 0:
-		return newClientFromAppKeyFile(f.organizationName, cred.AppID, cred.AppInstallationID, cred.PrivateKeyPath)
+		return newClientFromAppKeyFile(cred.AppID, cred.AppInstallationID, cred.PrivateKeyPath)
 	default:
 		return nil, errors.New("invalid credential")
 	}
@@ -96,67 +91,58 @@ func (f *defaultFactory) New(cred *ClientCredential) (Client, error) {
 
 // clientWrapper is a wrapper of GitHub client.
 type clientWrapper struct {
-	client           *github.Client
-	organizationName string
+	client *github.Client
 }
 
 // newClientFromPAT creates GitHub Actions Client from a personal access token (PAT).
-func newClientFromPAT(organizationName string, pat string) Client {
+func newClientFromPAT(pat string) Client {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: pat},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	return &clientWrapper{
-		client:           github.NewClient(tc),
-		organizationName: organizationName,
+		client: github.NewClient(tc),
 	}
 }
 
 // newClientFromAppKey creates GitHub Actions Client from a private key of a GitHub app.
-func newClientFromAppKey(organizationName string, appID, appInstallationID int64, privateKey []byte) (Client, error) {
+func newClientFromAppKey(appID, appInstallationID int64, privateKey []byte) (Client, error) {
 	rt, err := ghinstallation.New(http.DefaultTransport, appID, appInstallationID, privateKey)
 	if err != nil {
 		return nil, err
 	}
 	return &clientWrapper{
-		client:           github.NewClient(&http.Client{Transport: rt}),
-		organizationName: organizationName,
+		client: github.NewClient(&http.Client{Transport: rt}),
 	}, nil
 }
 
 // newClientFromAPIKey creates GitHub Actions Client from a private key of a GitHub app.
-func newClientFromAppKeyFile(organizationName string, appID, appInstallationID int64, privateKeyPath string) (Client, error) {
+func newClientFromAppKeyFile(appID, appInstallationID int64, privateKeyPath string) (Client, error) {
 	rt, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, appID, appInstallationID, privateKeyPath)
 	if err != nil {
 		return nil, err
 	}
 	return &clientWrapper{
-		client:           github.NewClient(&http.Client{Transport: rt}),
-		organizationName: organizationName,
+		client: github.NewClient(&http.Client{Transport: rt}),
 	}, nil
 }
 
-// GetOrganizationName returns organizationName.
-func (c *clientWrapper) GetOrganizationName() string {
-	return c.organizationName
-}
-
 // CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization.
-func (c *clientWrapper) CreateRegistrationToken(ctx context.Context, repositoryName string) (*github.RegistrationToken, error) {
+func (c *clientWrapper) CreateRegistrationToken(ctx context.Context, owner, repo string) (*github.RegistrationToken, error) {
 	var token *github.RegistrationToken
 	var res *github.Response
 	var err error
-	if repositoryName == "" {
+	if repo == "" {
 		token, res, err = c.client.Actions.CreateOrganizationRegistrationToken(
 			ctx,
-			c.organizationName,
+			owner,
 		)
 	} else {
 		token, res, err = c.client.Actions.CreateRegistrationToken(
 			ctx,
-			c.organizationName,
-			repositoryName,
+			owner,
+			repo,
 		)
 	}
 	if e, ok := err.(*url.Error); ok {
@@ -174,7 +160,7 @@ func (c *clientWrapper) CreateRegistrationToken(ctx context.Context, repositoryN
 }
 
 // ListRunners lists registered self-hosted runners for the organization.
-func (c *clientWrapper) ListRunners(ctx context.Context, repositoryName string, labels []string) ([]*Runner, error) {
+func (c *clientWrapper) ListRunners(ctx context.Context, owner, repo string, labels []string) ([]*Runner, error) {
 	var runners []*Runner
 
 	opts := github.ListOptions{PerPage: 100}
@@ -182,17 +168,17 @@ func (c *clientWrapper) ListRunners(ctx context.Context, repositoryName string, 
 		var list *github.Runners
 		var res *github.Response
 		var err error
-		if repositoryName == "" {
+		if repo == "" {
 			list, res, err = c.client.Actions.ListOrganizationRunners(
 				ctx,
-				c.organizationName,
+				owner,
 				&opts,
 			)
 		} else {
 			list, res, err = c.client.Actions.ListRunners(
 				ctx,
-				c.organizationName,
-				repositoryName,
+				owner,
+				repo,
 				&opts,
 			)
 		}
@@ -221,20 +207,20 @@ func (c *clientWrapper) ListRunners(ctx context.Context, repositoryName string, 
 }
 
 // RemoveRunner deletes an Actions runner of the organization.
-func (c *clientWrapper) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
+func (c *clientWrapper) RemoveRunner(ctx context.Context, owner, repo string, runnerID int64) error {
 	var res *github.Response
 	var err error
-	if repositoryName == "" {
+	if repo == "" {
 		res, err = c.client.Actions.RemoveOrganizationRunner(
 			ctx,
-			c.organizationName,
+			owner,
 			runnerID,
 		)
 	} else {
 		res, err = c.client.Actions.RemoveRunner(
 			ctx,
-			c.organizationName,
-			repositoryName,
+			owner,
+			repo,
 			runnerID,
 		)
 	}

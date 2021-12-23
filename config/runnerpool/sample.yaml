@@ -3,7 +3,5 @@ kind: RunnerPool
 metadata:
   name: runnerpool-sample
 spec:
-  repositoryName: repository-sample
+  repository: your-org/repository-sample
   replicas: 3
-  slackAgent:
-    serviceName: slack-agent

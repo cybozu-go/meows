@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	constants "github.com/cybozu-go/meows"
@@ -98,8 +99,6 @@ func (m *secretUpdaterMock) StopAll() {
 }
 
 var _ = Describe("RunnerPool reconciler", func() {
-	organizationName := "runnerpool-org"
-	repositoryNames := []string{"runnerpool-repo-1", "runnerpool-repo-2"}
 	namespace := "runnerpool-ns"
 	runnerPoolName := "runnerpool-1"
 	secretName := "runner-token-" + runnerPoolName
@@ -129,10 +128,11 @@ var _ = Describe("RunnerPool reconciler", func() {
 			ctrl.Log,
 			mgr.GetClient(),
 			mgr.GetScheme(),
-			organizationName,
 			defaultRunnerImage,
 			RunnerManager(mockManager),
 			SecretUpdater(mockUpdater),
+			regexp.MustCompile(`^test-org$`),
+			regexp.MustCompile(`^test-org/.*`),
 		)
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
@@ -177,7 +177,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	It("should create Deployment from minimal RunnerPool", func() {
 		By("deploying RunnerPool resource")
-		rp := makeRunnerPool(runnerPoolName, namespace, "")
+		rp := makeRunnerPool(runnerPoolName, namespace)
+		rp.Spec.Repository = "test-org/test-repo"
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		By("waiting the RunnerPool become Bound")
@@ -224,14 +225,14 @@ var _ = Describe("RunnerPool reconciler", func() {
 			constants.AppNameLabelKey:      Equal(constants.AppName),
 			constants.AppComponentLabelKey: Equal(constants.AppComponentRunner),
 			constants.AppInstanceLabelKey:  Equal(runnerPoolName),
-			constants.RunnerOrgLabelKey:    Equal(organizationName),
 		}))
 
 		// deployment/pod spec
 		Expect(d.Spec.Replicas).To(PointTo(BeNumerically("==", 1)))
 		Expect(d.Spec.Template.Spec).To(MatchFields(IgnoreExtras, Fields{
-			"ServiceAccountName": Equal("default"),
-			"ImagePullSecrets":   BeEmpty(),
+			"ServiceAccountName":           Equal("default"),
+			"AutomountServiceAccountToken": BeNil(),
+			"ImagePullSecrets":             BeEmpty(),
 			"Volumes": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("var-dir"),
@@ -276,16 +277,16 @@ var _ = Describe("RunnerPool reconciler", func() {
 					})),
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
-					"Name":  Equal(constants.RunnerOrgEnvName),
-					"Value": Equal(organizationName),
-				}),
-				"3": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerPoolNameEnvName),
 					"Value": Equal(runnerPoolName),
 				}),
-				"4": MatchFields(IgnoreExtras, Fields{
+				"3": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerOptionEnvName),
 					"Value": Equal("{}"),
+				}),
+				"4": MatchFields(IgnoreExtras, Fields{
+					"Name":  Equal(constants.RunnerRepoEnvName),
+					"Value": Equal("test-org/test-repo"),
 				}),
 			}),
 			"Resources": MatchAllFields(Fields{
@@ -348,36 +349,37 @@ var _ = Describe("RunnerPool reconciler", func() {
 
 	It("should create Deployment from maximum RunnerPool", func() {
 		By("deploying RunnerPool resource")
-		rp := makeRunnerPool(runnerPoolName, namespace, repositoryNames[1])
+		rp := makeRunnerPool(runnerPoolName, namespace)
+		rp.Spec.Organization = "test-org"
 		rp.Spec.CredentialSecretName = "github-cred-foo"
 		rp.Spec.Replicas = 3
 		rp.Spec.SetupCommand = []string{"command", "arg1", "args2"}
-		rp.Spec.SlackAgent.ServiceName = "slack-agent"
-		rp.Spec.SlackAgent.Channel = "#test"
+		rp.Spec.Notification.Slack.Enable = true
+		rp.Spec.Notification.Slack.Channel = "#test"
+		rp.Spec.Notification.ExtendDuration = "20m"
 		rp.Spec.Template.ObjectMeta.Labels = map[string]string{
-			"test-label":                "test",
-			constants.RunnerOrgLabelKey: "should-not-be-updated",
+			"test-label": "test",
 		}
 		rp.Spec.Template.ObjectMeta.Annotations = map[string]string{
 			"test-annotation": "test",
 		}
-		rp.Spec.Template.Image = "sample:devel"
-		rp.Spec.Template.ImagePullPolicy = corev1.PullIfNotPresent
 		rp.Spec.Template.ImagePullSecrets = []corev1.LocalObjectReference{
 			{Name: "image-pull-secret1"},
 		}
-		rp.Spec.Template.SecurityContext = &corev1.SecurityContext{
+		rp.Spec.Template.RunnerContainer.Image = "sample:devel"
+		rp.Spec.Template.RunnerContainer.ImagePullPolicy = corev1.PullIfNotPresent
+		rp.Spec.Template.RunnerContainer.SecurityContext = &corev1.SecurityContext{
 			Privileged: pointer.BoolPtr(true),
 		}
-		rp.Spec.Template.Env = []corev1.EnvVar{
+		rp.Spec.Template.RunnerContainer.Env = []corev1.EnvVar{
 			{Name: "ENV_VAR", Value: "value"},
 		}
-		rp.Spec.Template.Resources = corev1.ResourceRequirements{
+		rp.Spec.Template.RunnerContainer.Resources = corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				"memory": resource.MustParse("100"),
 			},
 		}
-		rp.Spec.Template.VolumeMounts = []corev1.VolumeMount{
+		rp.Spec.Template.RunnerContainer.VolumeMounts = []corev1.VolumeMount{
 			{Name: "volume1", MountPath: "/volume1"},
 			{Name: "volume2", MountPath: "/volume2"},
 		}
@@ -385,7 +387,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			{Name: "volume1", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			{Name: "volume2", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
-		rp.Spec.Template.WorkVolume = &corev1.VolumeSource{
+		rp.Spec.WorkVolume = &corev1.VolumeSource{
 			Ephemeral: &corev1.EphemeralVolumeSource{
 				VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
 					ObjectMeta: metav1.ObjectMeta{
@@ -403,6 +405,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			},
 		}
 		rp.Spec.Template.ServiceAccountName = serviceAccountName
+		rp.Spec.Template.AutomountServiceAccountToken = pointer.BoolPtr(false)
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		By("waiting the RunnerPool become Bound")
@@ -439,7 +442,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 		// deployment/pod spec
 		Expect(d.Spec.Replicas).To(PointTo(BeNumerically("==", 3)))
 		Expect(d.Spec.Template.Spec).To(MatchFields(IgnoreExtras, Fields{
-			"ServiceAccountName": Equal(serviceAccountName),
+			"ServiceAccountName":           Equal(serviceAccountName),
+			"AutomountServiceAccountToken": PointTo(BeFalse()),
 			"ImagePullSecrets": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal("image-pull-secret1"),
@@ -483,8 +487,6 @@ var _ = Describe("RunnerPool reconciler", func() {
 					constants.AppNameLabelKey:      Equal(constants.AppName),
 					constants.AppComponentLabelKey: Equal(constants.AppComponentRunner),
 					constants.AppInstanceLabelKey:  Equal(rp.Name),
-					constants.RunnerOrgLabelKey:    Equal(organizationName),
-					constants.RunnerRepoLabelKey:   Equal(rp.Spec.RepositoryName),
 					"test-label":                   Equal("test"),
 				}),
 				"Annotations": MatchAllKeys(Keys{
@@ -518,22 +520,18 @@ var _ = Describe("RunnerPool reconciler", func() {
 					})),
 				}),
 				"2": MatchFields(IgnoreExtras, Fields{
-					"Name":  Equal(constants.RunnerOrgEnvName),
-					"Value": Equal(organizationName),
-				}),
-				"3": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerPoolNameEnvName),
 					"Value": Equal(runnerPoolName),
 				}),
-				"4": MatchFields(IgnoreExtras, Fields{
+				"3": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal(constants.RunnerOptionEnvName),
 					"Value": Equal("{\"setup_command\":[\"command\",\"arg1\",\"args2\"]}"),
 				}),
-				"5": MatchFields(IgnoreExtras, Fields{
-					"Name":  Equal(constants.RunnerRepoEnvName),
-					"Value": Equal(repositoryNames[1]),
+				"4": MatchFields(IgnoreExtras, Fields{
+					"Name":  Equal(constants.RunnerOrgEnvName),
+					"Value": Equal("test-org"),
 				}),
-				"6": MatchFields(IgnoreExtras, Fields{
+				"5": MatchFields(IgnoreExtras, Fields{
 					"Name":  Equal("ENV_VAR"),
 					"Value": Equal("value"),
 				}),
@@ -600,5 +598,51 @@ var _ = Describe("RunnerPool reconciler", func() {
 		By("checking sub-processes are stopped")
 		Expect(mockManager.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
 		Expect(mockUpdater.started).NotTo(HaveKey(namespace + "/" + runnerPoolName))
+	})
+
+	It("should not create Deployment from unpermitted repository", func() {
+		By("deploying RunnerPool resource")
+		rp := makeRunnerPool(runnerPoolName, namespace)
+		rp.Spec.Repository = "test-org2/test-repo"
+		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
+		By("waiting the RunnerPool become Bound")
+		Consistently(func() error {
+			rp := new(meowsv1alpha1.RunnerPool)
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
+				return err
+			}
+			if rp.Status.Bound {
+				return errors.New(`status "bound" should not be true`)
+			}
+			return nil
+		}).Should(Succeed())
+		time.Sleep(wait) // Wait for the reconciliation to run a few times. Please check the controller's log.
+
+		By("deleting the created RunnerPool")
+		deleteRunnerPool(ctx, runnerPoolName, namespace)
+	})
+
+	It("should not create Deployment from unpermitted organization", func() {
+		By("deploying RunnerPool resource")
+		rp := makeRunnerPool(runnerPoolName, namespace)
+		rp.Spec.Organization = "test-org2"
+		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
+
+		By("waiting the RunnerPool become Bound")
+		Consistently(func() error {
+			rp := new(meowsv1alpha1.RunnerPool)
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: runnerPoolName, Namespace: namespace}, rp); err != nil {
+				return err
+			}
+			if rp.Status.Bound {
+				return errors.New(`status "bound" should not be true`)
+			}
+			return nil
+		}).Should(Succeed())
+		time.Sleep(wait) // Wait for the reconciliation to run a few times. Please check the controller's log.
+
+		By("deleting the created RunnerPool")
+		deleteRunnerPool(ctx, runnerPoolName, namespace)
 	})
 })

@@ -18,27 +18,32 @@ So make the `meows` namespace to prepare.
 $ kubectl create namespace meows
 ```
 
-### Deploying Controller
+### Create Controller Option ConfigMap (Optional)
 
-Currently, meows can manage one organization.
-So set the target organization by `meows-cm` ConfigMap.
+You can restrict the organization and repository that meows operates by `meows-cm` ConfigMap.
+If you want to restrict it in some way, please create a ConfigMap as follows.
 
 ```bash
-$ GITHUB_ORG=<your Organization>
 $ kubectl create configmap meows-cm -n meows \
-    --from-literal=organization=${GITHUB_ORG}
+    --from-literal=organization-rule='^neco-test$' \
+    --from-literal=repository-rule='^neco-test/.*' \
 ```
 
-After that deploy the controller.
+Both `organization-rule` and `repository-rule` accepts golang's regular expressions.
+
+### Deploying Controller
+
+Deploy the controller as follows.
 
 ```bash
 $ MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
 $ kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
 ```
 
-### Deploying Slack Agent
+### Deploying Slack Agent (Optional)
 
-Next, deploy the slack agent.
+If you want use Slack notifications, deploy the slack agent.
+
 The agent requires Slack App tokens, so create a Slack App following [Creating Slack App](#creating-slack-app) section.
 And create a secret as follows:
 
@@ -120,7 +125,7 @@ NOTE: The meows controller loads the credential when the controller reconcile th
 And the controller will not reflect the secret update while running.
 If you want to change the secret, recreate the RunnerPool or restart the controller.
 
-### Deploying RunnerPool resource
+### Deploying RunnerPool without Slack notifications
 
 Here is an example of the RunnerPool resource.
 
@@ -131,10 +136,8 @@ metadata:
   name: runnerpool-sample
   namespace: <your RunnerPool namespace>
 spec:
-  repositoryName: "<your Repository>"
+  repository: "<Owner>/<your Repository>"
   replicas: 3
-  slackAgent:
-    serviceName: slack-agent.meows.svc
 ```
 
 When you create the above RunnerPool, meows creates three runner pods (the number is specified by `.spec.replicas`) in `<your RunnerPool namespace>`.
@@ -143,17 +146,14 @@ Then, meows registers each runner pod as a repository-level runner in the specif
 After running pods, you can check whether the runners are registered to GitHub on the **Actions** page under each repository's **Settings**.
 E.g. `https://github.com/<your Organization>/<your Repository>/settings/actions/runners`
 
-## Writing Workflow
+NOTE: If you want to use organization-level runners, please set the `.spec.organization` field instead of the `.spec.repository` field.
 
-There are a few tips using runners registered by meows.
+### Writing Workflow
 
-1. Runners have a specific label determined from the name and namespace of the RunnerPool.
-   - The format is `<your RunnerPool Namespace>/<your RunnerPool Name>`.
-2. Users must call these commands in their workflows.
-   - At the beginning of a job, call `job-started`.
-   - At the ending of a job, call `job-success`, `job-cancelled` and `job-failure` with `steps.if` conditions.
+Runners registered by meows have a specific label determined from the name and namespace of the RunnerPool.
+The format is `<your RunnerPool Namespace>/<your RunnerPool Name>`.
 
-Here is an example of a workflow definition.
+So set the `self-hosted` and the RunnerPool-specific label to the `runs-on` in your workflow.
 
 ```yaml
 name: workflow example
@@ -164,21 +164,19 @@ jobs:
     name: example
     runs-on: ["self-hosted", "<your RunnerPool Namespace>/<your RunnerPool Name>"] # Specify `self-hosted` and the RunnerPool-specific label.
     steps:
-      - run: job-started # Call `job-started` at the beginning of a job.
-
       - run: ...
       - run: ...
       - run: ...
-
-      - if: success() # Call `job-{success, cancelled, failure}` at ending of a job.
-        run: job-success
-      - if: cancelled()
-        run: job-cancelled
-      - if: failure()
-        run: job-failure
 ```
 
 ## Slack notifications
+
+If you want to use Slack notifications, do the following settings.
+
+1. Set the `.spec.slackNotification` in your RunnerPool resources.
+2. Call these commands in their workflows.
+   - At the beginning of a job, call `job-started`.
+   - At the ending of a job, call `job-success`, `job-cancelled` and `job-failure` with `steps.if` conditions.
 
 By default, meows sends the job result to the slack channel specified by the `slack-app-secret` secret.
 However, you can change the slack channel in several methods.
@@ -192,7 +190,24 @@ Each method accepts a channel name in the `#<channel_name>` format. (e.g. `#gene
 When you specify some channels using some methods, the smaller number is a priority.
 If you don't set any channel in any method, meows does not send a message.
 
-For example, you can specify the channel in a workflow as follows.
+Examples are shown below.
+
+```yaml
+apiVersion: meows.cybozu.com/v1alpha1
+kind: RunnerPool
+metadata:
+  name: runnerpool-sample
+  namespace: <your RunnerPool namespace>
+spec:
+  repository: "<Owner>/<your Repository>"
+  replicas: 3
+  notification:
+    slack:
+      enable: true               # Enable Slack notifications
+      channel: "#<channel_name>"
+    extendDuration: "30s"      # If you want to extend the Pod in case of job failure, set this field.
+```
+
 
 ```yaml
 name: slack notification example
@@ -201,11 +216,12 @@ on: push
 jobs:
   example:
     name: example
+    runs-on: ["self-hosted", "<your RunnerPool Namespace>/<your RunnerPool Name>"] # Specify `self-hosted` and the RunnerPool-specific label.
     env:
       # Basically, a job result will be reported to the "#test1" channel.
       MEOWS_SLACK_CHANNEL: "#test1"
     steps:
-      - run: job-started
+      - run: job-started # Call `job-started` at the beginning of a job.
 
       # Only when a job fails, the result will be reported to the "#test2" channel.
       - if: failure()
@@ -215,7 +231,7 @@ jobs:
       - run: ...
       - run: ...
 
-      - if: success()
+      - if: success() # Call `job-{success, cancelled, failure}` at ending of a job.
         run: job-success
       - if: cancelled()
         run: job-cancelled
@@ -223,7 +239,7 @@ jobs:
         run: job-failure
 ```
 
-## Runner pods extension
+### Runner pods extension
 
 When a job fails, meows sends the following Slack message.
 

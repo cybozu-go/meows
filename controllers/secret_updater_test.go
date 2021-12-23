@@ -37,12 +37,12 @@ var _ = Describe("SecretUpdater", func() {
 			},
 		}
 
-		githubClientFactory := github.NewFakeClientFactory("secretupdater-org")
+		githubClientFactory := github.NewFakeClientFactory()
 		githubClientFactory.SetExpiredAtDuration(100 * time.Hour)
 		secretUpdater := NewSecretUpdater(ctrl.Log, k8sClient, githubClientFactory)
 
 		for _, tc := range testCase {
-			rp := makeRunnerPool(tc.name, "secretupdater-test", "")
+			rp := makeRunnerPoolWithOrganization(tc.name, "secretupdater-test", "test-org")
 
 			By("creating secret")
 			beforeSec := new(corev1.Secret)
@@ -104,12 +104,13 @@ var _ = Describe("SecretUpdater", func() {
 			},
 		}
 
-		githubClientFactory := github.NewFakeClientFactory("secretupdater-org")
+		githubClientFactory := github.NewFakeClientFactory()
 		githubClientFactory.SetExpiredAtDuration(100 * time.Hour)
 		secretUpdater := NewSecretUpdater(ctrl.Log, k8sClient, githubClientFactory)
 
 		for _, tc := range testCase {
-			rp := makeRunnerPool(tc.name, "secretupdater-test", "")
+			rp := makeRunnerPoolWithRepository(tc.name, "secretupdater-test", "owner/test-repo")
+			rp.Spec.Organization = "test-org"
 			baseTime := time.Now().Add(tc.expiresAtDuration).Format(time.RFC3339)
 
 			By("creating secret")

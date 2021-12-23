@@ -146,9 +146,11 @@ func (r *Runner) runListener(ctx context.Context) error {
 		return fmt.Errorf("failed load %s; %w", r.tokenPath, err)
 	}
 
-	configURL := fmt.Sprintf("https://github.com/%s", r.envs.runnerOrg)
-	if r.envs.runnerRepo != "" {
-		configURL = configURL + "/" + r.envs.runnerRepo
+	configURL := "https://github.com/"
+	if r.envs.runnerOrg != "" {
+		configURL = configURL + r.envs.runnerOrg
+	} else {
+		configURL = configURL + r.envs.runnerRepo
 	}
 
 	configArgs := []string{
@@ -199,12 +201,6 @@ func (r *Runner) updateToDebugginState(logger logr.Logger) {
 	extend := isFileExists(r.extendFlagFile)
 
 	finishedAt := time.Now().UTC()
-	var deletionTime time.Time
-	if extend {
-		deletionTime = finishedAt.Add(r.envs.extendDuration)
-	} else {
-		deletionTime = finishedAt
-	}
 
 	jobInfo, err := GetJobInfoFromFile(r.jobInfoFile)
 	if err != nil {
@@ -220,7 +216,6 @@ func (r *Runner) updateToDebugginState(logger logr.Logger) {
 	r.state = constants.RunnerPodStateDebugging
 	r.result = result
 	r.finishedAt = &finishedAt
-	r.deletionTime = &deletionTime
 	r.extend = &extend
 	r.jobInfo = jobInfo
 	r.slackChannel = slackChannel

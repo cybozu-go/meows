@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
@@ -49,16 +50,16 @@ var _ = Describe("RunnerManager", func() {
 			name             string
 			inputRunnerPools []*meowsv1alpha1.RunnerPool
 			inputPods        []*inputPod
-			inputRunners     map[string][]*github.Runner // key: "<Repository name>"
+			inputRunners     map[string][]*github.Runner // key: "<Owner>/<Repository>"
 			expectedPods     []string                    // slice of "<Namespace>/<Pod name>"
-			expectedRunners  []string                    // slice of "<Repository name>/<Runner name>"
+			expectedRunners  []string                    // slice of "<Owner>/<Repository>/<Runner name>"
 		}{
 			{
 				name: "delete pods",
 				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
-					makeRunnerPool("rp1", "test-ns1", "repo1"),
-					makeRunnerPool("rp2", "test-ns1", "repo2"),
-					makeRunnerPoolWithRecreateDeadline("rp3", "test-ns2", "repo2", "5s"),
+					makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1"),
+					makeRunnerPoolWithRepository("rp2", "test-ns1", "owner/repo2"),
+					makeRunnerPoolWithRecreateDeadline("rp3", "test-ns2", "owner/repo2", "5s"),
 				},
 				inputPods: []*inputPod{
 					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()}, // state is debugging.
@@ -67,21 +68,21 @@ var _ = Describe("RunnerManager", func() {
 					{spec: makePod("pod4", "test-ns2", "rp3"), ip: "10.0.0.4", state: "running"},                                                     // recreate deadline is exceeded and runner is not busy.
 				},
 				inputRunners: map[string][]*github.Runner{
-					"repo2": {
+					"owner/repo2": {
 						{Name: "pod4", ID: 4, Online: true, Busy: false, Labels: []string{"test-ns2/rp3"}},
 					},
 				},
 				expectedPods: nil,
 				expectedRunners: []string{
-					"repo2/pod4",
+					"owner/repo2/pod4",
 				},
 			},
 			{
 				name: "should not delete pods",
 				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
-					makeRunnerPool("rp1", "test-ns1", "repo1"),
-					makeRunnerPool("rp2", "test-ns1", "repo2"),
-					makeRunnerPoolWithRecreateDeadline("rp3", "test-ns2", "repo2", "5s"),
+					makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1"),
+					makeRunnerPoolWithRepository("rp2", "test-ns1", "owner/repo2"),
+					makeRunnerPoolWithRecreateDeadline("rp3", "test-ns2", "owner/repo2", "5s"),
 				},
 				inputPods: []*inputPod{
 					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "initializing"},
@@ -93,7 +94,7 @@ var _ = Describe("RunnerManager", func() {
 					{spec: makePod("pod3", "test-ns2", "rp3"), ip: "10.0.1.3", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now().Add(24 * time.Hour)}, // recreate deadline is exceeded but state is debugging.
 				},
 				inputRunners: map[string][]*github.Runner{
-					"repo2": {
+					"owner/repo2": {
 						{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns2/rp3"}},
 					},
 				},
@@ -107,22 +108,22 @@ var _ = Describe("RunnerManager", func() {
 					"test-ns2/pod3",
 				},
 				expectedRunners: []string{
-					"repo2/pod2",
+					"owner/repo2/pod2",
 				},
 			},
 			{
 				name: "delete runners",
 				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
-					makeRunnerPool("rp1", "test-ns1", "repo1"),
-					makeRunnerPool("rp2", "test-ns1", "repo2"),
+					makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1"),
+					makeRunnerPoolWithRepository("rp2", "test-ns1", "owner/repo2"),
 				},
 				inputPods: nil,
 				inputRunners: map[string][]*github.Runner{
-					"repo1": {
+					"owner/repo1": {
 						{Name: "pod1", ID: 1, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}}, // pod does not exist, offline
 						{Name: "pod2", ID: 2, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}}, // pod does not exist, offline
 					},
-					"repo2": {
+					"owner/repo2": {
 						{Name: "pod3", ID: 3, Online: false, Busy: false, Labels: []string{"test-ns1/rp2"}}, // pod does not exist, offline
 					},
 				},
@@ -132,20 +133,20 @@ var _ = Describe("RunnerManager", func() {
 			{
 				name: "should not delete runners",
 				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
-					makeRunnerPool("rp1", "test-ns1", "repo1"),
-					makeRunnerPool("rp2", "test-ns1", "repo2"),
+					makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1"),
+					makeRunnerPoolWithRepository("rp2", "test-ns1", "owner/repo2"),
 				},
 				inputPods: []*inputPod{
 					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "running"},
 					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", state: "running"},
 				},
 				inputRunners: map[string][]*github.Runner{
-					"repo1": {
+					"owner/repo1": {
 						{Name: "pod1", ID: 1, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}}, // pod exists
 						{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},   // pod exists
 						{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},  // pod does not exist, but online
 					},
-					"repo2": {
+					"owner/repo2": {
 						{Name: "pod1", ID: 4, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}},
 						{Name: "pod2", ID: 5, Online: false, Busy: false, Labels: []string{"test-ns1/rp3"}},
 						{Name: "pod3", ID: 6, Online: false, Busy: false, Labels: []string{}},
@@ -156,12 +157,12 @@ var _ = Describe("RunnerManager", func() {
 					"test-ns1/pod2",
 				},
 				expectedRunners: []string{
-					"repo1/pod1",
-					"repo1/pod2",
-					"repo1/pod3",
-					"repo2/pod1",
-					"repo2/pod2",
-					"repo2/pod3",
+					"owner/repo1/pod1",
+					"owner/repo1/pod2",
+					"owner/repo1/pod3",
+					"owner/repo2/pod1",
+					"owner/repo2/pod2",
+					"owner/repo2/pod3",
 				},
 			},
 		}
@@ -172,7 +173,7 @@ var _ = Describe("RunnerManager", func() {
 
 			By("preparing fake clients")
 			runnerPodClient := runner.NewFakeClient()
-			githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+			githubClientFactory := github.NewFakeClientFactory()
 			runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 			By("preparing pods and runners")
@@ -216,10 +217,13 @@ var _ = Describe("RunnerManager", func() {
 
 			By("checking runners")
 			var actualRunnerNames []string
-			for repo := range tt.inputRunners {
-				runnerList, _ := githubClientFactory.ListRunners(ctx, repo, nil)
+			for key := range tt.inputRunners {
+				split := strings.Split(key, "/")
+				owner := split[0]
+				repo := split[1]
+				runnerList, _ := githubClientFactory.ListRunners(ctx, owner, repo, nil)
 				for _, runner := range runnerList {
-					actualRunnerNames = append(actualRunnerNames, repo+"/"+runner.Name)
+					actualRunnerNames = append(actualRunnerNames, owner+"/"+repo+"/"+runner.Name)
 				}
 			}
 			sort.Strings(actualRunnerNames)
@@ -229,7 +233,7 @@ var _ = Describe("RunnerManager", func() {
 			for _, rp := range tt.inputRunnerPools {
 				By("stopping runnerpool manager; " + rp.Name)
 				Expect(runnerManager.Stop(rp)).To(Succeed(), ttName)
-				runnerList, _ := githubClientFactory.ListRunners(ctx, rp.Spec.RepositoryName, []string{rp.Name})
+				runnerList, _ := githubClientFactory.ListRunners(ctx, rp.GetOwner(), rp.GetRepository(), []string{rp.Name})
 				Expect(runnerList).To(BeEmpty(), ttName)
 			}
 
@@ -243,11 +247,11 @@ var _ = Describe("RunnerManager", func() {
 	It("should remove pod-template-hash label from pods", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		githubClientFactory := github.NewFakeClientFactory()
 		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting runnerpool manager")
-		rp := makeRunnerPool("rp1", "test-ns1", "repo1")
+		rp := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
 		rp.Spec.Replicas = 5
 		rp.Spec.MaxRunnerPods = 8
 		runnerManager.StartOrUpdate(rp, nil)
@@ -286,7 +290,7 @@ var _ = Describe("RunnerManager", func() {
 			}
 			runnerPodClient.SetStatus(created.Status.PodIP, &status)
 		}
-		githubClientFactory.SetRunners(map[string][]*github.Runner{"repo1": inputRunners})
+		githubClientFactory.SetRunners(map[string][]*github.Runner{"owner/repo1": inputRunners})
 		time.Sleep(2 * time.Second)
 
 		By("checking pods")
@@ -322,7 +326,7 @@ var _ = Describe("RunnerManager", func() {
 	It("should expose metrics about runnerpools", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		githubClientFactory := github.NewFakeClientFactory()
 		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
@@ -339,7 +343,7 @@ var _ = Describe("RunnerManager", func() {
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 
 		By("creating rp1")
-		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
+		rp1 := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
 		rp1.Spec.Replicas = 1
 		runnerManager.StartOrUpdate(rp1, nil)
 		time.Sleep(2 * time.Second)
@@ -366,7 +370,7 @@ var _ = Describe("RunnerManager", func() {
 		)
 
 		By("creating rp2")
-		rp2 := makeRunnerPool("rp2", "test-ns2", "repo1")
+		rp2 := makeRunnerPoolWithRepository("rp2", "test-ns2", "owner/repo1")
 		rp2.Spec.Replicas = 1
 		runnerManager.StartOrUpdate(rp2, nil)
 		time.Sleep(2 * time.Second)
@@ -404,7 +408,7 @@ var _ = Describe("RunnerManager", func() {
 	It("should expose metrics about runners (single runnerpool)", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		githubClientFactory := github.NewFakeClientFactory()
 		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
@@ -416,7 +420,7 @@ var _ = Describe("RunnerManager", func() {
 		time.Sleep(1 * time.Second)
 
 		By("creating a runnerpool")
-		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
+		rp1 := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
 		runnerManager.StartOrUpdate(rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
@@ -440,7 +444,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating runners")
 		runenrs := map[string][]*github.Runner{
-			"repo1": {
+			"owner/repo1": {
 				{Name: "pod1", ID: 1, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
@@ -483,7 +487,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("updating runners")
 		runenrs = map[string][]*github.Runner{
-			"repo1": {
+			"owner/repo1": {
 				{Name: "pod1", ID: 1, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod2", ID: 2, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod3", ID: 3, Online: false, Busy: false, Labels: []string{"test-ns1/rp1"}}, // metrics should not exist. "Offline" AND "Runner pod is not exist".
@@ -527,7 +531,7 @@ var _ = Describe("RunnerManager", func() {
 	It("should expose metrics about runners (some runnerpools)", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		githubClientFactory := github.NewFakeClientFactory()
 		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
@@ -539,9 +543,9 @@ var _ = Describe("RunnerManager", func() {
 		time.Sleep(1 * time.Second)
 
 		By("creating runnerpools")
-		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
-		rp2 := makeRunnerPool("rp2", "test-ns1", "repo1")
-		rp3 := makeRunnerPool("rp3", "test-ns2", "repo2")
+		rp1 := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
+		rp2 := makeRunnerPoolWithRepository("rp2", "test-ns1", "owner/repo1")
+		rp3 := makeRunnerPoolWithRepository("rp3", "test-ns2", "owner/repo2")
 		runnerManager.StartOrUpdate(rp1, nil)
 		runnerManager.StartOrUpdate(rp2, nil)
 		runnerManager.StartOrUpdate(rp3, nil)
@@ -564,12 +568,12 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating runners")
 		runenrs := map[string][]*github.Runner{
-			"repo1": {
+			"owner/repo1": {
 				{Name: "pod1", ID: 1, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod2", ID: 2, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp2"}},
 			},
-			"repo2": {
+			"owner/repo2": {
 				{Name: "pod4", ID: 4, Online: true, Busy: true, Labels: []string{"test-ns2/rp3"}},
 				{Name: "pod5", ID: 5, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}}, // metrics should not exist.
 				{Name: "pod6", ID: 6, Online: true, Busy: true, Labels: []string{}},               // metrics should not exist.
@@ -620,7 +624,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("updating runners")
 		runenrs = map[string][]*github.Runner{
-			"repo1": {
+			"owner/repo1": {
 				{Name: "pod1", ID: 1, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod3", ID: 3, Online: true, Busy: true, Labels: []string{"test-ns1/rp2"}},
@@ -699,7 +703,7 @@ var _ = Describe("RunnerManager", func() {
 	It("should delete all runners and metrics", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
-		githubClientFactory := github.NewFakeClientFactory("runnermanager-org")
+		githubClientFactory := github.NewFakeClientFactory()
 		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
@@ -711,7 +715,7 @@ var _ = Describe("RunnerManager", func() {
 		time.Sleep(1 * time.Second)
 
 		By("creating a runnerpool")
-		rp1 := makeRunnerPool("rp1", "test-ns1", "repo1")
+		rp1 := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
 		runnerManager.StartOrUpdate(rp1, nil)
 		time.Sleep(2 * time.Second)
 		MetricsShouldHaveValue(metricsURL, "meows_runnerpool_replicas",
@@ -735,7 +739,7 @@ var _ = Describe("RunnerManager", func() {
 
 		By("creating runners")
 		runenrs := map[string][]*github.Runner{
-			"repo1": {
+			"owner/repo1": {
 				{Name: "pod1", ID: 1, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod2", ID: 2, Online: true, Busy: true, Labels: []string{"test-ns1/rp1"}},
 				{Name: "pod3", ID: 3, Online: true, Busy: false, Labels: []string{"test-ns1/rp1"}},
@@ -782,7 +786,7 @@ var _ = Describe("RunnerManager", func() {
 		MetricsShouldNotExist(metricsURL, "meows_runnerpool_replicas")
 		MetricsShouldNotExist(metricsURL, "meows_runner_online")
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
-		runnerList, _ := githubClientFactory.ListRunners(ctx, "repo1", nil)
+		runnerList, _ := githubClientFactory.ListRunners(ctx, rp1.GetOwner(), rp1.GetRepository(), nil)
 		Expect(runnerList).To(BeEmpty())
 	})
 })

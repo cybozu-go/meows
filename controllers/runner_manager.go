@@ -122,11 +122,14 @@ type manageProcess struct {
 	interval              time.Duration
 	rpNamespace           string
 	rpName                string
-	repositoryName        string
+	owner                 string
+	repo                  string
 	replicas              int32 // This field will be accessed from multiple goroutines. So use mutex to access.
 	maxRunnerPods         int32 // This field will be accessed from multiple goroutines. So use mutex to access.
+	needSlackNotification bool
 	slackChannel          string
 	slackAgentServiceName string
+	extendDuration        time.Duration
 	recreateDeadline      time.Duration
 
 	// Update internally.
@@ -139,11 +142,18 @@ type manageProcess struct {
 }
 
 func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, interval time.Duration, rp *meowsv1alpha1.RunnerPool) (*manageProcess, error) {
+	extendDuration, _ := time.ParseDuration(rp.Spec.Notification.ExtendDuration)
 	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
-	agentClient, err := agent.NewClient(rp.Spec.SlackAgent.ServiceName)
+
+	agentName := constants.DefaultSlackAgentServiceName
+	if rp.Spec.Notification.Slack.AgentServiceName != "" {
+		agentName = rp.Spec.Notification.Slack.AgentServiceName
+	}
+	agentClient, err := agent.NewClient(agentName)
 	if err != nil {
 		return nil, err
 	}
+
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
 	process := &manageProcess{
 		log:                   log,
@@ -153,12 +163,15 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient git
 		interval:              interval,
 		rpNamespace:           rp.Namespace,
 		rpName:                rp.Name,
-		repositoryName:        rp.Spec.RepositoryName,
+		owner:                 rp.GetOwner(),
+		repo:                  rp.GetRepository(),
 		replicas:              rp.Spec.Replicas,
 		maxRunnerPods:         rp.Spec.MaxRunnerPods,
 		slackAgentClient:      agentClient,
-		slackChannel:          rp.Spec.SlackAgent.Channel,
-		slackAgentServiceName: rp.Spec.SlackAgent.ServiceName,
+		needSlackNotification: rp.Spec.Notification.Slack.Enable,
+		slackChannel:          rp.Spec.Notification.Slack.Channel,
+		slackAgentServiceName: agentName,
+		extendDuration:        extendDuration,
 		recreateDeadline:      recreateDeadline,
 		lastCheckTime:         time.Now().UTC(),
 		deleteMetrics: func() {
@@ -174,15 +187,28 @@ func (p *manageProcess) update(rp *meowsv1alpha1.RunnerPool) error {
 	defer p.mu.Unlock()
 	p.replicas = rp.Spec.Replicas
 	p.maxRunnerPods = rp.Spec.MaxRunnerPods
-	p.slackChannel = rp.Spec.SlackAgent.Channel
-	if p.slackAgentServiceName != rp.Spec.SlackAgent.ServiceName {
-		err := p.slackAgentClient.UpdateServerURL(rp.Spec.SlackAgent.ServiceName)
+	p.needSlackNotification = rp.Spec.Notification.Slack.Enable
+	p.slackChannel = rp.Spec.Notification.Slack.Channel
+
+	extendDuration, _ := time.ParseDuration(rp.Spec.Notification.ExtendDuration)
+	p.extendDuration = extendDuration
+	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
+	p.recreateDeadline = recreateDeadline
+
+	agentName := constants.DefaultSlackAgentServiceName
+	if rp.Spec.Notification.Slack.AgentServiceName != "" {
+		agentName = rp.Spec.Notification.Slack.AgentServiceName
+	}
+	if p.slackAgentServiceName != agentName {
+		err := p.slackAgentClient.UpdateServerURL(agentName)
 		if err != nil {
 			return err
 		}
-		p.slackAgentServiceName = rp.Spec.SlackAgent.ServiceName
+		p.slackAgentServiceName = agentName
 	}
+
 	return nil
+
 }
 
 func (p *manageProcess) rpNamespacedName() string {
@@ -285,7 +311,7 @@ func (p *manageProcess) fetchRunnerPods(ctx context.Context) (*corev1.PodList, e
 }
 
 func (p *manageProcess) fetchRunners(ctx context.Context) ([]*github.Runner, error) {
-	runnerList, err := p.githubClient.ListRunners(ctx, p.repositoryName, []string{p.rpNamespacedName()})
+	runnerList, err := p.githubClient.ListRunners(ctx, p.owner, p.repo, []string{p.rpNamespacedName()})
 	if err != nil {
 		p.log.Error(err, "failed to list runners")
 		return nil, err
@@ -326,14 +352,6 @@ func difference(prev, current []string) []string {
 	return ret
 }
 
-func (p *manageProcess) notifyToSlack(ctx context.Context, po *corev1.Pod, status *runner.Status) error {
-	slackChannel := status.SlackChannel
-	if slackChannel == "" {
-		slackChannel = p.slackChannel
-	}
-	return p.slackAgentClient.PostResult(ctx, slackChannel, status.Result, *status.Extend, po.Namespace, po.Name, status.JobInfo)
-}
-
 func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*github.Runner, podList *corev1.PodList) error {
 	now := time.Now().UTC()
 	lastCheckTime := p.lastCheckTime
@@ -346,12 +364,14 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 			numUnlabeledPods++
 		}
 	}
+
 	p.mu.Lock()
-	numRemovablePods := p.maxRunnerPods - p.replicas - numUnlabeledPods
+	needNotification := p.needSlackNotification
+	slackChannel := p.slackChannel
+	extendDuration := p.extendDuration
+	recreateDeadline := p.recreateDeadline
+	numRemovablePods := p.maxRunnerPods - p.replicas - numUnlabeledPods // numRemovablePods can be a negative number.
 	p.mu.Unlock()
-	if numRemovablePods < 0 {
-		numRemovablePods = 0
-	}
 
 	for i := range podList.Items {
 		po := &podList.Items[i]
@@ -374,8 +394,13 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 		}
 
 		if status.State == constants.RunnerPodStateDebugging {
-			if status.FinishedAt.After(lastCheckTime) && len(p.slackAgentServiceName) != 0 {
-				err := p.notifyToSlack(ctx, po, status)
+			if needNotification && status.FinishedAt.After(lastCheckTime) {
+				ch := slackChannel
+				if status.SlackChannel != "" {
+					ch = status.SlackChannel
+				}
+				needExtend := *status.Extend && extendDuration != 0
+				err := p.slackAgentClient.PostResult(ctx, ch, status.Result, needExtend, po.Namespace, po.Name, status.JobInfo)
 				if err != nil {
 					log.Error(err, "failed to send a notification to slack-agent")
 				} else {
@@ -383,7 +408,13 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 				}
 			}
 
-			if now.After(*status.DeletionTime) {
+			var needDelete bool
+			if status.DeletionTime == nil {
+				needDelete = now.After((*status.FinishedAt).Add(extendDuration))
+			} else {
+				needDelete = now.After(*status.DeletionTime)
+			}
+			if needDelete {
 				err := p.k8sClient.Delete(ctx, po)
 				if err != nil && !apierrors.IsNotFound(err) {
 					log.Error(err, "failed to delete debugging runner pod")
@@ -394,7 +425,7 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 			}
 		}
 
-		podRecreateTime := po.CreationTimestamp.Add(p.recreateDeadline)
+		podRecreateTime := po.CreationTimestamp.Add(recreateDeadline)
 		if podRecreateTime.Before(now) && !(runnerBusy(runnerList, po.Name) || status.State == constants.RunnerPodStateDebugging) {
 			err = p.k8sClient.Delete(ctx, po)
 			if err != nil && !apierrors.IsNotFound(err) {
@@ -440,7 +471,7 @@ func (p *manageProcess) deleteOfflineRunners(ctx context.Context, runnerList []*
 		if runner.Online || podExists(runner.Name, podList) {
 			continue
 		}
-		err := p.githubClient.RemoveRunner(ctx, p.repositoryName, runner.ID)
+		err := p.githubClient.RemoveRunner(ctx, p.owner, p.repo, runner.ID)
 		if err != nil {
 			p.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)
 			return err
@@ -451,13 +482,13 @@ func (p *manageProcess) deleteOfflineRunners(ctx context.Context, runnerList []*
 }
 
 func (p *manageProcess) deleteAllRunners(ctx context.Context) error {
-	runnerList, err := p.githubClient.ListRunners(ctx, p.repositoryName, []string{p.rpNamespacedName()})
+	runnerList, err := p.githubClient.ListRunners(ctx, p.owner, p.repo, []string{p.rpNamespacedName()})
 	if err != nil {
 		p.log.Error(err, "failed to list runners")
 		return err
 	}
 	for _, runner := range runnerList {
-		err := p.githubClient.RemoveRunner(ctx, p.repositoryName, runner.ID)
+		err := p.githubClient.RemoveRunner(ctx, p.owner, p.repo, runner.ID)
 		if err != nil {
 			p.log.Error(err, "failed to remove runner", "runner", runner.Name, "runner_id", runner.ID)
 			return err

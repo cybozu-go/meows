@@ -34,12 +34,6 @@ func testBootstrap() {
 	})
 
 	It("should deploy controller successfully", func() {
-		By("creating configmap for controller")
-		kubectlSafe("create", "configmap", "meows-cm",
-			"-n", controllerNS,
-			"--from-literal=organization="+orgName,
-		)
-
 		By("applying manifests")
 		stdout, stderr, err := kustomizeBuild("./manifests/controller")
 		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)

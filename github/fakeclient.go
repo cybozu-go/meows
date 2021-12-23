@@ -11,31 +11,29 @@ import (
 
 type FakeClientFactory struct {
 	mu                sync.Mutex
-	organizationName  string
 	runners           map[string][]*Runner
 	expiredAtDuration time.Duration
 }
 
-func NewFakeClientFactory(organizationName string) *FakeClientFactory {
+func NewFakeClientFactory() *FakeClientFactory {
 	return &FakeClientFactory{
-		organizationName:  organizationName,
 		runners:           map[string][]*Runner{},
 		expiredAtDuration: 1 * time.Hour,
 	}
+}
+
+func genKey(owner, repo string) string {
+	if repo == "" {
+		return owner
+	}
+	return owner + "/" + repo
 }
 
 func (f *FakeClientFactory) New(_ *ClientCredential) (Client, error) {
 	return &FakeClient{parent: f}, nil
 }
 
-func (f *FakeClientFactory) getOrganizationName() string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	return f.organizationName
-}
-
-func (f *FakeClientFactory) createRegistrationToken(ctx context.Context, repositoryName string) (*github.RegistrationToken, error) {
+func (f *FakeClientFactory) createRegistrationToken(ctx context.Context, owner, repo string) (*github.RegistrationToken, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -49,12 +47,14 @@ func (f *FakeClientFactory) createRegistrationToken(ctx context.Context, reposit
 }
 
 // ListRunners returns dummy list.
-func (f *FakeClientFactory) ListRunners(ctx context.Context, repositoryName string, labels []string) ([]*Runner, error) {
+func (f *FakeClientFactory) ListRunners(ctx context.Context, owner, repo string, labels []string) ([]*Runner, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	key := genKey(owner, repo)
+
 	ret := []*Runner{}
-	runners := f.runners[repositoryName]
+	runners := f.runners[key]
 	for _, r := range runners {
 		if r.hasLabels(labels) {
 			ret = append(ret, r)
@@ -64,15 +64,17 @@ func (f *FakeClientFactory) ListRunners(ctx context.Context, repositoryName stri
 }
 
 // RemoveRunner does not delete anything and returns success.
-func (f *FakeClientFactory) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
+func (f *FakeClientFactory) RemoveRunner(ctx context.Context, owner, repo string, runnerID int64) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	key := genKey(owner, repo)
+
 	// skip existence and nil check below because this is mock
-	runners := f.runners[repositoryName]
+	runners := f.runners[key]
 	for i, v := range runners {
 		if v.ID == runnerID {
-			f.runners[repositoryName] = append(runners[:i], runners[i+1:]...)
+			f.runners[key] = append(runners[:i], runners[i+1:]...)
 			return nil
 		}
 	}
@@ -98,22 +100,17 @@ type FakeClient struct {
 	parent *FakeClientFactory
 }
 
-// GetOrganizationName returns organizationName.
-func (c *FakeClient) GetOrganizationName() string {
-	return c.parent.getOrganizationName()
-}
-
 // CreateRegistrationToken returns dummy token.
-func (c *FakeClient) CreateRegistrationToken(ctx context.Context, repositoryName string) (*github.RegistrationToken, error) {
-	return c.parent.createRegistrationToken(ctx, repositoryName)
+func (c *FakeClient) CreateRegistrationToken(ctx context.Context, owner, repo string) (*github.RegistrationToken, error) {
+	return c.parent.createRegistrationToken(ctx, owner, repo)
 }
 
 // ListRunners returns dummy list.
-func (c *FakeClient) ListRunners(ctx context.Context, repositoryName string, labels []string) ([]*Runner, error) {
-	return c.parent.ListRunners(ctx, repositoryName, labels)
+func (c *FakeClient) ListRunners(ctx context.Context, owner, repo string, labels []string) ([]*Runner, error) {
+	return c.parent.ListRunners(ctx, owner, repo, labels)
 }
 
 // RemoveRunner does not delete anything and returns success.
-func (c *FakeClient) RemoveRunner(ctx context.Context, repositoryName string, runnerID int64) error {
-	return c.parent.RemoveRunner(ctx, repositoryName, runnerID)
+func (c *FakeClient) RemoveRunner(ctx context.Context, owner, repo string, runnerID int64) error {
+	return c.parent.RemoveRunner(ctx, owner, repo, runnerID)
 }
