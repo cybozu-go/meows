@@ -100,10 +100,34 @@ type SlackConfig struct {
 }
 
 type RunnerPodTemplateSpec struct {
+
 	// Standard object's metadata.  Only `annotations` and `labels` are valid.
 	// +optional
 	ObjectMeta `json:"metadata"`
 
+	// Runner container's spec.
+	// +optional
+	RunnerContainer RunnerContainerSpec `json:"runnerContainer,omitempty"`
+
+	// ImagePullSecrets is a list of secret names in the same namespace to use for pulling any of the images.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	// List of volumes that can be mounted by containers belonging to the pod.
+	// +optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// Name of the service account that the Pod use.
+	// +kubebuilder:default="default"
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// AutomountServiceAccountToken indicates whether a service account token should be automatically mounted to the pod.
+	// +optional
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+}
+
+type RunnerContainerSpec struct {
 	// Docker image name for the runner container.
 	// +optional
 	Image string `json:"image,omitempty"`
@@ -111,10 +135,6 @@ type RunnerPodTemplateSpec struct {
 	// Image pull policy for the runner container.
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
-
-	// ImagePullSecrets is a list of secret names in the same namespace to use for pulling any of the images.
-	// +optional
-	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
 	// Security options for the runner container.
 	// +optional
@@ -131,19 +151,6 @@ type RunnerPodTemplateSpec struct {
 	// Pod volumes to mount into the runner container's filesystem.
 	// +optional
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
-	// List of volumes that can be mounted by containers belonging to the pod.
-	// +optional
-	Volumes []corev1.Volume `json:"volumes,omitempty"`
-
-	// Name of the service account that the Pod use.
-	// +kubebuilder:default="default"
-	// +optional
-	ServiceAccountName string `json:"serviceAccountName,omitempty"`
-
-	// AutomountServiceAccountToken indicates whether a service account token should be automatically mounted to the pod.
-	// +optional
-	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
 }
 
 // ObjectMeta is metadata of objects.
@@ -240,9 +247,9 @@ func (s *RunnerPoolSpec) validateCommon() field.ErrorList {
 		}
 	}
 
-	for i, e := range s.Template.Env {
+	for i, e := range s.Template.RunnerContainer.Env {
 		if reservedEnvNames[e.Name] {
-			allErrs = append(allErrs, field.Forbidden(p.Child("template").Child("env").Index(i),
+			allErrs = append(allErrs, field.Forbidden(p.Child("template").Child("runnerContainer").Child("env").Index(i),
 				fmt.Sprintf("using the reserved environment variable %s in %s is forbidden", e.Name, constants.RunnerContainerName)))
 		}
 	}

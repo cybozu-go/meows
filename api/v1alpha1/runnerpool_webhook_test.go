@@ -53,7 +53,7 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 	It("should allow creating RunnerPool with Repository", func() {
 		rp := makeRunnerPoolTemplate(name, namespace)
 		rp.Spec.Repository = "test-org/test-repo"
-		rp.Spec.Template.Env = []corev1.EnvVar{
+		rp.Spec.Template.RunnerContainer.Env = []corev1.EnvVar{
 			{
 				Name:  "GOOD_ENV",
 				Value: "GOOD!",
@@ -164,7 +164,7 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 			By("creating runner pool with reserved environment variables; " + envName)
 			rp := makeRunnerPoolTemplate(name, namespace)
 			rp.Spec.Repository = "test-org/test-repo"
-			rp.Spec.Template.Env = []corev1.EnvVar{
+			rp.Spec.Template.RunnerContainer.Env = []corev1.EnvVar{
 				{
 					Name:  envName,
 					Value: "creating",
@@ -176,7 +176,7 @@ var _ = Describe("validate RunnerPool webhook with ", func() {
 			rp = makeRunnerPoolTemplate(name, namespace)
 			rp.Spec.Repository = "test-org/test-repo"
 			Expect(k8sClient.Create(ctx, rp)).To(Succeed())
-			rp.Spec.Template.Env = []corev1.EnvVar{
+			rp.Spec.Template.RunnerContainer.Env = []corev1.EnvVar{
 				{
 					Name:  envName,
 					Value: "updating",

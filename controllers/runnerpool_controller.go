@@ -335,19 +335,19 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		runnerContainer := r.findRunnerContainer(d)
 
 		// Update the runner container.
-		if rp.Spec.Template.Image != "" {
-			runnerContainer.Image = rp.Spec.Template.Image
+		if rp.Spec.Template.RunnerContainer.Image != "" {
+			runnerContainer.Image = rp.Spec.Template.RunnerContainer.Image
 		} else {
 			runnerContainer.Image = r.runnerImage
 		}
-		if rp.Spec.Template.ImagePullPolicy != "" {
-			runnerContainer.ImagePullPolicy = rp.Spec.Template.ImagePullPolicy
+		if rp.Spec.Template.RunnerContainer.ImagePullPolicy != "" {
+			runnerContainer.ImagePullPolicy = rp.Spec.Template.RunnerContainer.ImagePullPolicy
 		}
-		runnerContainer.SecurityContext = rp.Spec.Template.SecurityContext
-		runnerContainer.Resources = rp.Spec.Template.Resources
+		runnerContainer.SecurityContext = rp.Spec.Template.RunnerContainer.SecurityContext
+		runnerContainer.Resources = rp.Spec.Template.RunnerContainer.Resources
 		runnerContainer.Ports = r.makeRunnerContainerPorts()
 
-		volumeMounts := append(rp.Spec.Template.VolumeMounts, corev1.VolumeMount{
+		volumeMounts := append(rp.Spec.Template.RunnerContainer.VolumeMounts, corev1.VolumeMount{
 			Name:      varDir,
 			MountPath: constants.RunnerVarDirPath,
 		}, corev1.VolumeMount{
@@ -462,7 +462,7 @@ func (r *RunnerPoolReconciler) makeRunnerContainerEnv(rp *meowsv1alpha1.RunnerPo
 	// NOTE:
 	// We need not ignore the reserved environment variables here.
 	// Since the reserved environment variables are checked in the validating webhook.
-	envs = append(envs, rp.Spec.Template.Env...)
+	envs = append(envs, rp.Spec.Template.RunnerContainer.Env...)
 
 	return envs, nil
 }

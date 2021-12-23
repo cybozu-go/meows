@@ -11,5 +11,6 @@ spec:
       channel: "#test1"
     extendDuration: "30s"
   template:
-    image: meows-runner:kindtest
-    imagePullPolicy: Never
+    runnerContainer:
+      image: meows-runner:kindtest
+      imagePullPolicy: Never

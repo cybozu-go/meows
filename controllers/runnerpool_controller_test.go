@@ -363,23 +363,23 @@ var _ = Describe("RunnerPool reconciler", func() {
 		rp.Spec.Template.ObjectMeta.Annotations = map[string]string{
 			"test-annotation": "test",
 		}
-		rp.Spec.Template.Image = "sample:devel"
-		rp.Spec.Template.ImagePullPolicy = corev1.PullIfNotPresent
 		rp.Spec.Template.ImagePullSecrets = []corev1.LocalObjectReference{
 			{Name: "image-pull-secret1"},
 		}
-		rp.Spec.Template.SecurityContext = &corev1.SecurityContext{
+		rp.Spec.Template.RunnerContainer.Image = "sample:devel"
+		rp.Spec.Template.RunnerContainer.ImagePullPolicy = corev1.PullIfNotPresent
+		rp.Spec.Template.RunnerContainer.SecurityContext = &corev1.SecurityContext{
 			Privileged: pointer.BoolPtr(true),
 		}
-		rp.Spec.Template.Env = []corev1.EnvVar{
+		rp.Spec.Template.RunnerContainer.Env = []corev1.EnvVar{
 			{Name: "ENV_VAR", Value: "value"},
 		}
-		rp.Spec.Template.Resources = corev1.ResourceRequirements{
+		rp.Spec.Template.RunnerContainer.Resources = corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				"memory": resource.MustParse("100"),
 			},
 		}
-		rp.Spec.Template.VolumeMounts = []corev1.VolumeMount{
+		rp.Spec.Template.RunnerContainer.VolumeMounts = []corev1.VolumeMount{
 			{Name: "volume1", MountPath: "/volume1"},
 			{Name: "volume2", MountPath: "/volume2"},
 		}
