@@ -84,7 +84,7 @@ type NotificationConfig struct {
 }
 
 type SlackConfig struct {
-	/// Flag to toggle Slack notifications sends or not.
+	// Flag to toggle Slack notifications sends or not.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
 

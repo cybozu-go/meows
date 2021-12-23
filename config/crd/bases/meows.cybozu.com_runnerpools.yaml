@@ -69,8 +69,7 @@ spec:
                           in slack-agent options will be used.
                         type: string
                       enable:
-                        description: / Flag to toggle Slack notifications sends or
-                          not.
+                        description: Flag to toggle Slack notifications sends or not.
                         type: boolean
                     type: object
                 type: object
