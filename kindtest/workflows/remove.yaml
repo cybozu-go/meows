@@ -30,8 +30,11 @@ jobs:
       - name: Remove offline runners
         run: |
           echo '${{ secrets.APP_PRIVATE_KEY }}' > /tmp/private-key.pem
-          go install github.com/cybozu-go/meows/cmd/meows@latest
+          git clone https://github.com/cybozu-go/meows.git
+          cd meows/
+          go install ./cmd/meows
           list=(${GITHUB_REPOSITORY/\// })
           org=${list[0]}
           repo=${list[1]}
-          meows runner remove --app-id ${{ secrets.APP_ID }} --app-installation-id ${{ secrets.APP_INSTALLATION_ID }} --app-private-key-path /tmp/private-key.pem -o $org $repo
+          meows runner remove $org       --app-id ${{ secrets.APP_ID }} --app-installation-id ${{ secrets.APP_INSTALLATION_ID }} --app-private-key-path /tmp/private-key.pem
+          meows runner remove $org/$repo --app-id ${{ secrets.APP_ID }} --app-installation-id ${{ secrets.APP_INSTALLATION_ID }} --app-private-key-path /tmp/private-key.pem
