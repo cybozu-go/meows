@@ -26,7 +26,7 @@ If you want to restrict it in some way, please create a ConfigMap as follows.
 ```bash
 $ kubectl create configmap meows-cm -n meows \
     --from-literal=organization-rule='^neco-test$' \
-    --from-literal=repository-rule='^neco-test/.*' \
+    --from-literal=repository-rule='^neco-test/.*'
 ```
 
 Both `organization-rule` and `repository-rule` accepts golang's regular expressions.

@@ -39,7 +39,7 @@ GitHub Actions self-hosted runners.
 
 | Field              | Type   | Description                                                                                                                                                                    |
 | ------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `enable`           | string | Flag to toggle Slack notifications sends or not.                                                                                                                               |
+| `enable`           | bool   | Flag to toggle Slack notifications sends or not.                                                                                                                               |
 | `channel`          | string | Slack channel which the job results are reported. If this field is omitted, the default channel specified in the `--channel`(`-c`) option of slack-agent command will be used. |
 | `agentServiceName` | string | Service name of Slack agent. If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.                                                                |
 
@@ -50,7 +50,7 @@ GitHub Actions self-hosted runners.
 | `runnerContainer`              | [RunnerContainerSpec](#RunnerContainerSpec) | Runner container's spec.                                                                                           |
 | `imagePullSecrets`             | \[\][corev1.LocalObjectReference][]         | List of secret names in the same namespace to use for pulling any of the images.                                   |
 | `volumes`                      | \[\][corev1.Volume][]                       | List of volumes that can be mounted by containers belonging to the pod.                                            |
-| `ServiceAccountName`           | string                                      | Name of the service account that the Pod use. (default value is "default")                                         |
+| `serviceAccountName`           | string                                      | Name of the service account that the Pod use. (default value is "default")                                         |
 | `automountServiceAccountToken` | *bool                                       | AutomountServiceAccountToken indicates whether a service account token should be automatically mounted to the pod. |
 
 ## RunnerContainerSpec
