@@ -2,7 +2,7 @@ namespace: meows
 
 images:
 - name: quay.io/cybozu/meows-controller
-  newTag: 0.6.0
+  newTag: 0.6.1
 
 commonLabels:
   app.kubernetes.io/name: meows

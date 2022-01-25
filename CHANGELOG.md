@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2022-01-25
+
+### Fixed
+
+- Fixed a bug that the meows-controller does not delete finished runner pods immediately. (#134)
+
 ## [0.6.0] - 2022-01-11
 
 ### Changed
@@ -92,7 +98,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/cybozu-go/meows/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cybozu-go/meows/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cybozu-go/meows/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/cybozu-go/meows/compare/v0.4.1...v0.4.2
