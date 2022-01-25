@@ -394,12 +394,13 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 		}
 
 		if status.State == constants.RunnerPodStateDebugging {
+			needExtend := status.Extend != nil && *status.Extend && extendDuration != 0
+
 			if needNotification && status.FinishedAt.After(lastCheckTime) {
 				ch := slackChannel
 				if status.SlackChannel != "" {
 					ch = status.SlackChannel
 				}
-				needExtend := *status.Extend && extendDuration != 0
 				err := p.slackAgentClient.PostResult(ctx, ch, status.Result, needExtend, po.Namespace, po.Name, status.JobInfo)
 				if err != nil {
 					log.Error(err, "failed to send a notification to slack-agent")
@@ -409,10 +410,13 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 			}
 
 			var needDelete bool
-			if status.DeletionTime == nil {
-				needDelete = now.After((*status.FinishedAt).Add(extendDuration))
-			} else {
+			switch {
+			case status.DeletionTime != nil:
 				needDelete = now.After(*status.DeletionTime)
+			case needExtend:
+				needDelete = now.After((*status.FinishedAt).Add(extendDuration))
+			default:
+				needDelete = true
 			}
 			if needDelete {
 				err := p.k8sClient.Delete(ctx, po)
