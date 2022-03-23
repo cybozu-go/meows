@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.2] - 2022-03-23
+
+### Changed
+
+- Update runner version to 2.288.1 (#138)
+
 ## [0.6.1] - 2022-01-25
 
 ### Fixed
@@ -98,7 +104,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/cybozu-go/meows/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/cybozu-go/meows/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cybozu-go/meows/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cybozu-go/meows/compare/v0.4.2...v0.5.0
