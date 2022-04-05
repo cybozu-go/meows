@@ -42,6 +42,7 @@ var _ = Describe("RunnerManager", func() {
 		type inputPod struct {
 			spec         *corev1.Pod
 			ip           string
+			phase        corev1.PodPhase
 			state        string
 			finishedAt   time.Time
 			deletionTime time.Time
@@ -165,6 +166,21 @@ var _ = Describe("RunnerManager", func() {
 					"owner/repo2/pod3",
 				},
 			},
+			{
+				name: "should ignore not running pod",
+				inputRunnerPools: []*meowsv1alpha1.RunnerPool{
+					makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1"),
+				},
+				inputPods: []*inputPod{
+					{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", state: "running", phase: corev1.PodFailed},
+					{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.1", state: "debugging", finishedAt: time.Now(), deletionTime: time.Now()},
+				},
+				inputRunners: nil,
+				expectedPods: []string{
+					"test-ns1/pod1",
+				},
+				expectedRunners: nil,
+			},
 		}
 
 		for _, tt := range testCases {
@@ -182,6 +198,11 @@ var _ = Describe("RunnerManager", func() {
 				created := &corev1.Pod{}
 				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed(), ttName)
 				created.Status.PodIP = inputPod.ip
+				phase := corev1.PodRunning
+				if inputPod.phase != "" {
+					phase = inputPod.phase
+				}
+				created.Status.Phase = phase
 				Expect(k8sClient.Status().Update(ctx, created)).To(Succeed(), ttName)
 
 				status := runner.Status{
@@ -279,6 +300,7 @@ var _ = Describe("RunnerManager", func() {
 			created := &corev1.Pod{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed())
 			created.Status.PodIP = inputPod.ip
+			created.Status.Phase = corev1.PodRunning
 			Expect(k8sClient.Status().Update(ctx, created)).To(Succeed())
 
 			status := runner.Status{State: inputPod.state}
