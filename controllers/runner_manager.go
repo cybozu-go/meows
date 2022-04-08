@@ -376,6 +376,10 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 	for i := range podList.Items {
 		po := &podList.Items[i]
 		log := p.log.WithValues("pod", types.NamespacedName{Namespace: po.Namespace, Name: po.Name}.String())
+		if po.Status.Phase != corev1.PodRunning {
+			log.Info("skip because the status of the pod is not Running", "phase", po.Status.Phase)
+			continue
+		}
 
 		status, err := p.runnerPodClient.GetStatus(ctx, po.Status.PodIP)
 		if err != nil {
