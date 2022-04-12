@@ -250,6 +250,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Name": Equal(secretName),
 				}),
 			}),
+			"NodeSelector": HaveLen(0),
+			"Tolerations":  HaveLen(0),
 		}))
 
 		// runner container spec
