@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2022-04-13
+
 ### Added
 
 - Add nodeSelector and tolerations field (#145)
@@ -116,7 +118,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/cybozu-go/meows/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/cybozu-go/meows/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/cybozu-go/meows/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cybozu-go/meows/compare/v0.5.0...v0.6.0
