@@ -50,8 +50,10 @@ GitHub Actions self-hosted runners.
 | `runnerContainer`              | [RunnerContainerSpec](#RunnerContainerSpec) | Runner container's spec.                                                                                           |
 | `imagePullSecrets`             | \[\][corev1.LocalObjectReference][]         | List of secret names in the same namespace to use for pulling any of the images.                                   |
 | `volumes`                      | \[\][corev1.Volume][]                       | List of volumes that can be mounted by containers belonging to the pod.                                            |
+| `nodeSelector`                 | map[string]string                           | NodeSelector is a selector which must be true for the runner pod to fit on a node.                                        |
 | `serviceAccountName`           | string                                      | Name of the service account that the Pod use. (default value is "default")                                         |
 | `automountServiceAccountToken` | *bool                                       | AutomountServiceAccountToken indicates whether a service account token should be automatically mounted to the pod. |
+| `tolerations`                  | \[\][corev1.Toleration][]                   | If specified, the runner pod's tolerations.                                                                               |
 
 ## RunnerContainerSpec
 
@@ -70,11 +72,12 @@ GitHub Actions self-hosted runners.
 | ------- | ------- | --------------------------- |
 | `bound` | boolean | Deployment is bound or not. |
 
-[ObjectMeta]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#objectmeta-v1-meta
-[corev1.LocalObjectReference]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#localobjectreference-v1-core
-[corev1.SecurityContext]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#securitycontext-v1-core
-[corev1.EnvVar]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#envvar-v1-core
-[corev1.ResourceRequirements]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#resourcerequirements-v1-core
+[ObjectMeta]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#objectmeta-v1-meta
+[corev1.LocalObjectReference]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core
+[corev1.SecurityContext]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#securitycontext-v1-core
+[corev1.EnvVar]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core
+[corev1.ResourceRequirements]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#resourcerequirements-v1-core
 [corev1.VolumeSource]: https://pkg.go.dev/k8s.io/api/core/v1#VolumeSource
-[corev1.VolumeMount]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#volumemount-v1-core
-[corev1.Volume]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#volume-v1-core
+[corev1.VolumeMount]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#volumemount-v1-core
+[corev1.Volume]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#volume-v1-core
+[corev1.Toleration]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#toleration-v1-core

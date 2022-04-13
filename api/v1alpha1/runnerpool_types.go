@@ -117,6 +117,10 @@ type RunnerPodTemplateSpec struct {
 	// +optional
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
+	// NodeSelector is a selector which must be true for the runner pod to fit on a node.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
 	// Name of the service account that the Pod use.
 	// +kubebuilder:default="default"
 	// +optional
@@ -125,6 +129,10 @@ type RunnerPodTemplateSpec struct {
 	// AutomountServiceAccountToken indicates whether a service account token should be automatically mounted to the pod.
 	// +optional
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+
+	// If specified, the runner pod's tolerations.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 type RunnerContainerSpec struct {

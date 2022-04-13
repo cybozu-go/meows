@@ -250,6 +250,8 @@ var _ = Describe("RunnerPool reconciler", func() {
 					"Name": Equal(secretName),
 				}),
 			}),
+			"NodeSelector": HaveLen(0),
+			"Tolerations":  HaveLen(0),
 		}))
 
 		// runner container spec
@@ -404,8 +406,17 @@ var _ = Describe("RunnerPool reconciler", func() {
 				},
 			},
 		}
+		rp.Spec.Template.NodeSelector = map[string]string{
+			"kubernetes.io/hostname": "worker",
+		}
 		rp.Spec.Template.ServiceAccountName = serviceAccountName
 		rp.Spec.Template.AutomountServiceAccountToken = pointer.BoolPtr(false)
+		rp.Spec.Template.Tolerations = []corev1.Toleration{
+			{
+				Effect:   corev1.TaintEffectNoSchedule,
+				Operator: corev1.TolerationOpExists,
+			},
+		}
 		Expect(k8sClient.Create(ctx, rp)).To(Succeed())
 
 		By("waiting the RunnerPool become Bound")
@@ -476,6 +487,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 				}),
 				"4": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal(secretName),
+				}),
+			}),
+			"NodeSelector": MatchAllKeys(Keys{
+				"kubernetes.io/hostname": Equal("worker"),
+			}),
+			"Tolerations": MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": MatchFields(IgnoreExtras, Fields{
+					"Effect":   Equal(corev1.TaintEffectNoSchedule),
+					"Operator": Equal(corev1.TolerationOpExists),
 				}),
 			}),
 		}))

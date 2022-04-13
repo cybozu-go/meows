@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Add nodeSelector and tolerations field (#145)
+
 ### Fixed
 
 - Ignore not running pods when maintaining runner pods. (#143)

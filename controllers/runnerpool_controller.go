@@ -331,6 +331,9 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		})
 		d.Spec.Template.Spec.Volumes = volumes
 
+		d.Spec.Template.Spec.NodeSelector = rp.Spec.Template.NodeSelector
+		d.Spec.Template.Spec.Tolerations = rp.Spec.Template.Tolerations
+
 		r.addRunnerContainerIfNotExists(d)
 		runnerContainer := r.findRunnerContainer(d)
 
