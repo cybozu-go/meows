@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Add nodeSelector and tolerations field (#145)
 
+### Changed
+
+- Update runner version to 2.289.2 (#147)
+
 ### Fixed
 
 - Ignore not running pods when maintaining runner pods. (#143)
