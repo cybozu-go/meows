@@ -364,6 +364,8 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		})
 		runnerContainer.VolumeMounts = volumeMounts
 
+		runnerContainer.EnvFrom = rp.Spec.Template.RunnerContainer.EnvFrom
+
 		env, err := r.makeRunnerContainerEnv(rp)
 		if err != nil {
 			return err

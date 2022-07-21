@@ -50,21 +50,22 @@ GitHub Actions self-hosted runners.
 | `runnerContainer`              | [RunnerContainerSpec](#RunnerContainerSpec) | Runner container's spec.                                                                                           |
 | `imagePullSecrets`             | \[\][corev1.LocalObjectReference][]         | List of secret names in the same namespace to use for pulling any of the images.                                   |
 | `volumes`                      | \[\][corev1.Volume][]                       | List of volumes that can be mounted by containers belonging to the pod.                                            |
-| `nodeSelector`                 | map[string]string                           | NodeSelector is a selector which must be true for the runner pod to fit on a node.                                        |
+| `nodeSelector`                 | map[string]string                           | NodeSelector is a selector which must be true for the runner pod to fit on a node.                                 |
 | `serviceAccountName`           | string                                      | Name of the service account that the Pod use. (default value is "default")                                         |
 | `automountServiceAccountToken` | *bool                                       | AutomountServiceAccountToken indicates whether a service account token should be automatically mounted to the pod. |
-| `tolerations`                  | \[\][corev1.Toleration][]                   | If specified, the runner pod's tolerations.                                                                               |
+| `tolerations`                  | \[\][corev1.Toleration][]                   | If specified, the runner pod's tolerations.                                                                        |
 
 ## RunnerContainerSpec
 
-| Field             | Type                            | Description                                                   |
-| ----------------- | ------------------------------- | ------------------------------------------------------------- |
-| `image`           | string                          | Docker image name for the runner container.                   |
-| `imagePullPolicy` | string                          | Image pull policy for the runner container.                   |
-| `securityContext` | [corev1.SecurityContext][]      | Security options for the runner container.                    |
-| `env`             | \[\][corev1.EnvVar][]           | List of environment variables to set in the runner container. |
-| `resources`       | [corev1.ResourceRequirements][] | Compute Resources required by the runner container.           |
-| `volumeMounts`    | \[\][corev1.VolumeMount][]      | Pod volumes to mount into the runner container's filesystem.  |
+| Field             | Type                            | Description                                                                |
+| ----------------- | ------------------------------- | -------------------------------------------------------------------------- |
+| `image`           | string                          | Docker image name for the runner container.                                |
+| `imagePullPolicy` | string                          | Image pull policy for the runner container.                                |
+| `securityContext` | [corev1.SecurityContext][]      | Security options for the runner container.                                 |
+| `envFrom`         | \[\][corev1.EnvFromSource][]    | List of sources to populate environment variables in the runner container. |
+| `env`             | \[\][corev1.EnvVar][]           | List of environment variables to set in the runner container.              |
+| `resources`       | [corev1.ResourceRequirements][] | Compute Resources required by the runner container.                        |
+| `volumeMounts`    | \[\][corev1.VolumeMount][]      | Pod volumes to mount into the runner container's filesystem.               |
 
 ## RunnerPoolStatus
 
@@ -75,6 +76,7 @@ GitHub Actions self-hosted runners.
 [ObjectMeta]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#objectmeta-v1-meta
 [corev1.LocalObjectReference]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core
 [corev1.SecurityContext]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#securitycontext-v1-core
+[corev1.EnvFromSource]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envfromsource-v1-core
 [corev1.EnvVar]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core
 [corev1.ResourceRequirements]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#resourcerequirements-v1-core
 [corev1.VolumeSource]: https://pkg.go.dev/k8s.io/api/core/v1#VolumeSource
