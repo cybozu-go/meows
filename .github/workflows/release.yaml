@@ -8,8 +8,8 @@ jobs:
     name: Push images to quay.io
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
           go-version: 1.18
       - name: Log in quay.io
@@ -22,16 +22,13 @@ jobs:
     needs: image
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            See [CHANGELOG.md](./CHANGELOG.md) for details.
-          draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/} # Don't remove "v" prefix.
+          if echo ${VERSION} | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
+          gh release create $VERSION $PRERELEASE_FLAG \
+            -t "Release $VERSION"  \
+            -n "See [CHANGELOG.md](./CHANGELOG.md) for details."
