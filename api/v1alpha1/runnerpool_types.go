@@ -148,6 +148,10 @@ type RunnerContainerSpec struct {
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
+	// List of sources to populate environment variables in the runner container.
+	// +optional
+	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
+
 	// List of environment variables to set in the runner container.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`

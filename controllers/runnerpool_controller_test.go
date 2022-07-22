@@ -261,6 +261,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"Image":           Equal(defaultRunnerImage),
 			"ImagePullPolicy": Equal(corev1.PullAlways),
 			"SecurityContext": BeNil(),
+			"EnvFrom":         BeEmpty(),
 			"Env": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal(constants.PodNameEnvName),
@@ -372,6 +373,9 @@ var _ = Describe("RunnerPool reconciler", func() {
 		rp.Spec.Template.RunnerContainer.ImagePullPolicy = corev1.PullIfNotPresent
 		rp.Spec.Template.RunnerContainer.SecurityContext = &corev1.SecurityContext{
 			Privileged: pointer.BoolPtr(true),
+		}
+		rp.Spec.Template.RunnerContainer.EnvFrom = []corev1.EnvFromSource{
+			{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret-name"}}},
 		}
 		rp.Spec.Template.RunnerContainer.Env = []corev1.EnvVar{
 			{Name: "ENV_VAR", Value: "value"},
@@ -522,6 +526,15 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"SecurityContext": PointTo(MatchFields(IgnoreExtras, Fields{
 				"Privileged": PointTo(BeTrue()),
 			})),
+			"EnvFrom": MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": MatchFields(IgnoreExtras, Fields{
+					"SecretRef": PointTo(MatchFields(IgnoreExtras, Fields{
+						"LocalObjectReference": MatchFields(IgnoreExtras, Fields{
+							"Name": Equal("secret-name"),
+						}),
+					})),
+				}),
+			}),
 			"Env": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
 					"Name": Equal(constants.PodNameEnvName),
