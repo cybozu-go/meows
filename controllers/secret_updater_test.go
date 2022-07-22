@@ -6,7 +6,7 @@ import (
 
 	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/github"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"

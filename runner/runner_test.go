@@ -11,7 +11,7 @@ import (
 
 	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/metrics"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
