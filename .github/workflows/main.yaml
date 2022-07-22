@@ -12,10 +12,10 @@ jobs:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - run: make setup
       - run: make lint
       - run: make check-generate
@@ -26,13 +26,13 @@ jobs:
     name: Run test on kind
     strategy:
       matrix:
-        k8s-version: ["1.20.7", "1.21.1", "1.22.4"]
+        k8s-version: ["1.22.9", "1.23.6", "1.24.0"]
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - name: Configure GIT
         run: |
           git config --global user.email "example@example.com"
@@ -56,7 +56,7 @@ jobs:
           GIT_SSH_COMMAND: "ssh -i /tmp/deploy-key.pem"
       - run: make -C kindtest logs
         if: always()
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: logs

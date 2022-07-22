@@ -8,7 +8,7 @@ jobs:
   remove-branch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Configure GIT
         run: |
           git config user.name "Daily CI"
@@ -23,10 +23,10 @@ jobs:
   remove-runner:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - name: Remove offline runners
         run: |
           echo '${{ secrets.APP_PRIVATE_KEY }}' > /tmp/private-key.pem

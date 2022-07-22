@@ -9,7 +9,7 @@ import (
 	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	"github.com/cybozu-go/meows/metrics"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -73,7 +73,7 @@ var _ = BeforeSuite(func() {
 
 	registry := prometheus.DefaultRegisterer
 	metrics.InitControllerMetrics(registry)
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
