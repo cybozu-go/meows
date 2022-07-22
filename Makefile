@@ -7,7 +7,6 @@ BIN_DIR := $(TMP_DIR)/bin
 KINDTEST_DIR := $(PROJECT_DIR)/kindtest
 
 CONTROLLER_GEN := $(BIN_DIR)/controller-gen
-NILERR := $(BIN_DIR)/nilerr
 STATICCHECK := $(BIN_DIR)/staticcheck
 
 CRD_OPTIONS ?=
@@ -33,7 +32,6 @@ setup: ## Setup necessary tools.
 	mkdir -p $(BIN_DIR)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_GEN_VERSION)
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
-	GOBIN=$(BIN_DIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 .PHONY: clean
@@ -78,10 +76,9 @@ push: ## Push container images.
 ##@ Test
 
 .PHONY: lint
-lint: ## Run gofmt, staticcheck, nilerr and vet.
+lint: ## Run gofmt, staticcheck and vet.
 	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
 	$(STATICCHECK) ./...
-	test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
 	go vet ./...
 
 .PHONY: check-generate
