@@ -73,13 +73,13 @@ GitHub Actions self-hosted runners.
 | ------- | ------- | --------------------------- |
 | `bound` | boolean | Deployment is bound or not. |
 
-[ObjectMeta]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#objectmeta-v1-meta
-[corev1.LocalObjectReference]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core
-[corev1.SecurityContext]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#securitycontext-v1-core
-[corev1.EnvFromSource]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envfromsource-v1-core
-[corev1.EnvVar]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core
-[corev1.ResourceRequirements]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#resourcerequirements-v1-core
+[ObjectMeta]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta
+[corev1.LocalObjectReference]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#localobjectreference-v1-core
+[corev1.SecurityContext]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#securitycontext-v1-core
+[corev1.EnvFromSource]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#envfromsource-v1-core
+[corev1.EnvVar]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#envvar-v1-core
+[corev1.ResourceRequirements]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core
 [corev1.VolumeSource]: https://pkg.go.dev/k8s.io/api/core/v1#VolumeSource
-[corev1.VolumeMount]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#volumemount-v1-core
-[corev1.Volume]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#volume-v1-core
-[corev1.Toleration]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#toleration-v1-core
+[corev1.VolumeMount]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumemount-v1-core
+[corev1.Volume]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volume-v1-core
+[corev1.Toleration]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#toleration-v1-core
