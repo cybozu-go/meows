@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2022-07-25
+
+### Added
+
+- Add envFrom field to RunnerPool (#150)
+
+### Changed
+
+- Support Kubernetes 1.23 and 1.24 (#151)
+- Build with go 1.18 (#151)
+- Update dependencies (#151)
+
 ## [0.7.0] - 2022-04-13
 
 ### Added
@@ -118,7 +130,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/cybozu-go/meows/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/cybozu-go/meows/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/cybozu-go/meows/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/cybozu-go/meows/compare/v0.6.0...v0.6.1
