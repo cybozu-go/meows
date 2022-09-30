@@ -72,6 +72,7 @@ func run() error {
 	runnerManager := controllers.NewRunnerManager(
 		log,
 		mgr.GetClient(),
+		mgr.GetScheme(),
 		factory,
 		runner.NewClient(),
 		config.runnerManagerInterval,

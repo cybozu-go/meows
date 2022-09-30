@@ -25,6 +25,7 @@ GitHub Actions self-hosted runners.
 | `notification`         | [NotificationConfig](#NotificationConfig)       | Configuration of the notification.                                                                                                                                         |
 | `recreateDeadline`     | string                                          | Deadline for the Pod to be recreated. Default value is `24h`. This value should be parseable with `time.ParseDuration`.                                                    |
 | `template`             | [RunnerPodTemplateSpec](#RunnerPodTemplateSpec) | Pod manifest Template.                                                                                                                                                     |
+| `denyDisruption`       | bool                                            | Whether the runner pods are protected by PDBs during job execution                                                                                                         |
 
 **NOTE**: `maxRunnerPods` is equal-to or greater than `replicas`.
 

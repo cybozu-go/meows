@@ -17,9 +17,13 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -36,6 +40,7 @@ type RunnerManager interface {
 type runnerManager struct {
 	log                 logr.Logger
 	k8sClient           client.Client
+	scheme              *runtime.Scheme
 	githubClientFactory github.ClientFactory
 	runnerPodClient     runner.Client
 	interval            time.Duration
@@ -44,10 +49,11 @@ type runnerManager struct {
 	processes           map[string]*manageProcess
 }
 
-func NewRunnerManager(log logr.Logger, k8sClient client.Client, githubClientFactory github.ClientFactory, runnerPodClient runner.Client, interval time.Duration) RunnerManager {
+func NewRunnerManager(log logr.Logger, k8sClient client.Client, scheme *runtime.Scheme, githubClientFactory github.ClientFactory, runnerPodClient runner.Client, interval time.Duration) RunnerManager {
 	return &runnerManager{
 		log:                 log.WithName("RunnerManager"),
 		k8sClient:           k8sClient,
+		scheme:              scheme,
 		githubClientFactory: githubClientFactory,
 		runnerPodClient:     runnerPodClient,
 		interval:            interval,
@@ -72,6 +78,7 @@ func (m *runnerManager) StartOrUpdate(rp *meowsv1alpha1.RunnerPool, cred *github
 		process, err := newManageProcess(
 			m.log.WithValues("runnerpool", rpNamespacedName),
 			m.k8sClient,
+			m.scheme,
 			githubClient,
 			m.runnerPodClient,
 			m.interval,
@@ -116,6 +123,7 @@ type manageProcess struct {
 	// Given from outside. Not update internally.
 	log                   logr.Logger
 	k8sClient             client.Client
+	scheme                *runtime.Scheme
 	githubClient          github.Client
 	runnerPodClient       runner.Client
 	slackAgentClient      *agent.Client
@@ -131,6 +139,7 @@ type manageProcess struct {
 	slackAgentServiceName string
 	extendDuration        time.Duration
 	recreateDeadline      time.Duration
+	denyDisruption        bool
 
 	// Update internally.
 	lastCheckTime   time.Time
@@ -141,7 +150,7 @@ type manageProcess struct {
 	deleteMetrics   func()
 }
 
-func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient github.Client, runnerPodClient runner.Client, interval time.Duration, rp *meowsv1alpha1.RunnerPool) (*manageProcess, error) {
+func newManageProcess(log logr.Logger, k8sClient client.Client, scheme *runtime.Scheme, githubClient github.Client, runnerPodClient runner.Client, interval time.Duration, rp *meowsv1alpha1.RunnerPool) (*manageProcess, error) {
 	extendDuration, _ := time.ParseDuration(rp.Spec.Notification.ExtendDuration)
 	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
 
@@ -158,6 +167,7 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient git
 	process := &manageProcess{
 		log:                   log,
 		k8sClient:             k8sClient,
+		scheme:                scheme,
 		githubClient:          githubClient,
 		runnerPodClient:       runnerPodClient,
 		interval:              interval,
@@ -173,6 +183,7 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, githubClient git
 		slackAgentServiceName: agentName,
 		extendDuration:        extendDuration,
 		recreateDeadline:      recreateDeadline,
+		denyDisruption:        rp.Spec.DenyDisruption,
 		lastCheckTime:         time.Now().UTC(),
 		deleteMetrics: func() {
 			metrics.DeleteAllRunnerMetrics(rpNamespacedName)
@@ -194,6 +205,7 @@ func (p *manageProcess) update(rp *meowsv1alpha1.RunnerPool) error {
 	p.extendDuration = extendDuration
 	recreateDeadline, _ := time.ParseDuration(rp.Spec.RecreateDeadline)
 	p.recreateDeadline = recreateDeadline
+	p.denyDisruption = rp.Spec.DenyDisruption
 
 	agentName := constants.DefaultSlackAgentServiceName
 	if rp.Spec.Notification.Slack.AgentServiceName != "" {
@@ -446,6 +458,37 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 
 		// When a job is assigned, the runner pod will be removed from replicaset control.
 		if runnerBusy(runnerList, po.Name) || status.State == constants.RunnerPodStateDebugging {
+			if p.denyDisruption {
+				// if RunnerPool.spec.denyDisruption == true, protect the busy runner by a dedicated PDB.
+				if po.Labels[constants.RunnerPodName] != po.Name {
+					pdb := &policyv1.PodDisruptionBudget{}
+					pdb.SetName(po.Name)
+					pdb.SetNamespace(po.Namespace)
+					_, err := ctrl.CreateOrUpdate(ctx, p.k8sClient, pdb, func() error {
+						pdb.Spec.Selector = &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								constants.RunnerPodName: po.Name,
+							},
+						}
+						pdb.Spec.MinAvailable = &intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: 1,
+						}
+						return ctrl.SetControllerReference(po, pdb, p.scheme)
+					})
+					if err != nil {
+						log.Error(err, "failed to create or update protection pdb: %s", po.Name)
+						continue
+					}
+					po.Labels[constants.RunnerPodName] = po.Name
+					err = p.k8sClient.Update(ctx, po)
+					if err != nil {
+						log.Error(err, "failed to relabel runner pod: %s", po.Name)
+						continue
+					}
+				}
+			}
+
 			if numRemovablePods <= 0 {
 				continue
 			}
