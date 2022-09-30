@@ -5,6 +5,7 @@ metadata:
 spec:
   repository: neco-test/meows-ci
   replicas: 3
+  denyDisruption: true
   notification:
     slack:
       enable: true
