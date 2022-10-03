@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -10,7 +12,8 @@ var (
 	runnerPoolReplicas         *prometheus.GaugeVec
 	runnerOnlineVec            *prometheus.GaugeVec
 	runnerBusyVec              *prometheus.GaugeVec
-	runnerLabelSet             = map[string]map[string]struct{}{}
+	runnerLabelSet             map[string]map[string]struct{} // runnerpool -> runner -> struct{}
+	runnerLabelSetMutex        sync.Mutex
 )
 
 func InitControllerMetrics(registry prometheus.Registerer) {
@@ -73,6 +76,9 @@ func DeleteRunnerPoolMetrics(runnerpool string) {
 }
 
 func UpdateRunnerMetrics(runnerpool, runner string, online, busy bool) {
+	runnerLabelSetMutex.Lock()
+	defer runnerLabelSetMutex.Unlock()
+
 	if _, ok := runnerLabelSet[runnerpool]; !ok {
 		runnerLabelSet[runnerpool] = map[string]struct{}{}
 	}
@@ -92,6 +98,9 @@ func UpdateRunnerMetrics(runnerpool, runner string, online, busy bool) {
 }
 
 func DeleteRunnerMetrics(runnerpool string, runners ...string) {
+	runnerLabelSetMutex.Lock()
+	defer runnerLabelSetMutex.Unlock()
+
 	labelSet, ok := runnerLabelSet[runnerpool]
 	if !ok {
 		return
@@ -107,13 +116,16 @@ func DeleteRunnerMetrics(runnerpool string, runners ...string) {
 }
 
 func DeleteAllRunnerMetrics(runnerpool string) {
+	runnerLabelSetMutex.Lock()
+	defer runnerLabelSetMutex.Unlock()
+
 	labelSet, ok := runnerLabelSet[runnerpool]
 	if !ok {
 		return
 	}
-	runners := make([]string, 0, len(labelSet))
 	for r := range labelSet {
-		runners = append(runners, r)
+		runnerOnlineVec.DeleteLabelValues(runnerpool, r)
+		runnerBusyVec.DeleteLabelValues(runnerpool, r)
 	}
-	DeleteRunnerMetrics(runnerpool, runners...)
+	delete(runnerLabelSet, runnerpool)
 }
