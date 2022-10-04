@@ -207,7 +207,7 @@ func waitJobCompletion(namespace, runnerpool string) (*corev1.Pod, *runner.Statu
 func waitRunnerPodTerminating(namespace, name string) time.Time {
 	var tm time.Time
 	EventuallyWithOffset(1, func() error {
-		stdout, stderr, err := kubectl("get", "pod", "-n", namespace, name)
+		stdout, stderr, err := kubectl("get", "pod", "-n", namespace, name, "-o", "json")
 		if isNotFoundFromStderr(stderr) {
 			tm = time.Now()
 			return nil
