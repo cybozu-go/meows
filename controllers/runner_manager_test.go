@@ -329,7 +329,9 @@ var _ = Describe("RunnerManager", func() {
 				unlabeledPod = po
 			}
 		}
-		Expect(labeledPodNames).To(HaveLen(2))
+		// In this test, only three (= MaxRunnerPods - Replicas) pods will be unlabeled. Other two pods will remain labeled.
+		// It is undetermined which Pod other than pod1 will remain. It depends on enumeration order.
+		Expect(labeledPodNames).To(HaveLen(len(inputPods) - int(rp.Spec.MaxRunnerPods-rp.Spec.Replicas)))
 		Expect(labeledPodNames).To(ContainElement("pod1"))
 
 		By("deleting one of the unlabeled pods")
