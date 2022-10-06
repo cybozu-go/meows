@@ -61,7 +61,7 @@ func testRunner() {
 			"SlackChannel": Equal("#test2"),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
@@ -69,6 +69,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent")
 		slackMessageShouldBeSent(assignedPod, "#test2")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should run the job-cancelled on a runner pod and delete the pod immediately", func() {
@@ -89,7 +92,7 @@ func testRunner() {
 			"SlackChannel": BeEmpty(),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
@@ -97,6 +100,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent")
 		slackMessageShouldBeSent(assignedPod, "#test2")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should run the job-failure on a runner pod and delete the pod after a while", func() {
@@ -117,7 +123,7 @@ func testRunner() {
 			"SlackChannel": BeEmpty(),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
@@ -125,6 +131,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent")
 		slackMessageShouldBeSent(assignedPod, "#test1")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should extend pod with the deletion time API", func() {
@@ -163,7 +172,7 @@ func testRunner() {
 			"SlackChannel": BeEmpty(),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletionTime: ", *status.DeletionTime)
@@ -172,6 +181,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent")
 		slackMessageShouldBeSent(assignedPod, "#test2")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should be successful the job that makes sure invisible environment variables", func() {
@@ -192,7 +204,7 @@ func testRunner() {
 			"SlackChannel": BeEmpty(),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
@@ -200,6 +212,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent")
 		slackMessageShouldBeSent(assignedPod, "#test1")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should run a setup command", func() {
@@ -220,7 +235,7 @@ func testRunner() {
 			"SlackChannel": BeEmpty(),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
@@ -228,6 +243,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent")
 		slackMessageShouldBeSent(assignedPod, "#test2")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should run the job-success on a organization level runner pod and delete the pod immediately", func() {
@@ -248,7 +266,7 @@ func testRunner() {
 			"SlackChannel": Equal("#test2"),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
@@ -256,6 +274,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent to the channel specified by environment variable")
 		slackMessageShouldBeSent(assignedPod, "#test2")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should run the slack-channel-specified on a organization level runner pod and delete the pod immediately", func() {
@@ -276,7 +297,7 @@ func testRunner() {
 			"SlackChannel": Equal("#test1"),
 		})))
 
-		By("confirming the pod deletion")
+		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
@@ -284,6 +305,9 @@ func testRunner() {
 
 		By("confirming a slack message is successfully sent to the channel specified in the /var/meows/slack_channel file updated in workflow.")
 		slackMessageShouldBeSent(assignedPod, "#test1")
+
+		By("waiting for the pod deleted")
+		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
 
 	It("should delete RunnerPool properly", func() {
