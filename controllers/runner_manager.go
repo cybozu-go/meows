@@ -480,12 +480,14 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 						log.Error(err, "failed to create or update protection pdb: %s", po.Name)
 						continue
 					}
+					log.Info("created or updated protection pdb: %s", po.Name)
 					po.Labels[constants.RunnerPodName] = po.Name
 					err = p.k8sClient.Update(ctx, po)
 					if err != nil {
 						log.Error(err, "failed to relabel runner pod: %s", po.Name)
 						continue
 					}
+					log.Info("relabeled runner pod: %s", po.Name)
 				}
 			}
 
