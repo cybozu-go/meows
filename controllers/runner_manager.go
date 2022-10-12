@@ -477,17 +477,17 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 						return ctrl.SetControllerReference(po, pdb, p.scheme)
 					})
 					if err != nil {
-						log.Error(err, "failed to create or update protection pdb: %s", po.Name)
+						log.Error(err, "failed to create or update protection pdb")
 						continue
 					}
-					log.Info("created or updated protection pdb: %s", po.Name)
+					log.Info("created or updated protection pdb")
 					po.Labels[constants.RunnerPodName] = po.Name
 					err = p.k8sClient.Update(ctx, po)
 					if err != nil {
-						log.Error(err, "failed to relabel runner pod: %s", po.Name)
+						log.Error(err, "failed to relabel runner pod")
 						continue
 					}
-					log.Info("relabeled runner pod: %s", po.Name)
+					log.Info("relabeled runner pod")
 				}
 			}
 
