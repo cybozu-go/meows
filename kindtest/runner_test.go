@@ -123,6 +123,12 @@ func testRunner() {
 			"SlackChannel": BeEmpty(),
 		})))
 
+		By("checking pdb")
+		_, stderr, err := kubectl("evict", "-n", repoRunner1NS, assignedPod.Name)
+		Expect(err).Should(HaveOccurred())
+		// The error message should be: "Error: Cannot evict pod as it would violate the pod's disruption budget."
+		Expect(string(stderr)).Should(ContainSubstring("Error: Cannot evict pod as it would violate the pod's disruption budget."))
+
 		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)

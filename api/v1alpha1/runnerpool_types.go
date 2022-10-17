@@ -70,6 +70,10 @@ type RunnerPoolSpec struct {
 	// Template describes the runner pods that will be created.
 	// +optional
 	Template RunnerPodTemplateSpec `json:"template,omitempty"`
+
+	// DenyDisruption protects busy runner Pods by PDB.
+	// +optional
+	DenyDisruption bool `json:"denyDisruption,omitempty"`
 }
 
 type NotificationConfig struct {

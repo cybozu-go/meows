@@ -26,6 +26,9 @@ const (
 
 	// AppInstanceLabelKey is a label key for the instance name.
 	AppInstanceLabelKey = "app.kubernetes.io/instance"
+
+	// RunnerPodName is the label key to select individual pod.
+	RunnerPodName = "meows.cybozu.com/runner-pod-name"
 )
 
 const (

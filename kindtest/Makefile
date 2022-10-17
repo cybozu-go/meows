@@ -35,6 +35,7 @@ setup: ## Setup necessary tools.
 	$(CURL) https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BIN_DIR)
 	$(CURL) -o $(BIN_DIR)/kind https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64 && chmod a+x $(BIN_DIR)/kind
 	$(CURL) -o $(BIN_DIR)/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(KINDTEST_K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
+	GOBIN=$(BIN_DIR) go install github.com/ueokande/kubectl-evict@latest
 
 .PHONY: clean
 clean: ## Clean files
@@ -53,6 +54,7 @@ test: ## Run all test on kind.
 	mkdir -p $(REPO_DIR)
 	rm -rf $(REPO_DIR)/.git $(REPO_DIR)/.github
 	. ${PROJECT_DIR}/.secret.env.sh; \
+		PATH=$(BIN_DIR):${PATH} \
 		KINDTEST=1 BIN_DIR=$(BIN_DIR) \
 		TEST_REPO_WORK_DIR=$(REPO_DIR) \
 		GITHUB_APP_PRIVATE_KEY_PATH=$(PROJECT_DIR)/.secret.private-key.pem \

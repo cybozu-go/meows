@@ -18,7 +18,9 @@ import (
 	gomegatypes "github.com/onsi/gomega/types"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -190,7 +192,7 @@ var _ = Describe("RunnerManager", func() {
 			By("preparing fake clients")
 			runnerPodClient := runner.NewFakeClient()
 			githubClientFactory := github.NewFakeClientFactory()
-			runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
+			runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
 
 			By("preparing pods and runners")
 			for _, inputPod := range tt.inputPods {
@@ -265,11 +267,11 @@ var _ = Describe("RunnerManager", func() {
 		}
 	})
 
-	It("should remove pod-template-hash label from pods", func() {
+	It("should remove pod-template-hash label from pods and create pdbs for the pods", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClientFactory := github.NewFakeClientFactory()
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting runnerpool manager")
 		rp := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
@@ -343,6 +345,40 @@ var _ = Describe("RunnerManager", func() {
 		Expect(podList.Items).To(HaveLen(1))
 		Expect(podList.Items[0].Name).To(Equal("pod1"))
 
+		By("checking pdbs (there should be no pdbs)")
+		pdbList := new(policyv1.PodDisruptionBudgetList)
+		Expect(k8sClient.List(ctx, pdbList, client.InNamespace("test-ns1"))).To(Succeed())
+		Expect(pdbList.Items).To(HaveLen(0))
+
+		By("changing configuration to deny disruption")
+		rp.Spec.DenyDisruption = true
+		runnerManager.StartOrUpdate(rp, nil)
+		time.Sleep(2 * time.Second)
+
+		By("checking pdbs")
+		var pdbNames []string
+		Expect(k8sClient.List(ctx, pdbList, client.InNamespace("test-ns1"))).To(Succeed())
+		for _, pdb := range pdbList.Items {
+			Expect(pdb.Spec.Selector).NotTo(BeNil())
+			Expect(pdb.Spec.Selector.MatchLabels["meows.cybozu.com/runner-pod-name"]).To(Equal(pdb.Name))
+			Expect(pdb.Spec.MinAvailable).NotTo(BeNil())
+			Expect(pdb.Spec.MinAvailable.Type).To(Equal(intstr.Int))
+			Expect(pdb.Spec.MinAvailable.IntVal).To(Equal(int32(1)))
+			Expect(pdb.OwnerReferences).To(HaveLen(1))
+			Expect(pdb.OwnerReferences[0].Kind).To(Equal("Pod"))
+			Expect(pdb.OwnerReferences[0].Name).To(Equal(pdb.Name))
+			pdbNames = append(pdbNames, pdb.Name)
+		}
+
+		Expect(k8sClient.List(ctx, podList, client.InNamespace("test-ns1"))).To(Succeed())
+		for _, pod := range podList.Items {
+			if pod.Name == "pod1" {
+				continue
+			}
+			Expect(pod.Labels["meows.cybozu.com/runner-pod-name"]).To(Equal(pod.Name))
+			Expect(pdbNames).To(ContainElement(pod.Name))
+		}
+
 		By("tearing down")
 		Expect(runnerManager.Stop(rp)).To(Succeed())
 	})
@@ -351,7 +387,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClientFactory := github.NewFakeClientFactory()
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -433,7 +469,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClientFactory := github.NewFakeClientFactory()
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -556,7 +592,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClientFactory := github.NewFakeClientFactory()
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
@@ -728,7 +764,7 @@ var _ = Describe("RunnerManager", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
 		githubClientFactory := github.NewFakeClientFactory()
-		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, githubClientFactory, runnerPodClient, time.Second)
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
 
 		By("starting metrics server")
 		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
