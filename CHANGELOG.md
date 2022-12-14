@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Update runner version to 2.300.0 ([#163](https://github.com/cybozu-go/meows/pull/163))
+
 ## [0.9.0] - 2022-10-17
 
 ### Added
