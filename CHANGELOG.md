@@ -147,7 +147,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Implement github-actions-controller at minimal (#1)
 
 [Unreleased]: https://github.com/cybozu-go/meows/compare/v0.9.1...HEAD
-[0.9.0]: https://github.com/cybozu-go/meows/compare/v0.9.0...v0.9.1
+[0.9.1]: https://github.com/cybozu-go/meows/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/cybozu-go/meows/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cybozu-go/meows/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/cybozu-go/meows/compare/v0.6.2...v0.7.0
