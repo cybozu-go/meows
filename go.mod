@@ -1,6 +1,6 @@
 module github.com/cybozu-go/meows
 
-go 1.17
+go 1.19
 
 require (
 	github.com/bradleyfalzon/ghinstallation v1.1.1

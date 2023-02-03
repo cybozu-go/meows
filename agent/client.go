@@ -13,8 +13,8 @@ import (
 )
 
 // These colors are based on the following guide.
-// - Model Color Palette for Color Universal Design (ver.4)
-//   ref: https://jfly.uni-koeln.de/colorset/
+//   - Model Color Palette for Color Universal Design (ver.4)
+//     ref: https://jfly.uni-koeln.de/colorset/
 const (
 	colorGreen  = "#03af7a" // RGB(3,175,122)
 	colorRed    = "#ff4b00" // RGB(255,75,0)
