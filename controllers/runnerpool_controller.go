@@ -292,7 +292,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		d.Spec.Template.Labels = mergeMap(d.Spec.Template.GetLabels(), labelSet(rp))
 		d.Spec.Template.Annotations = mergeMap(d.Spec.Template.GetAnnotations(), rp.Spec.Template.ObjectMeta.Annotations)
 
-		d.Spec.Replicas = pointer.Int32Ptr(rp.Spec.Replicas)
+		d.Spec.Replicas = pointer.Int32(rp.Spec.Replicas)
 		d.Spec.Template.Spec.ServiceAccountName = rp.Spec.Template.ServiceAccountName
 		d.Spec.Template.Spec.ImagePullSecrets = rp.Spec.Template.ImagePullSecrets
 		if rp.Spec.Template.AutomountServiceAccountToken != nil {
