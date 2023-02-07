@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2023-02-07
+
+### Changed
+
+- Support Kubernetes 1.25 ([#166](https://github.com/cybozu-go/meows/pull/166))
+- Build with go 1.19 ([#167](https://github.com/cybozu-go/meows/pull/167))
+- Update Ubuntu base image ([#167](https://github.com/cybozu-go/meows/pull/167))
+- Update runner version to 2.301.1 ([#167](https://github.com/cybozu-go/meows/pull/167))
+
 ## [0.9.1] - 2022-12-16
 
 ### Changed
@@ -146,7 +155,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/cybozu-go/meows/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/cybozu-go/meows/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/cybozu-go/meows/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cybozu-go/meows/compare/v0.7.0...v0.8.0
