@@ -26,7 +26,7 @@ jobs:
     name: Run test on kind
     strategy:
       matrix:
-        k8s-version: ["1.23.13", "1.24.7", "1.25.3"]
+        k8s-version: ["1.24.12", "1.25.8", "1.26.3"]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
