@@ -24,14 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
         with:
-          go-version-file: go.mod
+          repository: cybozu-go/meows
+          path: meows
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: meows/go.mod
       - name: Remove offline runners
+        working-directory: meows
         run: |
           echo '${{ secrets.APP_PRIVATE_KEY }}' > /tmp/private-key.pem
-          git clone https://github.com/cybozu-go/meows.git
-          cd meows/
           go install ./cmd/meows
           list=(${GITHUB_REPOSITORY/\// })
           org=${list[0]}
