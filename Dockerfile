@@ -1,4 +1,4 @@
-FROM quay.io/cybozu/golang:1.19-jammy as builder
+FROM quay.io/cybozu/golang:1.20-jammy as builder
 
 WORKDIR /workspace
 COPY . .
