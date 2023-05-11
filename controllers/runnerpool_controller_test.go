@@ -295,6 +295,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"Resources": MatchAllFields(Fields{
 				"Limits":   BeEmpty(),
 				"Requests": BeEmpty(),
+				"Claims":   BeEmpty(),
 			}),
 			"Ports": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
@@ -574,6 +575,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 				"Requests": MatchAllKeys(Keys{
 					corev1.ResourceMemory: Equal(resource.MustParse("100")),
 				}),
+				"Claims": BeEmpty(),
 			}),
 			"Ports": MatchAllElementsWithIndex(IndexIdentity, Elements{
 				"0": MatchFields(IgnoreExtras, Fields{
