@@ -18,12 +18,8 @@ func messageCIResult(color, text, job, pod string, extend bool) slack.MsgOption 
 		slack.NewSectionBlock(
 			slack.NewTextBlockObject(slack.MarkdownType, text, false, false),
 			[]*slack.TextBlockObject{
-				// These test blocks are rendered as 2 columns of side-by-side text.
-				// So list field names and values two each.
-				slack.NewTextBlockObject(slack.MarkdownType, "Job", false, false),
-				slack.NewTextBlockObject(slack.MarkdownType, "Pod", false, false),
-				slack.NewTextBlockObject(slack.MarkdownType, job, false, false),
-				slack.NewTextBlockObject(slack.MarkdownType, pod, false, false),
+				slack.NewTextBlockObject(slack.MarkdownType, "*Job*\n"+job, false, false),
+				slack.NewTextBlockObject(slack.MarkdownType, "*Pod*\n"+pod, false, false),
 			},
 			nil,
 		),
