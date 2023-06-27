@@ -87,10 +87,10 @@ This command should be called in a workflow.
 Users can specify the Slack channel as an argument.
 If the argument is not specified, the environment variable `MEOWS_SLACK_CHANNEL` is read instead.
 
-### `meows runner list [ORGANIZATION | RREPOSITORY]`
+### `meows runner list [ORGANIZATION | REPOSITORY]`
 
 This sub command lists runners on the specified organization or repository.
 
-### `meows runner remove [ORGANIZATION | RREPOSITORY]`
+### `meows runner remove [ORGANIZATION | REPOSITORY]`
 
 This sub command removes **offline** runners on the specified organization or repository.
