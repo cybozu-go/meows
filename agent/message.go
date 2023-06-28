@@ -8,9 +8,16 @@ import (
 )
 
 const (
-	extendBlockID  = "slack-agent-extend"
-	pickerActionID = "slack-agent-extend-timepicker"
-	buttonActionID = "slack-agent-extend-button"
+	extendBlockID        = "slack-agent-extend"
+	extendButtonActionID = "slack-agent-extend-button"
+	deleteBlockID        = "slack-agent-delete"
+	deleteButtonActionID = "slack-agent-delete-button"
+)
+
+const (
+	extendDurationHours  = 2
+	extendDurationString = "2 hours" // singular/plural hack
+	extendLimitHours     = 6
 )
 
 func messageCIResult(color, text, job, pod string, extend bool) slack.MsgOption {
@@ -26,20 +33,24 @@ func messageCIResult(color, text, job, pod string, extend bool) slack.MsgOption 
 	}
 
 	if extend {
-		extendBlock := slack.NewActionBlock(
-			extendBlockID,
-			&slack.TimePickerBlockElement{
-				Type:        slack.METTimepicker,
-				ActionID:    pickerActionID,
-				InitialTime: time.Now().Add(30 * time.Minute).UTC().Format("03:04"),
-			},
-			slack.NewButtonBlockElement(
-				buttonActionID,
-				pod,
-				slack.NewTextBlockObject(slack.PlainTextType, "Extend", false, false),
+		blockSet = append(blockSet,
+			slack.NewActionBlock(
+				extendBlockID,
+				slack.NewButtonBlockElement(
+					extendButtonActionID,
+					pod,
+					slack.NewTextBlockObject(slack.PlainTextType, "Extend "+extendDurationString, false, false),
+				),
+			),
+			slack.NewActionBlock(
+				deleteBlockID,
+				slack.NewButtonBlockElement(
+					deleteButtonActionID,
+					pod,
+					slack.NewTextBlockObject(slack.PlainTextType, "Delete immediately", false, false),
+				),
 			),
 		)
-		blockSet = append(blockSet, extendBlock)
 	}
 
 	// We want to use the color bar. So use the attachment.
@@ -57,9 +68,9 @@ func messageCIResult(color, text, job, pod string, extend bool) slack.MsgOption 
 }
 
 func messagePodExtendSuccess(pod string, extendedTime time.Time) slack.MsgOption {
-	return slack.MsgOptionText(fmt.Sprintf("%s is extended successfully.\n- %s", pod, extendedTime), false)
+	return slack.MsgOptionText(fmt.Sprintf("%s is updated successfully.\n- %s", pod, extendedTime), false)
 }
 
 func messagePodExtendFailure(pod string) slack.MsgOption {
-	return slack.MsgOptionText(fmt.Sprintf("Failed to extend pod.\n- %s", pod), false)
+	return slack.MsgOptionText(fmt.Sprintf("Failed to update pod.\n- %s", pod), false)
 }

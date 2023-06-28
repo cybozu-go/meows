@@ -443,6 +443,13 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 				}
 				continue
 			}
+
+			if status.DeletionTime == nil && status.FinishedAt != nil && status.FinishedAt.After(lastCheckTime) {
+				err := p.runnerPodClient.PutDeletionTime(ctx, po.Status.PodIP, status.FinishedAt.Add(extendDuration))
+				if err != nil {
+					log.Error(err, "failed to set deletion time")
+				}
+			}
 		}
 
 		podRecreateTime := po.CreationTimestamp.Add(recreateDeadline)
