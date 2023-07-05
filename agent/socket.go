@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,11 +45,16 @@ func (s *Server) listenInteractiveEvents(ctx context.Context) error {
 					if err != nil {
 						return err
 					}
-					tm, err := getTimeFromCallbackEvent(&cb, time.Now())
+					err = s.extendPod(ctx, cb.Channel.ID, namespace, pod)
 					if err != nil {
 						return err
 					}
-					err = s.extendPod(ctx, cb.Channel.ID, namespace, pod, tm)
+				} else if isDeleteButtonEvent(&cb) {
+					namespace, pod, err := getPodFromCallbackEvent(&cb)
+					if err != nil {
+						return err
+					}
+					err = s.deletePod(ctx, cb.Channel.ID, namespace, pod)
 					if err != nil {
 						return err
 					}
@@ -68,10 +73,10 @@ func (s *Server) listenInteractiveEvents(ctx context.Context) error {
 }
 
 /*
-The contents of a callback event is as follows. (some parts are omitted)
+The contents of a callback event is as follows. (some parts are omitted - see https://api.slack.com/reference/interaction-payloads/block-actions for more details)
 
 - When filtering callback events, check the `action_id`(2) and `block_id`(3).
-- The required values for pod extension are (1), (4) and (5).
+- The required values for pod extension are (1) and (4).
 - This structure is depending on the CI result message. See the `messageCIResult()` function.
 
 ---
@@ -88,17 +93,7 @@ The contents of a callback event is as follows. (some parts are omitted)
 			"type": "button",
 			"value": "default\/pod"                   // (4)
 		}
-	],
-	"state": {
-		"values": {
-			"slack-agent-extend": {
-				"slack-agent-extend-timepicker": {
-					"type": "timepicker",
-					"selected_time": "06:47"          // (5)
-				}
-			}
-		}
-	}
+	]
 }
 */
 
@@ -112,7 +107,23 @@ func isExtendButtonEvent(cb *slack.InteractionCallback) bool {
 	if cb.ActionCallback.BlockActions[0].BlockID != extendBlockID {
 		return false
 	}
-	if cb.ActionCallback.BlockActions[0].ActionID != buttonActionID {
+	if cb.ActionCallback.BlockActions[0].ActionID != extendButtonActionID {
+		return false
+	}
+	return true
+}
+
+func isDeleteButtonEvent(cb *slack.InteractionCallback) bool {
+	if cb.Type != slack.InteractionTypeBlockActions {
+		return false
+	}
+	if len(cb.ActionCallback.BlockActions) != 1 {
+		return false
+	}
+	if cb.ActionCallback.BlockActions[0].BlockID != deleteBlockID {
+		return false
+	}
+	if cb.ActionCallback.BlockActions[0].ActionID != deleteButtonActionID {
 		return false
 	}
 	return true
@@ -126,35 +137,60 @@ func getPodFromCallbackEvent(cb *slack.InteractionCallback) (string, string, err
 	return split[0], split[1], nil
 }
 
-func getTimeFromCallbackEvent(cb *slack.InteractionCallback, baseTime time.Time) (time.Time, error) {
-	if _, ok := cb.BlockActionState.Values[extendBlockID]; !ok {
-		return time.Time{}, fmt.Errorf("failed to get value from callback: block_id(%s) is not specified", extendBlockID)
-	}
-	if _, ok := cb.BlockActionState.Values[extendBlockID][pickerActionID]; !ok {
-		return time.Time{}, fmt.Errorf("failed to get value from callback: action_id(%s) is not specified", pickerActionID)
+func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string) error {
+	po, err := s.clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
+	if err != nil {
+		s.log.Error(err, "failed to get pod info",
+			"name", pod,
+			"namespace", namespace,
+		)
+		return err
 	}
 
-	selectedTime := cb.BlockActionState.Values[extendBlockID][pickerActionID].SelectedTime
-	split := strings.Split(selectedTime, ":")
-	if len(split) != 2 {
-		return time.Time{}, fmt.Errorf("invalid time format: %s", selectedTime)
-	}
-	hh, err := strconv.Atoi(split[0])
+	status, err := s.runnerClient.GetStatus(ctx, po.Status.PodIP)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid time format: %s", selectedTime)
+		s.log.Error(err, "failed to get runner status",
+			"name", pod,
+			"namespace", namespace,
+		)
+		return err
 	}
-	mm, err := strconv.Atoi(split[1])
-	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid time format: %s", selectedTime)
+	var tm time.Time
+	if status.DeletionTime != nil {
+		tm = *status.DeletionTime
+	} else {
+		tm = time.Now().UTC() // We now expect DeletionTime is not nil at this point. This line is a fail safe.
+		s.log.Info("deletion time was not set beforehand",
+			"name", pod,
+			"namespace", namespace,
+		)
+	}
+	tm = tm.Add(time.Hour * extendDurationHours)
+	limit := time.Now().UTC().Add(time.Hour * extendLimitHours)
+	if tm.After(limit) {
+		tm = limit
 	}
 
-	return time.Date(baseTime.Year(), baseTime.Month(), baseTime.Day(), hh, mm, 0, 0, baseTime.Location()), nil
+	return s.putDeletionTime(ctx, channel, namespace, pod, po, tm)
 }
 
-func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, tm time.Time) error {
+func (s *Server) deletePod(ctx context.Context, channel, namespace, pod string) error {
+	po, err := s.clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
+	if err != nil {
+		s.log.Error(err, "failed to get pod info",
+			"name", pod,
+			"namespace", namespace,
+		)
+		return err
+	}
+
+	return s.putDeletionTime(ctx, channel, namespace, pod, po, time.Time{})
+}
+
+func (s *Server) putDeletionTime(ctx context.Context, channel, namespace, pod string, po *corev1.Pod, tm time.Time) error {
 	success := true
 	if !s.devMood {
-		err := s.updateDeletionTime(ctx, namespace, pod, tm)
+		err := s.runnerClient.PutDeletionTime(ctx, po.Status.PodIP, tm)
 		if err != nil {
 			s.log.Error(err, "failed to update deletion time",
 				"name", pod,
@@ -190,13 +226,4 @@ func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string, 
 		return err
 	}
 	return nil
-}
-
-func (s *Server) updateDeletionTime(ctx context.Context, namespace, pod string, tm time.Time) error {
-	po, err := s.clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	return s.runnerClient.PutDeletionTime(ctx, po.Status.PodIP, tm)
 }

@@ -245,8 +245,9 @@ When a job fails, meows sends the following Slack message.
 
 ![failure message](./images/slack_failure.png)
 
-If you want to extend the pod, choose the time in UTC and click the `Extend` button.
-As long as the pod exists, you can extend it as many times as you want.
+If you want to extend the pod, click `Extend 2 hours` button. Extension is limited to "6 hours from now".
+
+If you want to delete the pod immediately, click `Delete immediately` button.
 
 ## Appendix
 
