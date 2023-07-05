@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2023-07-05
+
+### Changed
+
+- Improve runner extend UI on Slack message ([#175](https://github.com/cybozu-go/meows/pull/175))
+
+### Fixed
+
+- Fix Slack notification message layout ([#173](https://github.com/cybozu-go/meows/pull/173))
+
 ## [0.11.0] - 2023-05-12
 
 ### Changed
@@ -167,7 +177,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/cybozu-go/meows/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cybozu-go/meows/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/cybozu-go/meows/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/cybozu-go/meows/compare/v0.9.0...v0.9.1
