@@ -45,7 +45,7 @@ func (l *listenerImpl) listen(ctx context.Context) error {
 		}
 
 		// This logic is based on the following code.
-		// ref: https://github.com/actions/runner/blob/v2.278.0/src/Misc/layoutbin/RunnerService.js
+		// ref: https://github.com/actions/runner/blob/v2.309.0/src/Misc/layoutbin/RunnerService.js
 		logger.Info("Runner listener exited with error", "code", code)
 		switch code {
 		case 0:
@@ -57,7 +57,7 @@ func (l *listenerImpl) listen(ctx context.Context) error {
 		case 2:
 			logger.Info("Runner listener exit with retryable error, re-launch runner in 10 seconds.")
 			metrics.IncrementListenerExitState(constants.ListenerExitStateRetryableError)
-		case 3:
+		case 3, 4:
 			logger.Info("Runner listener exit because of updating, re-launch runner in 10 seconds.")
 			metrics.IncrementListenerExitState(constants.ListenerExitStateUpdating)
 		default:
