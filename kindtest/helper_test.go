@@ -247,6 +247,14 @@ func slackMessageShouldBeSent(pod *corev1.Pod, channel string) {
 	stdout, stderr, err := kubectl("logs", "-n", controllerNS, "-l", "app.kubernetes.io/component=slack-agent")
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to get slack-agent log, stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 
+	fmt.Println("--------------------------------------------")
+	fmt.Println("stdout= ", stdout)
+	fmt.Println("")
+	fmt.Println("stderr= ", stderr)
+	fmt.Println("")
+	fmt.Println("err= ", err)
+	fmt.Println("--------------------------------------------")
+
 	podName := pod.Namespace + "/" + pod.Name
 	var matchLine string
 	reader := bufio.NewReader(bytes.NewReader(stdout))
