@@ -24,7 +24,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	k8sMetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+
 	// +kubebuilder:scaffold:imports
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 var (
@@ -51,15 +54,19 @@ func run() error {
 		return fmt.Errorf("invalid webhook address: %s, %v", config.webhookAddr, err)
 	}
 
+	webHookServer := webhook.NewServer(webhook.Options{
+		Host: host,
+		Port: port,
+	})
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     config.metricsAddr,
-		Host:                   host,
-		Port:                   port,
+		WebhookServer:          webHookServer,
+		Metrics:                metricsserver.Options{BindAddress: config.metricsAddr},
 		HealthProbeBindAddress: config.probeAddr,
 		LeaderElection:         true,
 		LeaderElectionID:       "6bee5a22.cybozu.com",
 	})
+
 	if err != nil {
 		setupLog.Error(err, "unable to create manager")
 		return err
