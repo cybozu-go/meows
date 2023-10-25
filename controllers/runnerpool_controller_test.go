@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -374,7 +374,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 		rp.Spec.Template.RunnerContainer.Image = "sample:devel"
 		rp.Spec.Template.RunnerContainer.ImagePullPolicy = corev1.PullIfNotPresent
 		rp.Spec.Template.RunnerContainer.SecurityContext = &corev1.SecurityContext{
-			Privileged: pointer.Bool(true),
+			Privileged: ptr.To[bool](true),
 		}
 		rp.Spec.Template.RunnerContainer.EnvFrom = []corev1.EnvFromSource{
 			{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "secret-name"}}},
@@ -416,7 +416,7 @@ var _ = Describe("RunnerPool reconciler", func() {
 			"kubernetes.io/hostname": "worker",
 		}
 		rp.Spec.Template.ServiceAccountName = serviceAccountName
-		rp.Spec.Template.AutomountServiceAccountToken = pointer.Bool(false)
+		rp.Spec.Template.AutomountServiceAccountToken = ptr.To[bool](false)
 		rp.Spec.Template.Tolerations = []corev1.Toleration{
 			{
 				Effect:   corev1.TaintEffectNoSchedule,
