@@ -248,9 +248,9 @@ func slackMessageShouldBeSent(pod *corev1.Pod, channel string) {
 	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to get slack-agent log, stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 
 	fmt.Println("--------------------------------------------")
-	fmt.Println("stdout= ", stdout)
+	fmt.Println("stdout= ", string(stdout))
 	fmt.Println("")
-	fmt.Println("stderr= ", stderr)
+	fmt.Println("stderr= ", string(stderr))
 	fmt.Println("")
 	fmt.Println("err= ", err)
 	fmt.Println("--------------------------------------------")
