@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -292,7 +292,7 @@ func (r *RunnerPoolReconciler) reconcileDeployment(ctx context.Context, log logr
 		d.Spec.Template.Labels = mergeMap(d.Spec.Template.GetLabels(), labelSet(rp))
 		d.Spec.Template.Annotations = mergeMap(d.Spec.Template.GetAnnotations(), rp.Spec.Template.ObjectMeta.Annotations)
 
-		d.Spec.Replicas = pointer.Int32(rp.Spec.Replicas)
+		d.Spec.Replicas = ptr.To[int32](rp.Spec.Replicas)
 		d.Spec.Template.Spec.ServiceAccountName = rp.Spec.Template.ServiceAccountName
 		d.Spec.Template.Spec.ImagePullSecrets = rp.Spec.Template.ImagePullSecrets
 		if rp.Spec.Template.AutomountServiceAccountToken != nil {
