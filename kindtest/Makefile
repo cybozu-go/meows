@@ -58,7 +58,7 @@ test: ## Run all test on kind.
 		KINDTEST=1 BIN_DIR=$(BIN_DIR) \
 		TEST_REPO_WORK_DIR=$(REPO_DIR) \
 		GITHUB_APP_PRIVATE_KEY_PATH=$(PROJECT_DIR)/.secret.private-key.pem \
-		go test . -v -timeout=15m -ginkgo.v -ginkgo.failFast $(KINDTEST_OPT)
+		go test . -v -timeout=15m -ginkgo.v --ginkgo.fail-fast $(KINDTEST_OPT)
 
 .PHONY: bootstrap
 bootstrap: ## Run bootstrap test on kind.
