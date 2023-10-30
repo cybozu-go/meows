@@ -24,10 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	k8sMetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
-
-	// +kubebuilder:scaffold:imports
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	// +kubebuilder:scaffold:imports
 )
 
 var (
