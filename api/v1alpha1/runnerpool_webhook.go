@@ -8,6 +8,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func (r *RunnerPool) SetupWebhookWithManager(mgr ctrl.Manager) error {
@@ -30,24 +31,24 @@ func (r *RunnerPool) Default() {
 var _ webhook.Validator = &RunnerPool{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RunnerPool) ValidateCreate() error {
+func (r *RunnerPool) ValidateCreate() (warnings admission.Warnings, err error) {
 	errs := r.Spec.validateCreate()
 	if len(errs) == 0 {
-		return nil
+		return nil, nil
 	}
-	return apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "RunnerPool"}, r.Name, errs)
+	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "RunnerPool"}, r.Name, errs)
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RunnerPool) ValidateUpdate(old runtime.Object) error {
+func (r *RunnerPool) ValidateUpdate(old runtime.Object) (warnings admission.Warnings, err error) {
 	errs := r.Spec.validateUpdate(old.(*RunnerPool).Spec)
 	if len(errs) == 0 {
-		return nil
+		return nil, nil
 	}
-	return apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "RunnerPool"}, r.Name, errs)
+	return nil, apierrors.NewInvalid(schema.GroupKind{Group: GroupVersion.Group, Kind: "RunnerPool"}, r.Name, errs)
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RunnerPool) ValidateDelete() error {
-	return nil
+func (r *RunnerPool) ValidateDelete() (warnings admission.Warnings, err error) {
+	return nil, nil
 }

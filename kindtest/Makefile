@@ -1,9 +1,9 @@
 CURL := curl -sSLf
 
-KUSTOMIZE_VERSION := 5.0.3
-KINDTEST_K8S_VERSION := 1.26.3
-KIND_VERSION := 0.18.0
-CERT_MANAGER_VERSION := 1.11.2
+KUSTOMIZE_VERSION := 5.2.1
+KINDTEST_K8S_VERSION := 1.27.3
+KIND_VERSION := 0.20.0
+CERT_MANAGER_VERSION := 1.13.1
 
 PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/tmp/bin
@@ -58,7 +58,7 @@ test: ## Run all test on kind.
 		KINDTEST=1 BIN_DIR=$(BIN_DIR) \
 		TEST_REPO_WORK_DIR=$(REPO_DIR) \
 		GITHUB_APP_PRIVATE_KEY_PATH=$(PROJECT_DIR)/.secret.private-key.pem \
-		go test . -v -timeout=15m -ginkgo.v -ginkgo.failFast $(KINDTEST_OPT)
+		go test . -v -timeout=15m -ginkgo.v --ginkgo.fail-fast $(KINDTEST_OPT)
 
 .PHONY: bootstrap
 bootstrap: ## Run bootstrap test on kind.
