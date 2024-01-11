@@ -5,18 +5,22 @@ on:
       - 'v*'
 jobs:
   image:
-    name: Push images to quay.io
+    name: Push container images
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
           go-version-file: go.mod
-      - name: Log in quay.io
-        run: echo ${{ secrets.QUAY_PASSWORD }} | docker login -u ${{ secrets.QUAY_USER }} --password-stdin quay.io
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - run: make setup
       - run: make image
-      - run: make tag push IMAGE_PREFIX=quay.io/cybozu/ IMAGE_TAG=${GITHUB_REF#refs/tags/v}
+      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${GITHUB_REF#refs/tags/v}
   release:
     name: Release on GitHub
     needs: image

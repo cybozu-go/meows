@@ -41,8 +41,8 @@ You can run jobs in your GitHub Actions workflows on your Kubernetes cluster wit
 
 ## Docker images
 
-Docker images are available on [Quay.io](https://quay.io/repository/cybozu)
-- [Controller](https://quay.io/repository/cybozu/meows-controller)
-- [Runner](https://quay.io/repository/cybozu/meows-runner)
+Docker images are available on [ghcr.io](https://github.com/orgs/cybozu-go/packages?repo_name=meows)
+- [Controller](https://github.com/cybozu-go/meows/pkgs/container/meows-controller)
+- [Runner](https://github.com/cybozu-go/meows/pkgs/container/meows-runner)
 
 [releases]: https://github.com/cybozu-go/meows/releases

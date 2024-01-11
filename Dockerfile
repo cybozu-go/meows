@@ -1,10 +1,11 @@
-FROM quay.io/cybozu/golang:1.20-jammy as builder
+FROM ghcr.io/cybozu/golang:1.20-jammy as builder
 
 WORKDIR /workspace
 COPY . .
 RUN make build
 
-FROM quay.io/cybozu/ubuntu:22.04 as controller
+FROM ghcr.io/cybozu/ubuntu:22.04 as controller
+LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 COPY --from=builder /workspace/tmp/bin/controller /usr/local/bin
 COPY --from=builder /workspace/tmp/bin/slack-agent /usr/local/bin
@@ -13,7 +14,8 @@ COPY --from=builder /workspace/tmp/bin/meows /usr/local/bin
 USER 10000:10000
 ENTRYPOINT ["controller"]
 
-FROM quay.io/cybozu/ubuntu:22.04 as runner
+FROM ghcr.io/cybozu/ubuntu:22.04 as runner
+LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 # Even if the version of the runner is out of date, it will self-update at job execution time. So there is no problem to update it when you notice.
 # TODO: Until https://github.com/cybozu-go/meows/issues/137 is fixed, update it manually.

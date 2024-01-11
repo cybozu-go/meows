@@ -47,7 +47,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: quay.io/cybozu/meows-controller:latest
+          image: ghcr.io/cybozu-go/meows-controller:latest
           command:
             - "slack-agent"
           envFrom:

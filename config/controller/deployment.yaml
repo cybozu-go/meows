@@ -19,7 +19,7 @@ spec:
         runAsNonRoot: true
       containers:
       - name: controller
-        image: quay.io/cybozu/meows-controller:latest
+        image: ghcr.io/cybozu-go/meows-controller:latest
         env:
         - name: POD_NAMESPACE
           valueFrom:
