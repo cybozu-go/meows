@@ -17,7 +17,7 @@ FROM quay.io/cybozu/ubuntu:22.04 as runner
 
 # Even if the version of the runner is out of date, it will self-update at job execution time. So there is no problem to update it when you notice.
 # TODO: Until https://github.com/cybozu-go/meows/issues/137 is fixed, update it manually.
-ARG RUNNER_VERSION=2.304.0
+ARG RUNNER_VERSION=2.313.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y \
