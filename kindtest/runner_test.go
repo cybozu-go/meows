@@ -113,15 +113,18 @@ func testRunner() {
 		finishedAt := time.Now()
 
 		By("checking status")
-		Expect(status).To(PointTo(MatchAllFields(Fields{
-			"State":        Equal("debugging"),
-			"Result":       Equal("failure"),
-			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
-			"DeletionTime": BeNil(),
-			"Extend":       PointTo(BeTrue()),
-			"JobInfo":      Not(BeNil()),
-			"SlackChannel": BeEmpty(),
-		})))
+		Eventually(func(g Gomega) {
+			_, status = waitJobCompletion(repoRunner1NS, repoRunnerPool1Name)
+			g.Expect(status).To(PointTo(MatchAllFields(Fields{
+				"State":        Equal("debugging"),
+				"Result":       Equal("failure"),
+				"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+				"DeletionTime": Not(BeNil()),
+				"Extend":       PointTo(BeTrue()),
+				"JobInfo":      Not(BeNil()),
+				"SlackChannel": BeEmpty(),
+			})))
+		}).Should(Succeed())
 
 		By("checking pdb")
 		_, stderr, err := kubectl("evict", "-n", repoRunner1NS, assignedPod.Name)
@@ -150,15 +153,18 @@ func testRunner() {
 		finishedAt := time.Now()
 
 		By("checking status")
-		Expect(status).To(PointTo(MatchAllFields(Fields{
-			"State":        Equal("debugging"),
-			"Result":       Equal("failure"),
-			"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
-			"DeletionTime": BeNil(),
-			"Extend":       PointTo(BeTrue()),
-			"JobInfo":      Not(BeNil()),
-			"SlackChannel": BeEmpty(),
-		})))
+		Eventually(func(g Gomega) {
+			_, status = waitJobCompletion(repoRunner2NS, repoRunnerPool2Name)
+			g.Expect(status).To(PointTo(MatchAllFields(Fields{
+				"State":        Equal("debugging"),
+				"Result":       Equal("failure"),
+				"FinishedAt":   PointTo(BeTemporally("~", finishedAt, 3*time.Second)),
+				"DeletionTime": Not(BeNil()),
+				"Extend":       PointTo(BeTrue()),
+				"JobInfo":      Not(BeNil()),
+				"SlackChannel": BeEmpty(),
+			})))
+		}).Should(Succeed())
 
 		By("sending request to the pod")
 		extendTo := time.Now().Add(45 * time.Second).Truncate(time.Second)
