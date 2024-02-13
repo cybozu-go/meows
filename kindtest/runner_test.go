@@ -127,6 +127,12 @@ func testRunner() {
 		}).Should(Succeed())
 
 		By("checking pdb")
+		Eventually(func(g Gomega) {
+			_, stderr, err := kubectl("get", "pdb", "-n", repoRunner1NS, assignedPod.Name)
+			g.Expect(err).NotTo(HaveOccurred(), fmt.Errorf("stderr: %s", stderr))
+		}).Should(Succeed())
+
+		By("trying to evict the pod")
 		_, stderr, err := kubectl("evict", "-n", repoRunner1NS, assignedPod.Name)
 		Expect(err).Should(HaveOccurred())
 		// The error message should be: "Error: Cannot evict pod as it would violate the pod's disruption budget."
