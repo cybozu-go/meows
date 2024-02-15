@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2024-02-14
+
+### Breaking Changes
+
+#### Migrate image registry
+
+We migrated the image repositories of meows to `ghcr.io`.
+From meows v0.14.0, please use the following images.
+
+- https://github.com/cybozu-go/meows/pkgs/container/meows-controller
+- https://github.com/cybozu-go/meows/pkgs/container/meows-runner
+
+The images on Quay.io ([meows-controller](https://quay.io/repository/cybozu/meows-controller), [meows-runner](https://quay.io/repository/cybozu/meows-runner)) will not be updated in the future.
+
+### Changed
+
+- Migrate to ghcr.io (#180)
+
 ## [0.13.0] - 2023-10-31
 
 ### Changed
@@ -185,7 +203,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/cybozu-go/meows/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/cybozu-go/meows/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/cybozu-go/meows/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/cybozu-go/meows/compare/v0.10.0...v0.11.0
