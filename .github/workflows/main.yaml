@@ -12,8 +12,8 @@ jobs:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - run: make setup
@@ -26,11 +26,11 @@ jobs:
     name: Run test on kind
     strategy:
       matrix:
-        k8s-version: ["1.25.8", "1.26.3", "1.27.3"]
+        k8s-version: ["1.27.13", "1.28.9", "1.29.4"]
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
       - name: Configure GIT
@@ -56,8 +56,8 @@ jobs:
           GIT_SSH_COMMAND: "ssh -i /tmp/deploy-key.pem"
       - run: make -C kindtest logs
         if: always()
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: logs
+          name: logs-${{ matrix.k8s-version }}
           path: ./tmp/logs/
