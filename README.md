@@ -12,7 +12,7 @@ You can run jobs in your GitHub Actions workflows on your Kubernetes cluster wit
 
 ## Supported software
 
-- Kubernetes: 1.24, 1.25, 1.26
+- Kubernetes: 1.27, 1.28, 1.29
 
 ## Features
 
