@@ -15,9 +15,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - apps
+  - ""
   resources:
-  - deployments
+  - secrets
   verbs:
   - create
   - delete
@@ -27,9 +27,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
+  - apps
   resources:
-  - secrets
+  - deployments
   verbs:
   - create
   - delete
