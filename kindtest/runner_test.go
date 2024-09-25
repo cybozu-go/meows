@@ -135,8 +135,8 @@ func testRunner() {
 		By("trying to evict the pod")
 		_, stderr, err := kubectl("evict", "-n", repoRunner1NS, assignedPod.Name)
 		Expect(err).Should(HaveOccurred())
-		// The error message should be: "Error: Cannot evict pod as it would violate the pod's disruption budget."
-		Expect(string(stderr)).Should(ContainSubstring("Error: Cannot evict pod as it would violate the pod's disruption budget."))
+		// The error message should be: "Error: pod ${repoRunner1NS}/${podName}　Cannot evict pod as it would violate the pod's disruption budget."
+		Expect(string(stderr)).Should(ContainSubstring("Error: pod " + repoRunner1NS + "/" + assignedPod.Name + "\nCannot evict pod as it would violate the pod's disruption budget."))
 
 		By("confirming the pod terminating")
 		deletedAt := waitRunnerPodTerminating(assignedPod.Namespace, assignedPod.Name)
