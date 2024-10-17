@@ -1,12 +1,10 @@
-CLI options
-===========
+# CLI options
 
-`controller`
------------
+## `controller`
 
 The CLI allows you to use the following options:
 
-```bash
+```console
 $ controller -h
 Kubernetes controller for GitHub Actions self-hosted runner
 
@@ -41,9 +39,7 @@ Flags:
       --zap-stacktrace-level level         Zap Level at and above which stacktraces are captured (one of 'info', 'error', 'panic').
 ```
 
-
-`slack-agent`
--------------
+## `slack-agent`
 
 The Slack agent is a server program.
 This notifies CI results and accepts requests for extending Pods' lifecycles
@@ -68,9 +64,7 @@ Flags:
   -v, --verbose              Verbose.
 ```
 
-
-`meows`
-------
+## `meows`
 
 This is a tool command to do some operations.
 It enables to send requests to the slack-agent, or to control the GitHub runners.

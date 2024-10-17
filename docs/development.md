@@ -1,8 +1,6 @@
-Development guide
-=================
+# Development guide
 
-Testing
--------
+## Testing
 
 There are 2 kinds of test included in this repository.
 
@@ -18,7 +16,7 @@ difficult to test in some parts and some parts of the code are not tested intent
 What kindtest covers is:
 
 - Runner `Pod`s are registered to GitHub Actions on a test repository.
-    - At present, the test repository is a fixed one (`github.com/neco-test/meows-ci`).
+  - At present, the test repository is a fixed one (`github.com/neco-test/meows-ci`).
 - GitHub Actions workflows run on the `Pod`s.
 - Runner `Pod`s send messages to Slack agent.
 - Slack agent sends messages to Slack.
@@ -41,7 +39,8 @@ In order to run the kindtest, you need to prepare as follows.
 You can run the kindtest as following.
 
 1. Create secret files for kindtest.
-    ```bash
+
+    ```console
     $ vi .secret.private-key.pem
     # Save your GitHub App private key in this file.
 
@@ -56,22 +55,23 @@ You can run the kindtest as following.
     ```
 
 2. Install tools.
+
     ```bash
-    $ make setup
+    make setup
     ```
 
 3. Run kindtest.
+
     ```bash
     # Start kind cluster.
-    $ make -C kindtest start
+    make -C kindtest start
 
     # Run test on kind.
-    $ make -C kindtest test
+    make -C kindtest test
 
     # Stop kind cluster.
-    $ make -C kindtest stop
+    make -C kindtest stop
     ```
-
 
 ### Run slack agent manually
 
@@ -79,17 +79,17 @@ Then, run a server with the following commands:
 
 ```bash
 # Run server process
-$ export SLACK_CHANNEL=#<your Slack Channel>
-$ export SLACK_APP_TOKEN=<your Slack App Token>
-$ export SLACK_BOT_TOKEN=<your Slack Bot Token>
-$ go run ./cmd/slack-agent -d
+export SLACK_CHANNEL=#<your Slack Channel>
+export SLACK_APP_TOKEN=<your Slack App Token>
+export SLACK_BOT_TOKEN=<your Slack Bot Token>
+go run ./cmd/slack-agent -d
 ```
 
 You can test both the failure and success messages by actually sending them:
 
 ```bash
 # client
-$ cat <<EOF > /tmp/github.env
+cat <<EOF > /tmp/github.env
 {
   "actor": "user",
   "git_ref": "branch-name",
@@ -103,17 +103,16 @@ $ cat <<EOF > /tmp/github.env
 EOF
 
 # success
-$ go run ./cmd/meows slackagent send pod success -f /tmp/github.env
+go run ./cmd/meows slackagent send pod success -f /tmp/github.env
 
 # failure
-$ go run ./cmd/meows slackagent send pod failure --extend -f /tmp/github.env
+go run ./cmd/meows slackagent send pod failure --extend -f /tmp/github.env
 ```
 
 Then, click the button on the Slack message, and check if a receiving log appears
 on the terminal.
 
-How to run meows for development
-----------------------------------------------------
+## How to run meows for development
 
 If you need to run the controller on your local environment, this is the easiest way to do that.
 You can reuse the token for the test repository, which is prepared for CI.
@@ -121,9 +120,9 @@ But please be careful that your local environment steals the job that is expecte
 
 ```bash
 # Create secret files for kindtest.
-$ vi .secret.private-key.pem
-$ vi .secret.env.sh
+vi .secret.private-key.pem
+vi .secret.env.sh
 
-$ make -C kindtest start
-$ make -C kindtest bootstrap
+make -C kindtest start
+make -C kindtest bootstrap
 ```
