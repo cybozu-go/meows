@@ -43,7 +43,7 @@ It should look like:
 2. Make a branch to release
 
     ```bash
-    git neco dev "bump-$VERSION"
+    git switch -c "bump-$VERSION"
     ```
 
 3. Edit `CHANGELOG.md` for the new version ([example][]).
@@ -58,7 +58,7 @@ It should look like:
 
     ```bash
     git commit -a -m "Bump version to $VERSION"
-    git neco review
+    git push origin "bump-$VERSION"
     ```
 
 6. Merge this branch.
