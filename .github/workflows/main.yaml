@@ -56,6 +56,14 @@ jobs:
           GIT_SSH_COMMAND: "ssh -i /tmp/deploy-key.pem"
       - run: make -C kindtest logs
         if: always()
+
+      - name: Check disk usage
+        run: df -h
+        if: always()
+      - name: Check directory sizes
+        run: du -sh /usr/local/* /opt/* /usr/* | sort -hr
+        if: always()
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
