@@ -1,10 +1,10 @@
-FROM ghcr.io/cybozu/golang:1.23-jammy as builder
+FROM ghcr.io/cybozu/golang:1.23-jammy AS builder
 
 WORKDIR /workspace
 COPY . .
 RUN make build
 
-FROM ghcr.io/cybozu/ubuntu:22.04 as controller
+FROM ghcr.io/cybozu/ubuntu:22.04 AS controller
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 COPY --from=builder /workspace/tmp/bin/controller /usr/local/bin
@@ -14,7 +14,7 @@ COPY --from=builder /workspace/tmp/bin/meows /usr/local/bin
 USER 10000:10000
 ENTRYPOINT ["controller"]
 
-FROM ghcr.io/cybozu/ubuntu:22.04 as runner
+FROM ghcr.io/cybozu/ubuntu:22.04 AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 # Even if the version of the runner is out of date, it will self-update at job execution time. So there is no problem to update it when you notice.
@@ -22,8 +22,9 @@ LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 ARG RUNNER_VERSION=2.319.1
 
 ENV DEBIAN_FRONTEND=noninteractive
+# hadolint ignore=DL3015
 RUN apt-get update -y \
-  && apt-get install -y --no-install-recommends software-properties-common \
+  && apt-get install -y software-properties-common \
   && add-apt-repository -y ppa:git-core/ppa \
   && apt-get update -y \
   && apt-get install -y --no-install-recommends libyaml-dev \
