@@ -23,7 +23,7 @@ ARG RUNNER_VERSION=2.319.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -y \
-  && apt-get install -y software-properties-common \
+  && apt-get install -y --no-install-recommends software-properties-common \
   && add-apt-repository -y ppa:git-core/ppa \
   && apt-get update -y \
   && apt-get install -y --no-install-recommends libyaml-dev \
