@@ -7,15 +7,15 @@
 meows depends on the [cert-manager](https://cert-manager.io/docs/). If you are not installing the cert-manager on your Kubernetes cluster, install it as follows:
 
 ```bash
-$ curl -fsLO https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
-$ kubectl apply -f cert-manager.yaml
+curl -fsLO https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+kubectl apply -f cert-manager.yaml
 ```
 
 You need to manually create a secret and a configmap in the `meows` namespace at the initial deployment.
 So make the `meows` namespace to prepare.
 
 ```bash
-$ kubectl create namespace meows
+kubectl create namespace meows
 ```
 
 ### Create Controller Option ConfigMap (Optional)
@@ -24,9 +24,9 @@ You can restrict the organization and repository that meows operates by `meows-c
 If you want to restrict it in some way, please create a ConfigMap as follows.
 
 ```bash
-$ kubectl create configmap meows-cm -n meows \
-    --from-literal=organization-rule='^neco-test$' \
-    --from-literal=repository-rule='^neco-test/.*'
+kubectl create configmap meows-cm -n meows \
+  --from-literal=organization-rule='^neco-test$' \
+  --from-literal=repository-rule='^neco-test/.*'
 ```
 
 Both `organization-rule` and `repository-rule` accepts golang's regular expressions.
@@ -36,8 +36,8 @@ Both `organization-rule` and `repository-rule` accepts golang's regular expressi
 Deploy the controller as follows.
 
 ```bash
-$ MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
-$ kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
+MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
+kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
 ```
 
 ### Deploying Slack Agent (Optional)
@@ -48,21 +48,21 @@ The agent requires Slack App tokens, so create a Slack App following [Creating S
 And create a secret as follows:
 
 ```bash
-$ SLACK_CHANNEL="#<your Slack Channel>"
-$ SLACK_APP_TOKEN=<your Slack App Token>
-$ SLACK_BOT_TOKEN=<your Slack Bot Token>
+SLACK_CHANNEL="#<your Slack Channel>"
+SLACK_APP_TOKEN=<your Slack App Token>
+SLACK_BOT_TOKEN=<your Slack Bot Token>
 
-$ kubectl create secret generic slack-app-secret -n meows \
-    --from-literal=SLACK_CHANNEL=${SLACK_CHANNEL} \
-    --from-literal=SLACK_APP_TOKEN=${SLACK_APP_TOKEN} \
-    --from-literal=SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+kubectl create secret generic slack-app-secret -n meows \
+  --from-literal=SLACK_CHANNEL=${SLACK_CHANNEL} \
+  --from-literal=SLACK_APP_TOKEN=${SLACK_APP_TOKEN} \
+  --from-literal=SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
 ```
 
 After that deploy the agent.
 
 ```bash
-$ MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
-$ kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
+MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
+kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
 ```
 
 ## Creating RunnerPool
@@ -77,8 +77,8 @@ In other words, you need to create a Secret that records the credential in the R
 If you have not created a RunnerPool's namespace yet, please create it as follows.
 
 ```bash
-$ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
-$ kubectl create namespace ${RUNNERPOOL_NAMESPACE}
+RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
+kubectl create namespace ${RUNNERPOOL_NAMESPACE}
 ```
 
 ### Creating GitHub Credential Secret
@@ -94,31 +94,32 @@ If you want to use a GitHub App, create a GitHub App and download a private key 
 And create a secret as follows:
 
 ```bash
-$ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
-$ GITHUB_APP_ID=<your GitHub App ID>
-$ GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
-$ GITHUB_APP_PRIVATE_KEY_PATH=<Path to GitHub App private key file>
+RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
+GITHUB_APP_ID=<your GitHub App ID>
+GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
+GITHUB_APP_PRIVATE_KEY_PATH=<Path to GitHub App private key file>
 
-$ kubectl create secret generic meows-github-cred -n ${RUNNERPOOL_NAMESPACE} \
-    --from-literal=app-id=${GITHUB_APP_ID} \
-    --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
-    --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
+kubectl create secret generic meows-github-cred -n ${RUNNERPOOL_NAMESPACE} \
+  --from-literal=app-id=${GITHUB_APP_ID} \
+  --from-literal=app-installation-id=${GITHUB_APP_INSTALLATION_ID} \
+  --from-file=app-private-key=${GITHUB_APP_PRIVATE_KEY_PATH}
 ```
 
 If you want to use a Personal Access Token (PAT), create a PAT following [the official documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token).
 
 Then:
+
 - Set the `repo` scope, if you want to use a repository-level runner.
 - Set the `admin:org` scope, if you want to use an organization-level runner.
 
 And create a secret as follows:
 
 ```bash
-$ RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
-$ GITHUB_TOKEN=<your PAT>
+RUNNERPOOL_NAMESPACE=<your RunnerPool namespace>
+GITHUB_TOKEN=<your PAT>
 
-$ kubectl create secret generic meows-github-cred -n ${RUNNERPOOL_NAMESPACE} \
-    --from-literal=token=${GITHUB_TOKEN}
+kubectl create secret generic meows-github-cred -n ${RUNNERPOOL_NAMESPACE} \
+  --from-literal=token=${GITHUB_TOKEN}
 ```
 
 NOTE: The meows controller loads the credential when the controller reconcile the RunnerPool creation or when the controller starts.
@@ -207,7 +208,6 @@ spec:
       channel: "#<channel_name>"
     extendDuration: "30s"      # If you want to extend the Pod in case of job failure, set this field.
 ```
-
 
 ```yaml
 name: slack notification example

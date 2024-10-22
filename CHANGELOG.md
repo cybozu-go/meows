@@ -25,8 +25,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 We migrated the image repositories of meows to `ghcr.io`.
 From meows v0.14.0, please use the following images.
 
-- https://github.com/cybozu-go/meows/pkgs/container/meows-controller
-- https://github.com/cybozu-go/meows/pkgs/container/meows-runner
+- <https://github.com/cybozu-go/meows/pkgs/container/meows-controller>
+- <https://github.com/cybozu-go/meows/pkgs/container/meows-runner>
 
 The images on Quay.io ([meows-controller](https://quay.io/repository/cybozu/meows-controller), [meows-runner](https://quay.io/repository/cybozu/meows-runner)) will not be updated in the future.
 
@@ -40,7 +40,6 @@ The images on Quay.io ([meows-controller](https://quay.io/repository/cybozu/meow
 
 - Support Kubernetes 1.27 ([#178](https://github.com/cybozu-go/meows/pull/1781))
 - Build with go 1.21 ([#178](https://github.com/cybozu-go/meows/pull/178))
-
 
 ## [0.12.0] - 2023-07-05
 
