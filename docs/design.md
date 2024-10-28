@@ -135,7 +135,7 @@ Runner has the `status` and `busy` state as written [here](https://docs.github.c
 If the `--ephemeral` option is given to `config.sh` does not repeat the
 long polling again, and never gets `online` after the assigned job is done.
 This behavior is useful for ensuring to make a clean environment for each job.
-ref: https://docs.github.com/en/actions/hosting-your-own-runners/autoscaling-with-self-hosted-runners#using-ephemeral-runners-for-autoscaling
+ref: <https://docs.github.com/en/actions/hosting-your-own-runners/autoscaling-with-self-hosted-runners#using-ephemeral-runners-for-autoscaling>
 
 #### A job is scheduled only on a `online` runner
 
@@ -189,7 +189,7 @@ meows sets the namespaced name of a `RunnerPool` as a custom label.
       command when the job is failed.  The `if: failure()` syntax allows users
       to run the step only when one of previous steps exit with non-zero code.
    1. Publish the timestamp of when to delete this pod in the `/deletion_time` endpoint.
-      If the job is succeeded or canceled, the `Pod` publishes the current time for 
+      If the job is succeeded or canceled, the `Pod` publishes the current time for
       delete itself. If the job is failed, the `Pod` publishes the future time for
       delete itself, for example 20 min later.
 1. The Slack agent notifies the result of the job on a Slack channel.
@@ -208,15 +208,15 @@ A Runner `Pod` has the following state as a GitHub Actions job runner.
     for example, booting a couple of VMs needed in a job before the job is assigned.
 - `running`: `Pod` is running. Registered in GitHub Actions.
 - `debugging`: The job has finished with failure and Users can enter `Pod` to debug.
-- `stale`: The environment in the `Pod` is dirty. If a runner restarts before completing a job, 
+- `stale`: The environment in the `Pod` is dirty. If a runner restarts before completing a job,
     the environment in the `Pod` may be dirty. This state means waiting for the Pod
     to be removed to prevent Job execution with that stale Pod.
 
 In addition, it has the following states as the exit state of the execution result of `Runner.Listener`.
 
 - `retryable_error`: If execution fails due to a factor other than a job, restart `Runner.Listener`.
-- `updating`: When a new `Runner.Listener` is released, it updates itself and restarts` Runner.Listener`.
-- `undefined`: When the exit code of `Runner.Listener` is undefined. It restarts` Runner.Listener`.
+- `updating`: When a new `Runner.Listener` is released, it updates itself and restarts `Runner.Listener`.
+- `undefined`: When the exit code of `Runner.Listener` is undefined. It restarts `Runner.Listener`.
 
 The above states are exposed from `/metrics` endpoint as Prometheus metrics. See [metrics.md](metrics.md).
 
