@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2025-01-28
+
+- Bump runner version from 2.321.0 to 2.322.0 ([#190](https://github.com/cybozu-go/meows/pull/190/files))
+
 ## [0.17.0] - 2025-01-15
 
 - Bump runner version from 2.320.0 to 2.321.0 ([#188](https://github.com/cybozu-go/meows/pull/188/files))
@@ -218,7 +222,8 @@ The images on Quay.io ([meows-controller](https://quay.io/repository/cybozu/meow
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/cybozu-go/meows/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/cybozu-go/meows/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/cybozu-go/meows/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/cybozu-go/meows/compare/v0.14.0...v0.15.0
