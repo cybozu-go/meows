@@ -22,7 +22,7 @@ If a new Kubernetes version is released, please update the followings:
 - Other dependencies versions:
   - Update `ghcr.io/cybozu/golang` image in [Dockerfile](/Dockerfile) to the latest version from <https://github.com/cybozu/neco-containers/pkgs/container/golang>.
 - `go.mod` and `go.sum`:
-  - Run `go get -u ./...`.
+  - Run [update-gomod](https://github.com/masa213f/tools/tree/main/cmd/update-gomod).
 
 If Kubernetes or controller-runtime API has changed, please update the relevant source code accordingly.
 
