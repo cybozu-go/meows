@@ -162,6 +162,7 @@ func (r *Runner) runListener(ctx context.Context) error {
 		"--token", string(b),
 		"--work", r.workDir,
 		"--ephemeral",
+		"--disableupdate",
 	}
 	if err := r.listener.configure(ctx, configArgs); err != nil {
 		return err
