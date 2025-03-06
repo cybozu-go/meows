@@ -1,9 +1,9 @@
 CURL := curl -sSLf
 
-KUSTOMIZE_VERSION := 5.4.3
-KINDTEST_K8S_VERSION := 1.30.4
-KIND_VERSION := 0.24.0
-CERT_MANAGER_VERSION := 1.15.3
+KUSTOMIZE_VERSION := 5.6.0
+KINDTEST_K8S_VERSION := 1.31.6
+KIND_VERSION := 0.27.0
+CERT_MANAGER_VERSION := 1.17.1
 
 PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/tmp/bin
@@ -34,7 +34,7 @@ setup: ## Setup necessary tools.
 	mkdir -p $(BIN_DIR)
 	$(CURL) https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BIN_DIR)
 	$(CURL) -o $(BIN_DIR)/kind https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64 && chmod a+x $(BIN_DIR)/kind
-	$(CURL) -o $(BIN_DIR)/kubectl https://storage.googleapis.com/kubernetes-release/release/v$(KINDTEST_K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
+	$(CURL) -o $(BIN_DIR)/kubectl https://dl.k8s.io/v$(KINDTEST_K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
 	GOBIN=$(BIN_DIR) go install github.com/ueokande/kubectl-evict@latest
 
 .PHONY: clean
