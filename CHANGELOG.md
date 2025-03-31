@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.20.1] - 2025-03-31
+
+- Support runner v2.323.0 ([#198](https://github.com/cybozu-go/meows/pull/198))
+
 ## [0.20.0] - 2025-03-12
 
 - Support Kubernetes 1.31 ([#195](https://github.com/cybozu-go/meows/pull/195))
@@ -234,7 +238,8 @@ The images on Quay.io ([meows-controller](https://quay.io/repository/cybozu/meow
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/cybozu-go/meows/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/cybozu-go/meows/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/cybozu-go/meows/compare/v0.18.1...v0.19.0
 [0.18.1]: https://github.com/cybozu-go/meows/compare/v0.18.0...v0.18.1
