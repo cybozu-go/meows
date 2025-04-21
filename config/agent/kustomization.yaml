@@ -4,9 +4,11 @@ images:
 - name: ghcr.io/cybozu-go/meows-controller
   newTag: 0.20.1
 
-commonLabels:
-  app.kubernetes.io/name: meows
-  app.kubernetes.io/component: slack-agent
+labels:
+- includeSelectors: true
+  pairs:
+    app.kubernetes.io/name: meows
+    app.kubernetes.io/component: slack-agent
 
 resources:
 - manifests.yaml

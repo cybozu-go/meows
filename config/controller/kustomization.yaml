@@ -6,9 +6,11 @@ images:
 
 namePrefix: meows-
 
-commonLabels:
-  app.kubernetes.io/name: meows
-  app.kubernetes.io/component: controller
+labels:
+- includeSelectors: true
+  pairs:
+    app.kubernetes.io/name: meows
+    app.kubernetes.io/component: controller
 
 resources:
 - certificate.yaml
