@@ -1,5 +1,5 @@
 bases:
 - ../../../config/agent
 
-patchesStrategicMerge:
-- patch.yaml
+patches:
+- path: patch.yaml

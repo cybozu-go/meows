@@ -1,5 +1,5 @@
 bases:
 - ../../../config/controller
 
-patchesStrategicMerge:
-- patch.yaml
+patches:
+- path: patch.yaml
