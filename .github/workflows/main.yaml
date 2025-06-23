@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -26,8 +26,8 @@ jobs:
     name: Run test on kind
     strategy:
       matrix:
-        k8s-version: ["1.29.14", "1.30.10", "1.31.6"]
-    runs-on: ubuntu-22.04
+        k8s-version: ["1.31.6", "1.32.5", "1.33.1"]
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
