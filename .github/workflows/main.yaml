@@ -26,13 +26,22 @@ jobs:
     name: Run test on kind
     strategy:
       matrix:
-        k8s-version: ["1.31.6", "1.32.5", "1.33.1"]
+        kind-image-ref:
+          - "v1.31.6@sha256:37d52dc19f59394f9347b00547c3ed2d73eb301a60294b9b05fbe56fb6196517"
+          - "v1.32.5@sha256:5d5a4d793d2a3d9727013b8b0cf6c95008c71abeb547759a273ef27e9c564984"
+          - "v1.33.1@sha256:050072256b9a903bd914c0b2866828150cb229cea0efe5892e2b644d5dd3b34f"
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Extract kubernetes version from kind-image-ref
+        id: k8s-version
+        run: |
+          KIND_IMAGE_REF="${{ matrix.kind-image-ref }}"
+          VERSION=$(echo "$KIND_IMAGE_REF" | awk -F '[@v]' '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Configure GIT
         run: |
           git config --global user.email "example@example.com"
@@ -79,8 +88,8 @@ jobs:
           sudo rm -rf /usr/local/bin/kubectl || true
           sudo rm -rf /usr/local/bin/kind || true
           sudo rm -rf /usr/local/bin/helm || true
-      - run: make setup KINDTEST_K8S_VERSION=${{ matrix.k8s-version }}
-      - run: make -C kindtest start KINDTEST_K8S_VERSION=${{ matrix.k8s-version }}
+      - run: make setup KINDTEST_IMAGE_REF=${{ matrix.kind-image-ref }}
+      - run: make -C kindtest start KINDTEST_IMAGE_REF=${{ matrix.kind-image-ref }}
       - run: make -C kindtest test
         env:
           GIT_SSH_COMMAND: "ssh -i /tmp/deploy-key.pem"
@@ -99,5 +108,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: logs-${{ matrix.k8s-version }}
+          name: logs-${{ steps.k8s-version.outputs.version }}
           path: ./tmp/logs/
