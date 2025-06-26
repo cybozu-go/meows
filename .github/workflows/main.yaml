@@ -27,8 +27,8 @@ jobs:
     strategy:
       matrix:
         kind-image-ref:
-          - "v1.31.6@sha256:37d52dc19f59394f9347b00547c3ed2d73eb301a60294b9b05fbe56fb6196517"
-          - "v1.32.5@sha256:5d5a4d793d2a3d9727013b8b0cf6c95008c71abeb547759a273ef27e9c564984"
+          - "v1.31.9@sha256:b94a3a6c06198d17f59cca8c6f486236fa05e2fb359cbd75dabbfc348a10b211"
+          - "v1.32.5@sha256:e3b2327e3a5ab8c76f5ece68936e4cafaa82edf58486b769727ab0b3b97a5b0d"
           - "v1.33.1@sha256:050072256b9a903bd914c0b2866828150cb229cea0efe5892e2b644d5dd3b34f"
     runs-on: ubuntu-24.04
     steps:
