@@ -114,7 +114,7 @@ func run() error {
 		return err
 	}
 
-	if err = (&meowsv1alpha1.RunnerPool{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = meowsv1alpha1.SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "RunnerPool")
 		return err
 	}

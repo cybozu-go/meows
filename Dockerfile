@@ -4,7 +4,7 @@ WORKDIR /workspace
 COPY . .
 RUN make build
 
-FROM ghcr.io/cybozu/ubuntu:22.04 AS controller
+FROM ghcr.io/cybozu/ubuntu:24.04 AS controller
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 COPY --from=builder /workspace/tmp/bin/controller /usr/local/bin
@@ -14,12 +14,12 @@ COPY --from=builder /workspace/tmp/bin/meows /usr/local/bin
 USER 10000:10000
 ENTRYPOINT ["controller"]
 
-FROM ghcr.io/cybozu/ubuntu:22.04 AS runner
+FROM ghcr.io/cybozu/ubuntu:24.04 AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 # Even if the version of the runner is out of date, it will self-update at job execution time. So there is no problem to update it when you notice.
 # TODO: Until https://github.com/cybozu-go/meows/issues/137 is fixed, update it manually.
-ARG RUNNER_VERSION=2.324.0
+ARG RUNNER_VERSION=2.325.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 # hadolint ignore=DL3015
