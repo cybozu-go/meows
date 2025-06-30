@@ -2,7 +2,7 @@ namespace: meows
 
 images:
 - name: ghcr.io/cybozu-go/meows-controller
-  newTag: 0.20.2
+  newTag: 0.21.0
 
 labels:
 - includeSelectors: true
