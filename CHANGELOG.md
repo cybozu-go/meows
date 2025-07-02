@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.21.1] - 2025-07-02
+
+- Downgrade runner base image from Ubuntu 24.04 to Ubuntu 22.04 ([#205](https://github.com/cybozu-go/meows/pull/205))
+
 ## [0.21.0] - 2025-06-30
 
 - Support Kubernetes 1.33 ([#203](https://github.com/cybozu-go/meows/pull/203))
@@ -247,7 +251,8 @@ The images on Quay.io ([meows-controller](https://quay.io/repository/cybozu/meow
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/cybozu-go/meows/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/cybozu-go/meows/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/cybozu-go/meows/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/cybozu-go/meows/compare/v0.20.0...v0.20.1
