@@ -1,0 +1,66 @@
+name: runner images
+on:
+  pull_request:
+    paths:
+      - "constants.go"
+      - "runner-images/**"
+      - ".github/workflows/runner-images.yaml"
+  push:
+    branches:
+      - "main"
+    paths:
+      - "constants.go"
+      - "runner-images/**"
+      - ".github/workflows/runner-images.yaml"
+jobs:
+  runner-image:
+    name: Build runner ${{ matrix.os }}(${{ matrix.dir }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PACKAGE_NAME: "ghcr.io/cybozu-go/meows-runner"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # runner image list
+          - dir: "./runner-images/ubuntu-22.04"
+            os: "ubuntu-22.04"
+            latest: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get meows version
+        id: meows_version
+        run: |
+          meows_version="$(awk -F'"' '/Version =/ {print $2}' constants.go)"
+          echo version=$meows_version >> $GITHUB_OUTPUT
+      - name: Get runner version
+        id: runner_version
+        run: |
+          echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
+      - run: make setup
+      - name: Environment variables
+        run: |
+          echo "LATEST_TAG=${{ env.PACKAGE_NAME }}:latest" >> $GITHUB_ENV
+          echo "PUSH_IMAGE=${{ (github.ref == 'refs/heads/main' && github.event_name == 'push') && 'true' || 'false' }}" >> $GITHUB_ENV
+      - name: Login to GitHub Container Registry
+        if: ${{ env.PUSH_IMAGE == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and Push Image
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            RUNNER_VERSION=${{ steps.runner_version.outputs.version }}
+          context: .
+          file: ${{ matrix.dir }}/Dockerfile
+          push: ${{ env.PUSH_IMAGE }}
+          tags: |
+            ${{ env.PACKAGE_NAME }}:${{ steps.meows_version.outputs.version }}-${{ matrix.os }}
+            ${{ env.PACKAGE_NAME }}:${{ steps.meows_version.outputs.version }}-${{ matrix.os }}-runner.${{ steps.runner_version.outputs.version }}
+            ${{ matrix.latest == 'true' &&  env.LATEST_TAG || '' }}
