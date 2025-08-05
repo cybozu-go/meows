@@ -12,7 +12,7 @@ If a new Kubernetes version is released, please update the followings:
   - "Supported software" in [README.md](/README.md)
 - Tools versions:
   - Update `CONTROLLER_GEN_VERSION` in [Makefile](/Makefile) to the latest version from <https://github.com/kubernetes-sigs/controller-tools/releases>.
-  - Update `RUNNER_VERSION` in [Dockerfile](/Dockerfile) to the latest version from <https://github.com/actions/runner/releases>.
+  - Update `RUNNER_VERSION` in [runner-images/RUNNER_VERSION](/runner-images/RUNNER_VERSION) to the latest version from <https://github.com/actions/runner/releases>.
   - In [kindtest/Makefile](/kindtest/Makefile):
     - Update `KINDTEST_IMAGE_REF` to the latest supported version of [kindest/node](https://hub.docker.com/r/kindest/node/tags) tag and digest.
     - Update `KUSTOMIZE_VERSION` to the latest version from <https://github.com/kubernetes-sigs/kustomize/releases>.
