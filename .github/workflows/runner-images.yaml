@@ -3,15 +3,13 @@ on:
   pull_request:
     paths:
       - "constants.go"
-      - "runner-images/**"
-      - ".github/workflows/runner-images.yaml"
+      - "runner-images/RUNNER_VERSION"
   push:
     branches:
       - "main"
     paths:
       - "constants.go"
-      - "runner-images/**"
-      - ".github/workflows/runner-images.yaml"
+      - "runner-images/RUNNER_VERSION"
 jobs:
   runner-image:
     name: Build runner ${{ matrix.os }}(${{ matrix.dir }})
