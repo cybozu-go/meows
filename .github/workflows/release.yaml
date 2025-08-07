@@ -36,3 +36,30 @@ jobs:
           gh release create $VERSION $PRERELEASE_FLAG \
             -t "Release $VERSION"  \
             -n "See [CHANGELOG.md](./CHANGELOG.md) for details."
+  released-versions:
+    name: Get released versions
+    needs: release
+    runs-on: ubuntu-24.04
+    outputs:
+      meows_version: ${{ steps.meows_version.outputs.version }}
+      runner_version: ${{ steps.runner_version.outputs.version }}
+    steps:
+      - name: Get released meows tag
+        id: meows_version
+        run: |
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meows_version.outputs.version }}
+      - name: Get runner version
+        id: runner_version
+        run: |
+          echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
+  release-runner-images:
+    name: Build and push runner images
+    needs: released-versions
+    uses: ./.github/workflows/reusable-runner-images.yaml
+    with:
+      meows_version: ${{ needs.released-versions.outputs.meows_version }}
+      runner_version: ${{ needs.released-versions.outputs.runner_version }}
+      push_image: true

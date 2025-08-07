@@ -1,0 +1,73 @@
+name: Reusable build and push runner images
+on:
+  workflow_call:
+    inputs:
+      meows_version:
+        description: "Checkout this meows version during workflow.(Not include v prefix)"
+        required: true
+        type: string
+      runner_version:
+        description: "GitHub Actions runner version.(Not include v prefix)"
+        required: true
+        type: string
+      push_image:
+        description: "Push image to container registry"
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  build-push:
+    name: Build runner ${{ matrix.os }}(${{ matrix.dir }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PACKAGE_NAME: "ghcr.io/cybozu-go/meows-runner"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # runner image list
+          - dir: "./runner-images/ubuntu-22.04"
+            os: "ubuntu-22.04"
+            latest: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.meows_version }}
+      - run: make setup
+      - name: Environment variables
+        run: |
+          echo "LATEST_TAG=${{ env.PACKAGE_NAME }}:latest" >> $GITHUB_ENV
+      - name: Login to GitHub Container Registry
+        if: ${{ inputs.push_image == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify to prevent overwrite of existing non-overwritable tags
+        run: |
+          for tag in $TAG_LIST; do
+            if docker manifest inspect "$tag" > /dev/null 2>&1; then
+              echo "Tag already exists: $tag"
+              exit 1
+            fi
+          done
+        env:
+          TAG_LIST: >
+            ${{ env.PACKAGE_NAME }}:${{ inputs.meows_version }}-${{ matrix.os }}-runner.${{ inputs.runner_version }}
+      - name: Build and Push Image
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            RUNNER_VERSION=${{ inputs.runner_version }}
+          context: .
+          file: ${{ matrix.dir }}/Dockerfile
+          push: ${{ inputs.push_image }}
+          tags: |
+            ${{ env.PACKAGE_NAME }}:${{ inputs.meows_version }}-${{ matrix.os }}
+            ${{ env.PACKAGE_NAME }}:${{ inputs.meows_version }}-${{ matrix.os }}-runner.${{ inputs.runner_version }}
+            ${{ matrix.latest == 'true' &&  env.LATEST_TAG || '' }}
