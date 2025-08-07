@@ -1,14 +1,59 @@
 name: release
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        required: true
+        description: The name of the tag to release (X.Y.Z)
 jobs:
-  image:
-    name: Push container images
+  validate-tag:
+    name: Validate release tag
     runs-on: ubuntu-24.04
     steps:
+      - name: Validate inputs
+        run: |
+          if [[ ! ${{ inputs.tag }} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format. Please use X.Y.Z"
+            exit 1
+          fi
+          if git rev-parse v${{ inputs.tag }} >/dev/null 2>&1; then
+              echo "Tag v${{ inputs.tag }} already exists"
+              exit 1
+          fi
+  update-image-version:
+    name: Update image version
+    needs: push-image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Setup Git Config
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+      - name: Update image version
+        run: |
+          sed -i -E "s/(.*newTag: ).*/\1${VERSION}/" config/controller/kustomization.yaml config/agent/kustomization.yaml
+          sed -i -E "s/(.*Version = ).*/\1\"${VERSION}\"/" constants.go
+      - name: Commit and push
+        run: |
+          git commit -a -m "Bump version to $VERSION"
+          git push
+  push-image:
+    name: Push controller image
+    needs: validate-tag
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -20,19 +65,35 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: make setup
       - run: make image
-      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${GITHUB_REF#refs/tags/v}
+      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${{ inputs.tag }}
   release:
     name: Release on GitHub
-    needs: image
+    needs:
+      - validate-tag
+      - update-image-version
+      - push-image
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Setup Git Config
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+      - name: Create tag
+        run: |
+          git tag -a -m "Release v$VERSION" "v$VERSION"
+          git tag -ln | grep $VERSION
+          git push origin "v$VERSION"
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/} # Don't remove "v" prefix.
+          VERSION="${{ inputs.tag }}"
           if echo ${VERSION} | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
           gh release create $VERSION $PRERELEASE_FLAG \
             -t "Release $VERSION"  \
-            -n "See [CHANGELOG.md](./CHANGELOG.md) for details."
+            --generate-notes
