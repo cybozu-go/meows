@@ -58,7 +58,7 @@ jobs:
           done
         env:
           TAG_LIST: >
-            ${{ env.PACKAGE_NAME }}:${{ inputs.meows_version }}-${{ matrix.os }}-runner.${{ inputs.runner_version }}
+            ${{ env.PACKAGE_NAME }}:${{ inputs.runner_version }}-${{ matrix.os }}-meows${{ inputs.meows_version }}
       - name: Build and Push Image
         uses: docker/build-push-action@v6
         with:
@@ -68,6 +68,6 @@ jobs:
           file: ${{ matrix.dir }}/Dockerfile
           push: ${{ inputs.push_image }}
           tags: |
-            ${{ env.PACKAGE_NAME }}:${{ inputs.meows_version }}-${{ matrix.os }}
-            ${{ env.PACKAGE_NAME }}:${{ inputs.meows_version }}-${{ matrix.os }}-runner.${{ inputs.runner_version }}
+            ${{ env.PACKAGE_NAME }}:${{ matrix.os }}-meows${{ inputs.meows_version }}
+            ${{ env.PACKAGE_NAME }}:${{ inputs.runner_version }}-${{ matrix.os }}-meows${{ inputs.meows_version }}
             ${{ matrix.latest == 'true' &&  env.LATEST_TAG || '' }}
