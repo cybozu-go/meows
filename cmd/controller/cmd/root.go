@@ -12,7 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-const defaultRunnerImage = "ghcr.io/cybozu-go/meows-runner:" + constants.Version
+const defaultRunnerOs = "ubuntu22.04"
+const defaultRunnerImage = "ghcr.io/cybozu-go/meows-runner:" + defaultRunnerOs + "-meows" + constants.Version
 
 var config struct {
 	zapOpts               zap.Options

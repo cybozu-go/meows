@@ -10,6 +10,9 @@ PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/tmp/bin
 LOGS_DIR := $(PROJECT_DIR)/tmp/logs
 REPO_DIR := $(PROJECT_DIR)/tmp/repo
+# Default RUNNER for kindtest
+RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/ubuntu22.04
+RUNNER_VERSION := $(shell cat $(PROJECT_DIR)/runner-images/RUNNER_VERSION)
 
 KIND := $(BIN_DIR)/kind
 KUBECTL := $(BIN_DIR)/kubectl
@@ -78,6 +81,7 @@ stop: ## Stop kind cluster
 .PHONY: load
 load: ## Load docker images onto kind cluster.
 	$(MAKE) -C $(PROJECT_DIR) image tag IMAGE_TAG=kindtest
+	docker build --build-arg RUNNER_VERSION=$(RUNNER_VERSION) -f $(RUNNER_IMAGE_DIR)/Dockerfile -t meows-runner:kindtest $(PROJECT_DIR)
 	$(KIND) load docker-image meows-controller:kindtest --name $(KIND_CLUSTER_NAME)
 	$(KIND) load docker-image meows-runner:kindtest --name $(KIND_CLUSTER_NAME)
 
