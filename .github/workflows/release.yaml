@@ -48,7 +48,7 @@ jobs:
         id: meows_version
         run: |
           echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ steps.meows_version.outputs.version }}
       - name: Get runner version

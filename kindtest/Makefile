@@ -11,7 +11,7 @@ BIN_DIR := $(PROJECT_DIR)/tmp/bin
 LOGS_DIR := $(PROJECT_DIR)/tmp/logs
 REPO_DIR := $(PROJECT_DIR)/tmp/repo
 # Default RUNNER for kindtest
-RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/ubuntu-22.04
+RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/ubuntu22.04
 RUNNER_VERSION := $(shell cat $(PROJECT_DIR)/runner-images/RUNNER_VERSION)
 
 KIND := $(BIN_DIR)/kind

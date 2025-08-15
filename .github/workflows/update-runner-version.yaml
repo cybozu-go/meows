@@ -16,7 +16,7 @@ jobs:
       meows_version: ${{ steps.meows_version.outputs.version }}
       runner_version: ${{ steps.runner_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Get meows version
         id: meows_version
         run: |

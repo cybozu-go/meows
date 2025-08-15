@@ -30,11 +30,11 @@ jobs:
       matrix:
         include:
           # runner image list
-          - dir: "./runner-images/ubuntu-22.04"
-            os: "ubuntu-22.04"
+          - dir: "./runner-images/ubuntu22.04"
+            os: "ubuntu22.04"
             latest: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: v${{ inputs.meows_version }}
       - run: make setup
@@ -42,7 +42,7 @@ jobs:
         run: |
           echo "LATEST_TAG=${{ env.PACKAGE_NAME }}:latest" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
-        if: ${{ inputs.push_image == 'true' }}
+        if: ${{ inputs.push_image }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -68,6 +68,7 @@ jobs:
           file: ${{ matrix.dir }}/Dockerfile
           push: ${{ inputs.push_image }}
           tags: |
+            ${{ env.PACKAGE_NAME }}:${{ matrix.os }}
             ${{ env.PACKAGE_NAME }}:${{ matrix.os }}-meows${{ inputs.meows_version }}
             ${{ env.PACKAGE_NAME }}:${{ inputs.runner_version }}-${{ matrix.os }}-meows${{ inputs.meows_version }}
-            ${{ matrix.latest == 'true' &&  env.LATEST_TAG || '' }}
+            ${{ matrix.latest &&  env.LATEST_TAG || '' }}
