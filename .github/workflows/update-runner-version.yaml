@@ -1,8 +1,6 @@
 name: update runner version
 on:
   pull_request:
-    paths:
-      - "runner-images/RUNNER_VERSION"
   push:
     branches:
       - "main"
