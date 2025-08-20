@@ -1,4 +1,4 @@
-name: update runner version
+name: Release runner
 on:
   pull_request:
     paths:
@@ -9,8 +9,8 @@ on:
     paths:
       - "runner-images/RUNNER_VERSION"
 jobs:
-  get-versions:
-    name: Get versions for runner image
+  get-released-versions:
+    name: Get released versions for runner images
     runs-on: ubuntu-24.04
     outputs:
       meows_version: ${{ steps.meows_version.outputs.version }}
@@ -26,11 +26,11 @@ jobs:
         id: runner_version
         run: |
           echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
-  runner-images:
+  build-and-push-runner-images:
     name: Build and push runner images
-    needs: get-versions
-    uses: ./.github/workflows/reusable-runner-images.yaml
+    needs: get-released-versions
+    uses: ./.github/workflows/reusable-build-and-push-runner-images.yaml
     with:
-      meows_version: ${{ needs.get-versions.outputs.meows_version }}
-      runner_version: ${{ needs.get-versions.outputs.runner_version }}
+      meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
+      runner_version: ${{ needs.get-released-versions.outputs.runner_version }}
       push_image: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}

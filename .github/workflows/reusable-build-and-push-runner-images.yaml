@@ -17,7 +17,7 @@ on:
         type: boolean
 
 jobs:
-  build-push:
+  build-and-push-runner-images:
     name: Build runner ${{ matrix.os }}(${{ matrix.dir }})
     runs-on: ubuntu-24.04
     permissions:
