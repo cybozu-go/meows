@@ -1,14 +1,63 @@
 name: Release meows
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        required: true
+        description: The name of the tag to release (X.Y.Z)
 jobs:
-  image:
-    name: Push controller image
+  validate-tag:
+    name: Validate release tag
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Validate inputs
+        run: |
+          if [[ ! ${{ inputs.tag }} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format. Please use X.Y.Z"
+            exit 1
+          fi
+          git fetch --tags
+          if git rev-parse v${{ inputs.tag }} >/dev/null 2>&1; then
+              echo "Tag v${{ inputs.tag }} already exists"
+              exit 1
+          fi
+  update-controller-image-version:
+    name: Update image version
+    needs: validate-tag
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Setup git config
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+      - name: Update image version
+        run: |
+          sed -i -E "s/(.*newTag: ).*/\1${{ inputs.tag }}/" config/controller/kustomization.yaml config/agent/kustomization.yaml
+          sed -i -E "s/(.*Version = ).*/\1\"${{ inputs.tag }}\"/" constants.go
+      - name: Commit and push
+        run: |
+          git commit -a -m "Bump version to ${{ inputs.tag }}"
+          git push
+  push-controller-image:
+    name: Push controller image
+    needs: update-controller-image-version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -20,46 +69,61 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: make setup
       - run: make image
-      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${GITHUB_REF#refs/tags/v}
-  release:
+      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${{ inputs.tag }}
+  release-controller:
     name: Release on GitHub
-    needs: image
+    needs:
+      - validate-tag
+      - update-controller-image-version
+      - push-controller-image
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Setup git config
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+      - name: Create tag
+        run: |
+          VERSION="v${{ inputs.tag }}"
+          git tag -a -m "Release $VERSION" "$VERSION"
+          git tag -ln | grep $VERSION
+          git push origin "$VERSION"
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/} # Don't remove "v" prefix.
+          VERSION="v${{ inputs.tag }}"
           if echo ${VERSION} | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
           gh release create $VERSION $PRERELEASE_FLAG \
             -t "Release $VERSION"  \
-            -n "See [CHANGELOG.md](./CHANGELOG.md) for details."
-  get-released-versions:
-    name: Get released versions for runner images
-    needs: release
+            --generate-notes
+
+  # After the controller released successfully,
+  # release runner images based on the RUNNER_VERSION from the released tag
+  get-runner-version-from-released-controller:
+    name: Get runner version from released controller
+    needs: release-controller
     runs-on: ubuntu-24.04
     outputs:
-      meows_version: ${{ steps.meows_version.outputs.version }}
       runner_version: ${{ steps.runner_version.outputs.version }}
     steps:
-      - name: Get released meows tag
-        id: meows_version
-        run: |
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v5
         with:
-          ref: ${{ steps.meows_version.outputs.version }}
+          ref: v${{ inputs.tag }}
       - name: Get runner version
         id: runner_version
         run: |
           echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
   build-and-push-runner-images:
     name: Build and push runner images
-    needs: get-released-versions
+    needs: get-runner-version-from-released-controller
     uses: ./.github/workflows/reusable-build-and-push-runner-images.yaml
     with:
-      meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
-      runner_version: ${{ needs.get-released-versions.outputs.runner_version }}
+      meows_version: ${{ inputs.tag }}
+      runner_version: ${{ needs.get-runner-version-from-released-controller.outputs.runner_version }}
       push_image: true
