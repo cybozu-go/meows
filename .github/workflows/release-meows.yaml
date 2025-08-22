@@ -1,14 +1,41 @@
 name: Release meows
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: true
+        description: The version to release without "v" prefix. (X.Y.Z)
+env:
+  VERSION: ${{ inputs.version }}
 jobs:
-  image:
-    name: Push controller image
+  validate-tag:
+    name: Validate release tag
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Validate inputs
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format. Please use X.Y.Z"
+            exit 1
+          fi
+          git fetch --tags
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+              echo "Tag v${VERSION} already exists"
+              exit 1
+          fi
+  push-controller-image:
+    name: Push controller image
+    needs: validate-tag
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: main
       - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version-file: go.mod
@@ -20,22 +47,37 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: make setup
       - run: make image
-      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${GITHUB_REF#refs/tags/v}
+      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${VERSION}
   release:
     name: Release on GitHub
-    needs: image
+    needs: push-controller-image
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: main
+      - name: Setup git config
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+      - name: Create tag
+        run: |
+          git tag -a -m "Release v${VERSION}" "v${VERSION}"
+          git tag -ln | grep "v${VERSION}"
+          git push origin "v${VERSION}"
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/} # Don't remove "v" prefix.
-          if echo ${VERSION} | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
-          gh release create $VERSION $PRERELEASE_FLAG \
-            -t "Release $VERSION"  \
-            -n "See [CHANGELOG.md](./CHANGELOG.md) for details."
+          if echo "v${VERSION}" | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
+          gh release create "v${VERSION}" $PRERELEASE_FLAG \
+            -t "Release v${VERSION}"  \
+            --generate-notes
+
+  # After the controller released successfully,
+  # release runner images based on the RUNNER_VERSION from the released tag
   get-released-versions:
     name: Get released versions for runner images
     needs: release
@@ -48,7 +90,7 @@ jobs:
         id: meows_version
         run: |
           # Meows version without "v" prefix.
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: v${{ steps.meows_version.outputs.version }}
