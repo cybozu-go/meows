@@ -59,19 +59,16 @@ build: generate ## Build all binaries.
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/meows
 
 .PHONY: image
-image: ## Build container images.
+image: ## Build controller container image.
 	docker build --target controller -t meows-controller:devel .
-	docker build --target runner -t meows-runner:devel .
 
 .PHONY: tag
-tag: ## Tag container images.
+tag: ## Tag controller container image.
 	docker tag meows-controller:devel $(IMAGE_PREFIX)meows-controller:$(IMAGE_TAG)
-	docker tag meows-runner:devel $(IMAGE_PREFIX)meows-runner:$(IMAGE_TAG)
 
 .PHONY: push
-push: ## Push container images.
+push: ## Push controller container image.
 	docker push $(IMAGE_PREFIX)meows-controller:$(IMAGE_TAG)
-	docker push $(IMAGE_PREFIX)meows-runner:$(IMAGE_TAG)
 
 ##@ Test
 
