@@ -7,6 +7,7 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 )
 
 var (
@@ -61,5 +62,6 @@ func fetchMetricsFamily(ctx context.Context, url string) (map[string]*dto.Metric
 	}
 	defer resp.Body.Close()
 
-	return (&expfmt.TextParser{}).TextToMetricFamilies(resp.Body)
+	parser := expfmt.NewTextParser(model.UTF8Validation)
+	return parser.TextToMetricFamilies(resp.Body)
 }
