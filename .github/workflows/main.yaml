@@ -105,7 +105,7 @@ jobs:
         run: sudo du -sh /usr/local/* /home/* /opt/* /tmp/* /usr/* /var/* | sort -hr
         if: always()
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: logs-${{ steps.k8s-version.outputs.version }}
