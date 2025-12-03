@@ -34,7 +34,7 @@ jobs:
             os: "ubuntu22.04"
             latest: true
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: v${{ inputs.meows_version }}
       - run: make setup
