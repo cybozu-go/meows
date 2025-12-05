@@ -2,7 +2,7 @@ namespace: meows
 
 images:
 - name: ghcr.io/cybozu-go/meows-controller
-  newTag: 0.21.3
+  newTag: 0.21.4
 
 namePrefix: meows-
 
