@@ -44,13 +44,14 @@ jobs:
       meows_version: ${{ steps.meows_version.outputs.version }}
       runner_version: ${{ steps.runner_version.outputs.version }}
     steps:
-      - name: Get released meows tag
+      - name: Get released meows version
         id: meows_version
         run: |
+          # Meows version without "v" prefix.
           echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v6
         with:
-          ref: ${{ steps.meows_version.outputs.version }}
+          ref: v${{ steps.meows_version.outputs.version }}
       - name: Get runner version
         id: runner_version
         run: |
