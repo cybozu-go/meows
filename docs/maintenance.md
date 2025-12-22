@@ -1,5 +1,19 @@
 # Maintenance
 
+## How to update only the GitHub Actions runner version
+
+If a new GitHub Actions runner is released, update and release runner-image by following steps:
+
+### 1. Update GitHub Actions runner version
+
+- Update `RUNNER_VERSION` in [runner-images/RUNNER_VERSION](/runner-images/RUNNER_VERSION) to the latest version published at <https://github.com/actions/runner/releases>.
+
+### 2. Release the runner-image
+
+- After the change is merged into `main`, build and release the runner image with the updated `RUNNER_VERSION`.
+  - You don't need to create a release tag.
+- Once the build and push process completes, the latest runner image will be available at [https://github.com/cybozu-go/meows/pkgs/container/meows-runner](https://github.com/cybozu-go/meows/pkgs/container/meows-runner).
+
 ## How to update supported Kubernetes
 
 Meows supports the three latest Kubernetes versions.
