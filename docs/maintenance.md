@@ -10,9 +10,9 @@ If a new GitHub Actions runner is released, update and release runner-image by f
 
 ### 2. Release the runner-image
 
-- After the change is merged into `main`, build and release the runner image with the updated `RUNNER_VERSION`.
+- After the change is merged into `main`, the runner image with the updated `RUNNER_VERSION` is automatically built and released.
   - You don't need to create a release tag.
-- Once the build and push process completes, the latest runner image will be available at [https://github.com/cybozu-go/meows/pkgs/container/meows-runner](https://github.com/cybozu-go/meows/pkgs/container/meows-runner).
+- Once the automated workflow completes, the latest runner image will be available at [https://github.com/cybozu-go/meows/pkgs/container/meows-runner](https://github.com/cybozu-go/meows/pkgs/container/meows-runner).
 
 ## How to update supported Kubernetes
 
