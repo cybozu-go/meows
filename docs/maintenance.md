@@ -1,8 +1,8 @@
 # Maintenance
 
-## How to update only the GitHub Actions runner version
+## How to update the runner image for a new upstream GitHub Actions runner version
 
-If a new GitHub Actions runner is released, update and release runner-image by following steps:
+If a new version of the upstream GitHub Actions runner is released, update and release the runner image by following steps:
 
 ### 1. Update GitHub Actions runner version
 
