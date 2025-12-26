@@ -8,7 +8,7 @@ jobs:
   remove-branch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Configure GIT
         run: |
           git config user.name "Daily CI"
@@ -23,11 +23,11 @@ jobs:
   remove-runner:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: cybozu-go/meows
           path: meows
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.0.1
         with:
           go-version-file: meows/go.mod
       - name: Remove offline runners
