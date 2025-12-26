@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v41/github"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
