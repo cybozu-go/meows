@@ -18,7 +18,7 @@ import (
 	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/runner"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/v41/github"
+	"github.com/google/go-github/v80/github"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -280,11 +280,11 @@ func fetchRunnerNames(repoName, label, status string) ([]string, error) {
 	var res *github.Response
 	var err error
 	ctx := context.Background()
-	opts := github.ListOptions{Page: 0, PerPage: 100}
+	opts := &github.ListRunnersOptions{ListOptions: github.ListOptions{Page: 0, PerPage: 100}}
 	if repoName == "" {
-		runners, res, err = githubClient.Actions.ListOrganizationRunners(ctx, orgName, &opts)
+		runners, res, err = githubClient.Actions.ListOrganizationRunners(ctx, orgName, opts)
 	} else {
-		runners, res, err = githubClient.Actions.ListRunners(ctx, orgName, repoName, &opts)
+		runners, res, err = githubClient.Actions.ListRunners(ctx, orgName, repoName, opts)
 	}
 	if err != nil {
 		return nil, err
