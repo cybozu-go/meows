@@ -4,7 +4,7 @@ WORKDIR /workspace
 COPY . .
 RUN make build
 
-FROM ghcr.io/cybozu/ubuntu:22.04 AS runner
+FROM ghcr.io/cybozu/ubuntu:24.04 AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 ARG RUNNER_VERSION
