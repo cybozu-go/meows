@@ -30,6 +30,7 @@ jobs:
       matrix:
         include:
           # runner image list
+          # Please update after confirming that placemat supports the relevant Ubuntu version.
           - dir: "./runner-images/ubuntu22.04"
             os: "ubuntu22.04"
             latest: true
