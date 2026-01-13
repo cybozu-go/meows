@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
+// Please update after confirming that placemat supports the relevant Ubuntu version.
 const defaultRunnerOs = "ubuntu22.04"
 const defaultRunnerImage = "ghcr.io/cybozu-go/meows-runner:" + defaultRunnerOs + "-meows" + constants.Version
 

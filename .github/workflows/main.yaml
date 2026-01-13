@@ -12,8 +12,8 @@ jobs:
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version-file: go.mod
       - run: make setup
@@ -32,8 +32,8 @@ jobs:
           - "v1.34.3@sha256:08497ee19eace7b4b5348db5c6a1591d7752b164530a36f855cb0f2bdcbadd48"
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version-file: go.mod
       - name: Extract kubernetes version from kind-image-ref
@@ -105,7 +105,7 @@ jobs:
         run: sudo du -sh /usr/local/* /home/* /opt/* /tmp/* /usr/* /var/* | sort -hr
         if: always()
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: logs-${{ steps.k8s-version.outputs.version }}

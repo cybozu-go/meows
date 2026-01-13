@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/bradleyfalzon/ghinstallation"
-	"github.com/google/go-github/v41/github"
+	"github.com/bradleyfalzon/ghinstallation/v2"
+	"github.com/google/go-github/v80/github"
 	"golang.org/x/oauth2"
 )
 
@@ -163,7 +163,7 @@ func (c *clientWrapper) CreateRegistrationToken(ctx context.Context, owner, repo
 func (c *clientWrapper) ListRunners(ctx context.Context, owner, repo string, labels []string) ([]*Runner, error) {
 	var runners []*Runner
 
-	opts := github.ListOptions{PerPage: 100}
+	opts := github.ListRunnersOptions{ListOptions: github.ListOptions{PerPage: 100}}
 	for {
 		var list *github.Runners
 		var res *github.Response
@@ -200,7 +200,7 @@ func (c *clientWrapper) ListRunners(ctx context.Context, owner, repo string, lab
 			break
 		}
 
-		opts.Page = res.NextPage
+		opts.ListOptions.Page = res.NextPage
 		time.Sleep(500 * time.Microsecond)
 	}
 	return runners, nil

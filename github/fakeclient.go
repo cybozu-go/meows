@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-github/v41/github"
+	"github.com/google/go-github/v80/github"
 )
 
 type FakeClientFactory struct {

@@ -4,7 +4,8 @@ WORKDIR /workspace
 COPY . .
 RUN make build
 
-FROM ghcr.io/cybozu/ubuntu:22.04 AS runner
+# Please update after confirming that placemat supports the relevant Ubuntu version.
+FROM ghcr.io/cybozu/ubuntu:22.04 AS runner 
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 ARG RUNNER_VERSION
