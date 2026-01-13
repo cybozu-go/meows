@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2025-01-14
+
+- Bump supported K8s version from 1.33 to 1.34 ([#222](https://github.com/cybozu-go/meows/pull/222))
+- Bump dependencies version ([#221](https://github.com/cybozu-go/meows/pull/221))
+- Add GitHub runner version update procedure in maintenance.md ([#220](https://github.com/cybozu-go/meows/pull/220))
+
 ## [0.21.5] - 2025-12-10
 
 - Fix release runner image workflow ([#218](https://github.com/cybozu-go/meows/pull/218))
@@ -268,7 +274,8 @@ The images on Quay.io ([meows-controller](https://quay.io/repository/cybozu/meow
 
 - Implement github-actions-controller at minimal (#1)
 
-[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.21.5...HEAD
+[Unreleased]: https://github.com/cybozu-go/meows/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/cybozu-go/meows/compare/v0.21.5...v0.22.0
 [0.21.5]: https://github.com/cybozu-go/meows/compare/v0.21.4...v0.21.5
 [0.21.4]: https://github.com/cybozu-go/meows/compare/v0.21.3...v0.21.4
 [0.21.3]: https://github.com/cybozu-go/meows/compare/v0.21.2...v0.21.3
