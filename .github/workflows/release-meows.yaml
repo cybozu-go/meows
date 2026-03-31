@@ -80,9 +80,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if echo "v${VERSION}" | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
-          gh release create "v${VERSION}" $PRERELEASE_FLAG \
-            -t "Release v${VERSION}"  \
+          gh release create "v${VERSION}" \
+            -t "Release v${VERSION}" \
             --generate-notes
 
   # After the controller released successfully,
