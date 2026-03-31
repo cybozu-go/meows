@@ -8,6 +8,11 @@ on:
       - "main"
     paths:
       - "runner-images/RUNNER_VERSION"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   get-released-versions:
     name: Get released versions for runner images
