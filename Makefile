@@ -1,4 +1,5 @@
 CONTROLLER_GEN_VERSION := 0.19.0
+ENVTEST_VERSION := release-0.23
 ENVTEST_K8S_VERSION := 1.34.1
 
 PROJECT_DIR := $(CURDIR)
@@ -32,7 +33,7 @@ setup: ## Setup necessary tools.
 	mkdir -p $(BIN_DIR)
 	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_GEN_VERSION)
 	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
 
 .PHONY: clean
 clean: ## Clean files
