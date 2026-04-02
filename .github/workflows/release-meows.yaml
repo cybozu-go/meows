@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - VERSION
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
@@ -34,13 +35,13 @@ jobs:
           fi
           git fetch --tags
           if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-              echo "Tag v${VERSION} already exists"
-              exit 1
+            echo "Tag v${VERSION} already exists"
+            exit 1
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
   push-controller-image:
     name: Push controller image
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     needs: version
     runs-on: ubuntu-24.04
     permissions:
@@ -64,7 +65,7 @@ jobs:
       - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${VERSION}
   release:
     name: Release on GitHub
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     needs:
       - version
       - push-controller-image
@@ -96,7 +97,7 @@ jobs:
   # release runner images based on the RUNNER_VERSION from the released tag
   get-released-versions:
     name: Get released versions for runner images
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     needs:
       - version
       - release
@@ -121,8 +122,11 @@ jobs:
           echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
   build-and-push-runner-images:
     name: Build and push runner images
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     needs: get-released-versions
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/reusable-build-and-push-runner-images.yaml
     with:
       meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
