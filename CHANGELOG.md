@@ -1,5 +1,9 @@
 # Change Log
 
+> [!IMPORTANT]
+> The change log has been moved to [GitHub Releases](https://github.com/cybozu-go/meows/releases).
+> This file will no longer be updated.
+
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 

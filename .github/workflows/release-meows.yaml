@@ -1,12 +1,53 @@
 name: Release meows
 on:
+  pull_request:
+    paths:
+      - VERSION
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - VERSION
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
-  image:
-    name: Push controller image
+  version:
+    name: Read and validate version
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Validate inputs
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format. Please use X.Y.Z"
+            exit 1
+          fi
+          git fetch --tags
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+              echo "Tag v${VERSION} already exists"
+              exit 1
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+  push-controller-image:
+    name: Push controller image
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    needs: version
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
@@ -20,26 +61,48 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: make setup
       - run: make image
-      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${GITHUB_REF#refs/tags/v}
+      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${VERSION}
   release:
     name: Release on GitHub
-    needs: image
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    needs:
+      - version
+      - push-controller-image
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - name: Setup git config
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+      - name: Create tag
+        run: |
+          git tag -a -m "Release v${VERSION}" "v${VERSION}"
+          git tag -ln | grep "v${VERSION}"
+          git push origin "v${VERSION}"
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/} # Don't remove "v" prefix.
-          if echo ${VERSION} | grep -q -e '-'; then PRERELEASE_FLAG=-p; fi
-          gh release create $VERSION $PRERELEASE_FLAG \
-            -t "Release $VERSION"  \
-            -n "See [CHANGELOG.md](./CHANGELOG.md) for details."
+          gh release create "v${VERSION}" \
+            -t "Release v${VERSION}" \
+            --generate-notes
+
+  # After the controller released successfully,
+  # release runner images based on the RUNNER_VERSION from the released tag
   get-released-versions:
     name: Get released versions for runner images
-    needs: release
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    needs:
+      - version
+      - release
     runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     outputs:
       meows_version: ${{ steps.meows_version.outputs.version }}
       runner_version: ${{ steps.runner_version.outputs.version }}
@@ -48,7 +111,7 @@ jobs:
         id: meows_version
         run: |
           # Meows version without "v" prefix.
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: v${{ steps.meows_version.outputs.version }}
@@ -58,6 +121,7 @@ jobs:
           echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
   build-and-push-runner-images:
     name: Build and push runner images
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     needs: get-released-versions
     uses: ./.github/workflows/reusable-build-and-push-runner-images.yaml
     with:
