@@ -35,8 +35,8 @@ jobs:
           fi
           git fetch --tags
           if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-              echo "Tag v${VERSION} already exists"
-              exit 1
+            echo "Tag v${VERSION} already exists"
+            exit 1
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
   push-controller-image:
