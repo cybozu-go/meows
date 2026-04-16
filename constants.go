@@ -72,16 +72,6 @@ const (
 	ListenerExitStateUndefined      = "undefined"
 )
 
-// Constants for controller option configmap.
-const (
-	// OptionConfigMapName is a configmap name for the controller option.
-	OptionConfigMapName = "meows-cm"
-
-	// Data keys for controller option.
-	OptionConfigMapDataOrganizationRule = "organization-rule"
-	OptionConfigMapDataRepositoryRule   = "repository-rule"
-)
-
 // Constants for GitHub credential secret.
 const (
 	// DefaultCredentialSecretName is the default secret name for GitHub credential secret.

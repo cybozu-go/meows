@@ -1,26 +1,22 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"net"
+	"os"
 	"regexp"
 	"strconv"
 
-	constants "github.com/cybozu-go/meows"
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
 	"github.com/cybozu-go/meows/controllers"
 	"github.com/cybozu-go/meows/github"
 	"github.com/cybozu-go/meows/metrics"
 	"github.com/cybozu-go/meows/runner"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	k8sMetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -92,9 +88,9 @@ func run() error {
 	)
 	defer secretUpdater.StopAll()
 
-	orgRegexp, repoRegexp, err := getValidationRule(ctx, mgr.GetAPIReader(), config.controllerNamespace, constants.OptionConfigMapName)
+	orgRegexp, repoRegexp, err := loadValidationRuleFromFile(config.configFile)
 	if err != nil {
-		setupLog.Error(err, "unable to read validation rule")
+		setupLog.Error(err, "unable to read validation rule from config file")
 		return err
 	}
 
@@ -138,31 +134,44 @@ func run() error {
 	return nil
 }
 
-func getValidationRule(ctx context.Context, reader client.Reader, namespace, name string) (*regexp.Regexp, *regexp.Regexp, error) {
-	cm := new(corev1.ConfigMap)
-	err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, cm)
-	if apierrors.IsNotFound(err) {
+type validationRuleConfig struct {
+	OrganizationRule string `yaml:"organization-rule"`
+	RepositoryRule   string `yaml:"repository-rule"`
+}
+
+func loadValidationRuleFromFile(path string) (*regexp.Regexp, *regexp.Regexp, error) {
+	if path == "" {
 		return nil, nil, nil
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("failed to get configmap; %w", err)
 	}
 
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var cfg validationRuleConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	setupLog.Info("validation rule loaded",
+		"organization-rule", cfg.OrganizationRule,
+		"repository-rule", cfg.RepositoryRule,
+	)
+
 	var orgRegexp *regexp.Regexp
-	orgRegexStr := cm.Data[constants.OptionConfigMapDataOrganizationRule]
-	if orgRegexStr != "" {
-		re, err := regexp.Compile(orgRegexStr)
+	if cfg.OrganizationRule != "" {
+		re, err := regexp.Compile(cfg.OrganizationRule)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid %s key: %w", constants.OptionConfigMapDataOrganizationRule, err)
+			return nil, nil, fmt.Errorf("invalid organization-rule: %w", err)
 		}
 		orgRegexp = re
 	}
 
 	var repoRegexp *regexp.Regexp
-	repoRegexpStr := cm.Data[constants.OptionConfigMapDataRepositoryRule]
-	if repoRegexpStr != "" {
-		re, err := regexp.Compile(repoRegexpStr)
+	if cfg.RepositoryRule != "" {
+		re, err := regexp.Compile(cfg.RepositoryRule)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid %s key: %w", constants.OptionConfigMapDataRepositoryRule, err)
+			return nil, nil, fmt.Errorf("invalid repository-rule: %w", err)
 		}
 		repoRegexp = re
 	}
