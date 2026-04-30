@@ -17,6 +17,8 @@ jobs:
   get-released-versions:
     name: Get released versions for runner images
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     outputs:
       meows_version: ${{ steps.meows_version.outputs.version }}
       runner_version: ${{ steps.runner_version.outputs.version }}
@@ -34,6 +36,9 @@ jobs:
   build-and-push-runner-images:
     name: Build and push runner images
     needs: get-released-versions
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/reusable-build-and-push-runner-images.yaml
     with:
       meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
