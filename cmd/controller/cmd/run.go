@@ -146,7 +146,7 @@ func loadValidationRuleFromFile(path string) (*regexp.Regexp, *regexp.Regexp, er
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, nil, fmt.Errorf("failed to read config file %q: %w", path, err)
 	}
 
 	var cfg validationRuleConfig
