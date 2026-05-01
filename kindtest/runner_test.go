@@ -129,7 +129,7 @@ func testRunner() {
 		By("checking pdb")
 		Eventually(func(g Gomega) {
 			_, stderr, err := kubectl("get", "pdb", "-n", repoRunner1NS, assignedPod.Name)
-			g.Expect(err).NotTo(HaveOccurred(), fmt.Errorf("stderr: %s", stderr))
+			g.Expect(err).NotTo(HaveOccurred(), "stderr: %s", stderr)
 		}).Should(Succeed())
 
 		By("trying to evict the pod")
@@ -331,7 +331,7 @@ func testRunner() {
 	It("should delete RunnerPool properly", func() {
 		By("deleting runner1")
 		stdout, stderr, err := kubectl("delete", "runnerpools", "-n", repoRunner1NS, repoRunnerPool1Name)
-		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
+		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 
 		By("confirming to delete resources")
 		waitDeletion("deployment", repoRunner1NS, repoRunnerPool1Name)
@@ -369,7 +369,7 @@ func testRunner() {
 
 		By("deleting runner2")
 		stdout, stderr, err = kubectl("delete", "runnerpools", "-n", repoRunner2NS, repoRunnerPool2Name)
-		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
+		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 
 		By("confirming to delete resources")
 		waitDeletion("deployment", repoRunner2NS, repoRunnerPool2Name)
@@ -407,7 +407,7 @@ func testRunner() {
 
 		By("deleting runner3")
 		stdout, stderr, err = kubectl("delete", "runnerpools", "-n", orgRunner1NS, orgRunnerPool1Name)
-		Expect(err).ShouldNot(HaveOccurred(), fmt.Errorf("stdout: %s, stderr: %s, err: %v", stdout, stderr, err))
+		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 
 		By("confirming to delete resources")
 		waitDeletion("deployment", orgRunner1NS, orgRunnerPool1Name)

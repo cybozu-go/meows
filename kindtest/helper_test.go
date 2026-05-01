@@ -252,7 +252,7 @@ func slackMessageShouldBeSent(pod *corev1.Pod, channel string) {
 	reader := bufio.NewReader(bytes.NewReader(stdout))
 	for {
 		line, isPrefix, err := reader.ReadLine()
-		ExpectWithOffset(1, err).NotTo(HaveOccurred(), "no match line, pod: %d, stdout: %s", podName, stdout)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred(), "no match line, pod: %s, stdout: %s", podName, stdout)
 		ExpectWithOffset(1, isPrefix).NotTo(BeTrue(), "too long line, line: %s", line)
 		if strings.Contains(string(line), podName) {
 			matchLine = string(line)
