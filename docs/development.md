@@ -1,5 +1,17 @@
 # Development guide
 
+## Setup CLI tools
+
+1. Install [aqua](https://aquaproj.github.io).
+
+    <https://aquaproj.github.io/docs/tutorial-basics/quick-start>
+
+2. Install CLI tools.
+
+    ```bash
+    make setup
+    ```
+
 ## Testing
 
 There are 2 kinds of test included in this repository.
