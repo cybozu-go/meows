@@ -60,7 +60,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: make setup
       - run: make image
       - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${VERSION}
   release:

@@ -1,14 +1,9 @@
-CONTROLLER_GEN_VERSION := 0.20.1
-ENVTEST_VERSION := release-0.23
 ENVTEST_K8S_VERSION := 1.35.0
 
 PROJECT_DIR := $(CURDIR)
 TMP_DIR := $(PROJECT_DIR)/tmp
 BIN_DIR := $(TMP_DIR)/bin
 KINDTEST_DIR := $(PROJECT_DIR)/kindtest
-
-CONTROLLER_GEN := $(BIN_DIR)/controller-gen
-STATICCHECK := $(BIN_DIR)/staticcheck
 
 CRD_OPTIONS ?=
 
@@ -29,11 +24,8 @@ help: ## Display this help.
 
 .PHONY: setup
 setup: ## Setup necessary tools.
+	aqua i -l
 	$(MAKE) -C kindtest setup
-	mkdir -p $(BIN_DIR)
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_GEN_VERSION)
-	GOBIN=$(BIN_DIR) go install honnef.co/go/tools/cmd/staticcheck@latest
-	GOBIN=$(BIN_DIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@$(ENVTEST_VERSION)
 
 .PHONY: clean
 clean: ## Clean files
@@ -43,16 +35,16 @@ clean: ## Clean files
 
 .PHONY: manifests
 manifests:
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) crd paths="./..." output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) webhook paths="./..." output:stdout > config/controller/webhook.yaml
-	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./..." output:rbac:artifacts:config=config/controller
+	controller-gen $(CRD_OPTIONS) crd paths="./..." output:crd:artifacts:config=config/crd/bases
+	controller-gen webhook paths="./..." output:stdout > config/controller/webhook.yaml
+	controller-gen rbac:roleName=manager-role paths="./..." output:rbac:artifacts:config=config/controller
 
 .PHONY: generate
 generate:
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: build
-build: generate ## Build all binaries.
+build: ## Build all binaries.
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/controller
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/entrypoint
 	go build -o $(BIN_DIR)/ -trimpath ./cmd/job-started
@@ -76,7 +68,7 @@ push: ## Push controller container image.
 .PHONY: lint
 lint: ## Run gofmt, staticcheck and vet.
 	test -z "$$(gofmt -s -l . | tee /dev/stderr)"
-	$(STATICCHECK) ./...
+	staticcheck ./...
 	go vet ./...
 
 .PHONY: check-generate
@@ -87,5 +79,5 @@ check-generate: ## Generate manifests and code, and check if diff exists.
 
 .PHONY: test
 test: ## Run unit tests.
-	source <($(BIN_DIR)/setup-envtest use -p env $(ENVTEST_K8S_VERSION)) \
+	source <(setup-envtest use -p env $(ENVTEST_K8S_VERSION)) \
 		&& go test -v -count=1 ./... -coverprofile $(TMP_DIR)/cover.out
