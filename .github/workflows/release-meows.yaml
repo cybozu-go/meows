@@ -93,7 +93,7 @@ jobs:
             --generate-notes
 
   # After the controller released successfully,
-  # release runner images based on the RUNNER_VERSION from the released tag
+  # release runner images based on the runner.json from the released tag
   get-released-versions:
     name: Get released versions for runner images
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
@@ -104,21 +104,19 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     outputs:
-      meows_version: ${{ steps.meows_version.outputs.version }}
-      runner_version: ${{ steps.runner_version.outputs.version }}
+      meows_version: ${{ steps.versions.outputs.meows_version }}
+      runner_version: ${{ steps.versions.outputs.runner_version }}
+      runner_sha256: ${{ steps.versions.outputs.runner_sha256 }}
     steps:
-      - name: Get released meows version
-        id: meows_version
-        run: |
-          # Meows version without "v" prefix.
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: v${{ steps.meows_version.outputs.version }}
-      - name: Get runner version
-        id: runner_version
+          ref: v${{ env.VERSION }}
+      - name: Read versions
+        id: versions
         run: |
-          echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
+          echo "meows_version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "runner_version=$(jq -r .version runner-images/runner.json)" >> $GITHUB_OUTPUT
+          echo "runner_sha256=$(jq -r .sha256 runner-images/runner.json)" >> $GITHUB_OUTPUT
   build-and-push-runner-images:
     name: Build and push runner images
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
@@ -130,4 +128,5 @@ jobs:
     with:
       meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
       runner_version: ${{ needs.get-released-versions.outputs.runner_version }}
+      runner_sha256: ${{ needs.get-released-versions.outputs.runner_sha256 }}
       push_image: true

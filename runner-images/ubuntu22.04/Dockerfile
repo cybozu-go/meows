@@ -9,6 +9,7 @@ FROM ghcr.io/cybozu/ubuntu:22.04.20260508@sha256:bcab2b64f0bae142d2bb0d9bda83a90
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 ARG RUNNER_VERSION
+ARG RUNNER_SHA
 
 ENV DEBIAN_FRONTEND=noninteractive
 # hadolint ignore=DL3015
@@ -24,6 +25,7 @@ RUN mkdir -p ${RUNNER_ASSETS_DIR} \
   && cd ${RUNNER_ASSETS_DIR} \
   && curl -L -O https://raw.githubusercontent.com/actions/runner/${RUNNER_VERSION}/LICENSE \
   && curl -L -o runner.tar.gz https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz \
+  && echo "${RUNNER_SHA}  runner.tar.gz" | sha256sum -c - \
   && tar xzf ./runner.tar.gz \
   && rm runner.tar.gz \
   && ./bin/installdependencies.sh \
