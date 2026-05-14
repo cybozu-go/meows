@@ -10,6 +10,10 @@ on:
         description: "GitHub Actions runner version.(Not include v prefix)"
         required: true
         type: string
+      runner_sha256:
+        description: "SHA256 checksum of the actions/runner(actions-runner-linux-x64)"
+        required: true
+        type: string
       push_image:
         description: "Push image to container registry"
         default: false
@@ -64,6 +68,7 @@ jobs:
         with:
           build-args: |
             RUNNER_VERSION=${{ inputs.runner_version }}
+            RUNNER_SHA=${{ inputs.runner_sha256 }}
           context: .
           file: ${{ matrix.dir }}/Dockerfile
           push: ${{ inputs.push_image }}

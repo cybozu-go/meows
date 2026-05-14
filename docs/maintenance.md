@@ -6,11 +6,11 @@ If a new version of the upstream GitHub Actions runner is released, update and r
 
 ### 1. Update GitHub Actions runner version
 
-- Update `RUNNER_VERSION` in [runner-images/RUNNER_VERSION](/runner-images/RUNNER_VERSION) to the latest version published at <https://github.com/actions/runner/releases>.
+- Update `version` and `sha256` in [runner-images/runner.json](/runner-images/runner.json) to the latest version published at <https://github.com/actions/runner/releases>.
 
 ### 2. Release the runner-image
 
-- After the change is merged into `main`, the runner image with the updated `RUNNER_VERSION` is automatically built and released.
+- After the change is merged into `main`, the runner image with the updated runner version is automatically built and released.
   - You don't need to create a release tag.
 - Once the automated workflow completes, the latest runner image will be available at [https://github.com/cybozu-go/meows/pkgs/container/meows-runner](https://github.com/cybozu-go/meows/pkgs/container/meows-runner).
 
@@ -26,7 +26,7 @@ If a new Kubernetes version is released, please update the followings:
   - "Supported software" in [README.md](/README.md)
 - Tools versions:
   - Update tool versions in [aqua.yaml](/aqua.yaml) to the latest, then run `aqua upc --prune`.
-  - Update `RUNNER_VERSION` in [runner-images/RUNNER_VERSION](/runner-images/RUNNER_VERSION) to the latest version from <https://github.com/actions/runner/releases>.
+  - Update `version` and `sha256` in [runner-images/runner.json](/runner-images/runner.json) to the latest version from <https://github.com/actions/runner/releases>.
   - In [kindtest/Makefile](/kindtest/Makefile):
     - Update `KINDTEST_IMAGE_REF` to the latest supported version of [kindest/node](https://hub.docker.com/r/kindest/node/tags) tag and digest.
     - Update `CERT_MANAGER_VERSION` to the latest version from <https://github.com/cert-manager/cert-manager/releases>.

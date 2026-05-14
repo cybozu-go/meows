@@ -2,12 +2,12 @@ name: Release runner
 on:
   pull_request:
     paths:
-      - "runner-images/RUNNER_VERSION"
+      - "runner-images/runner.json"
   push:
     branches:
       - "main"
     paths:
-      - "runner-images/RUNNER_VERSION"
+      - "runner-images/runner.json"
 
 concurrency:
   group: release-${{ github.ref }}
@@ -20,19 +20,17 @@ jobs:
     permissions:
       contents: read
     outputs:
-      meows_version: ${{ steps.meows_version.outputs.version }}
-      runner_version: ${{ steps.runner_version.outputs.version }}
+      meows_version: ${{ steps.versions.outputs.meows_version }}
+      runner_version: ${{ steps.versions.outputs.runner_version }}
+      runner_sha256: ${{ steps.versions.outputs.runner_sha256 }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Get meows version
-        id: meows_version
+      - name: Read versions
+        id: versions
         run: |
-          meows_version="$(awk -F'"' '/Version =/ {print $2}' constants.go)"
-          echo version=$meows_version >> $GITHUB_OUTPUT
-      - name: Get runner version
-        id: runner_version
-        run: |
-          echo version="$(cat ./runner-images/RUNNER_VERSION)" >> $GITHUB_OUTPUT
+          echo "meows_version=$(cat VERSION)" >> $GITHUB_OUTPUT
+          echo "runner_version=$(jq -r .version runner-images/runner.json)" >> $GITHUB_OUTPUT
+          echo "runner_sha256=$(jq -r .sha256 runner-images/runner.json)" >> $GITHUB_OUTPUT
   build-and-push-runner-images:
     name: Build and push runner images
     needs: get-released-versions
@@ -43,4 +41,5 @@ jobs:
     with:
       meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
       runner_version: ${{ needs.get-released-versions.outputs.runner_version }}
+      runner_sha256: ${{ needs.get-released-versions.outputs.runner_sha256 }}
       push_image: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}

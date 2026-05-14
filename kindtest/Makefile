@@ -10,7 +10,9 @@ REPO_DIR := $(PROJECT_DIR)/tmp/repo
 CHART_DIR := $(PROJECT_DIR)/tmp/charts
 # Default RUNNER for kindtest
 RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/ubuntu22.04
-RUNNER_VERSION := $(shell cat $(PROJECT_DIR)/runner-images/RUNNER_VERSION)
+RUNNER_JSON := $(PROJECT_DIR)/runner-images/runner.json
+RUNNER_VERSION := $(shell jq -r .version $(RUNNER_JSON))
+RUNNER_SHA := $(shell jq -r .sha256 $(RUNNER_JSON))
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
@@ -81,7 +83,7 @@ stop: ## Stop kind cluster
 .PHONY: load
 load: ## Load docker images onto kind cluster.
 	$(MAKE) -C $(PROJECT_DIR) image tag IMAGE_TAG=kindtest
-	docker build --build-arg RUNNER_VERSION=$(RUNNER_VERSION) -f $(RUNNER_IMAGE_DIR)/Dockerfile -t meows-runner:kindtest $(PROJECT_DIR)
+	docker build --build-arg RUNNER_VERSION=$(RUNNER_VERSION) --build-arg RUNNER_SHA=$(RUNNER_SHA) -f $(RUNNER_IMAGE_DIR)/Dockerfile -t meows-runner:kindtest $(PROJECT_DIR)
 	kind load docker-image meows-controller:kindtest --name $(KIND_CLUSTER_NAME)
 	kind load docker-image meows-runner:kindtest --name $(KIND_CLUSTER_NAME)
 
