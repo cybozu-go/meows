@@ -1,22 +1,16 @@
-CURL := curl -sSLf
-
-KUSTOMIZE_VERSION := 5.8.1
 KINDTEST_IMAGE_REF := "v1.35.0@sha256:452d707d4862f52530247495d180205e029056831160e22870e37e3f6c1ac31f"
-KINDTEST_K8S_VERSION := $(shell echo $(KINDTEST_IMAGE_REF) | awk -F '[@v]' '{print $$2}')
-KIND_VERSION := 0.31.0
 CERT_MANAGER_VERSION := 1.20.2
+CERT_MANAGER_GPG_KEY_URL := https://cert-manager.io/public-keys/cert-manager-keyring-2021-09-20-1020CF3C033D4F35BAE1C19E1226061C665DF13E.gpg
+KUBECTL_EVICT_COMMIT_SHA := 46aa0fb4296b93a92cda27f405f84677976b897e
 
 PROJECT_DIR := $(CURDIR)/../
 BIN_DIR := $(PROJECT_DIR)/tmp/bin
 LOGS_DIR := $(PROJECT_DIR)/tmp/logs
 REPO_DIR := $(PROJECT_DIR)/tmp/repo
+CHART_DIR := $(PROJECT_DIR)/tmp/charts
 # Default RUNNER for kindtest
 RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/ubuntu22.04
 RUNNER_VERSION := $(shell cat $(PROJECT_DIR)/runner-images/RUNNER_VERSION)
-
-KIND := $(BIN_DIR)/kind
-KUBECTL := $(BIN_DIR)/kubectl
-KUSTOMIZE := $(BIN_DIR)/kustomize
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
@@ -36,10 +30,7 @@ help: ## Display this help.
 .PHONY: setup
 setup: ## Setup necessary tools.
 	mkdir -p $(BIN_DIR)
-	$(CURL) https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BIN_DIR)
-	$(CURL) -o $(BIN_DIR)/kind https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64 && chmod a+x $(BIN_DIR)/kind
-	$(CURL) -o $(BIN_DIR)/kubectl https://dl.k8s.io/v$(KINDTEST_K8S_VERSION)/bin/linux/amd64/kubectl && chmod a+x $(BIN_DIR)/kubectl
-	GOBIN=$(BIN_DIR) go install github.com/ueokande/kubectl-evict@latest
+	GOBIN=$(BIN_DIR) go install github.com/ueokande/kubectl-evict@$(KUBECTL_EVICT_COMMIT_SHA)
 
 .PHONY: clean
 clean: ## Clean files
@@ -47,9 +38,18 @@ clean: ## Clean files
 
 ##@ Test
 
+$(CHART_DIR):
+	mkdir -p $(CHART_DIR)
+
+$(CHART_DIR)/cert-manager-keyring.gpg: | $(CHART_DIR)
+	curl -sSLf -o $@ $(CERT_MANAGER_GPG_KEY_URL)
+
+$(CHART_DIR)/cert-manager/Chart.yaml: $(CHART_DIR)/cert-manager-keyring.gpg
+	helm pull oci://quay.io/jetstack/charts/cert-manager --version v$(CERT_MANAGER_VERSION) --verify --keyring $(CHART_DIR)/cert-manager-keyring.gpg --untar --untardir $(CHART_DIR)
+
 .PHONY: start
 start: ## Start kind cluster.
-	$(KIND) create cluster --image kindest/node:$(KINDTEST_IMAGE_REF) --name $(KIND_CLUSTER_NAME) --config kind.yaml --wait 1m
+	kind create cluster --image kindest/node:$(KINDTEST_IMAGE_REF) --name $(KIND_CLUSTER_NAME) --config kind.yaml --wait 1m
 	$(MAKE) cert-manager
 	$(MAKE) load
 
@@ -59,7 +59,7 @@ test: ## Run all test on kind.
 	rm -rf $(REPO_DIR)/.git $(REPO_DIR)/.github
 	. ${PROJECT_DIR}/.secret.env.sh; \
 		PATH=$(BIN_DIR):${PATH} \
-		KINDTEST=1 BIN_DIR=$(BIN_DIR) \
+		KINDTEST=1 \
 		TEST_REPO_WORK_DIR=$(REPO_DIR) \
 		GITHUB_APP_PRIVATE_KEY_PATH=$(PROJECT_DIR)/.secret.private-key.pem \
 		go test . -v -timeout=15m -ginkgo.v --ginkgo.fail-fast $(KINDTEST_OPT)
@@ -70,11 +70,11 @@ bootstrap: ## Run bootstrap test on kind.
 
 .PHONY: logs
 logs:
-	$(KIND) export logs --name=$(KIND_CLUSTER_NAME) $(LOGS_DIR)
+	kind export logs --name=$(KIND_CLUSTER_NAME) $(LOGS_DIR)
 
 .PHONY: stop
 stop: ## Stop kind cluster
-	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME)
+	kind delete cluster --name $(KIND_CLUSTER_NAME)
 	-docker image rm meows-controller:kindtest
 	-docker image rm meows-runner:kindtest
 
@@ -82,10 +82,10 @@ stop: ## Stop kind cluster
 load: ## Load docker images onto kind cluster.
 	$(MAKE) -C $(PROJECT_DIR) image tag IMAGE_TAG=kindtest
 	docker build --build-arg RUNNER_VERSION=$(RUNNER_VERSION) -f $(RUNNER_IMAGE_DIR)/Dockerfile -t meows-runner:kindtest $(PROJECT_DIR)
-	$(KIND) load docker-image meows-controller:kindtest --name $(KIND_CLUSTER_NAME)
-	$(KIND) load docker-image meows-runner:kindtest --name $(KIND_CLUSTER_NAME)
+	kind load docker-image meows-controller:kindtest --name $(KIND_CLUSTER_NAME)
+	kind load docker-image meows-runner:kindtest --name $(KIND_CLUSTER_NAME)
 
 .PHONY: cert-manager
-cert-manager:
-	$(KUBECTL) apply -f https://github.com/jetstack/cert-manager/releases/download/v$(CERT_MANAGER_VERSION)/cert-manager.yaml
-	$(KUBECTL) -n cert-manager wait --for=condition=available --timeout=180s --all deployments
+cert-manager: $(CHART_DIR)/cert-manager/Chart.yaml
+	helm install cert-manager $(CHART_DIR)/cert-manager/ -n cert-manager --create-namespace --set crds.enabled=true
+	kubectl -n cert-manager wait --for=condition=available --timeout=180s --all deployments

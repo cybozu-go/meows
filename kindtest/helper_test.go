@@ -27,11 +27,11 @@ import (
 var _ = kubectlWithInput
 
 func kubectl(args ...string) ([]byte, []byte, error) {
-	return execAtLocal(filepath.Join(binDir, "kubectl"), nil, args...)
+	return execAtLocal("kubectl", nil, args...)
 }
 
 func kubectlWithInput(input []byte, args ...string) ([]byte, []byte, error) {
-	return execAtLocal(filepath.Join(binDir, "kubectl"), input, args...)
+	return execAtLocal("kubectl", input, args...)
 }
 
 func kubectlSafe(args ...string) []byte {
@@ -47,7 +47,7 @@ func kubectlSafeWithInput(input []byte, args ...string) []byte {
 }
 
 func kustomizeBuild(dir string) ([]byte, []byte, error) {
-	return execAtLocal(filepath.Join(binDir, "kustomize"), nil, "build", dir)
+	return execAtLocal("kustomize", nil, "build", dir)
 }
 
 func execAtLocal(cmd string, input []byte, args ...string) ([]byte, []byte, error) {

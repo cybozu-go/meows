@@ -37,7 +37,6 @@ var (
 
 // Env variables.
 var (
-	binDir                  = os.Getenv("BIN_DIR")
 	testRepoWorkDir         = os.Getenv("TEST_REPO_WORK_DIR")
 	githubAppID             = os.Getenv("GITHUB_APP_ID")
 	githubAppInstallationID = os.Getenv("GITHUB_APP_INSTALLATION_ID")
@@ -61,9 +60,6 @@ var _ = BeforeSuite(func() {
 	fmt.Println("testID: " + testID)
 
 	By("checking env variables")
-	Expect(binDir).ShouldNot(BeEmpty())
-	fmt.Println("This test uses the binaries under " + binDir)
-
 	Expect(githubAppID).ShouldNot(BeEmpty())
 	Expect(githubAppInstallationID).ShouldNot(BeEmpty())
 	Expect(githubAppPrivateKeyPath).ShouldNot(BeEmpty())
