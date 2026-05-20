@@ -2,7 +2,7 @@ package constants
 
 const (
 	// Version is the meows version.
-	Version = "0.22.2"
+	Version = "0.23.0"
 )
 
 // Container names
