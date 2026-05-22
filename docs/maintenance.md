@@ -25,14 +25,12 @@ If a new Kubernetes version is released, please update the followings:
   - `k8s-version` in [.github/workflows/main.yaml](/.github/workflows/main.yaml)
   - "Supported software" in [README.md](/README.md)
 - Tools versions:
-  - Update `CONTROLLER_GEN_VERSION` in [Makefile](/Makefile) to the latest version from <https://github.com/kubernetes-sigs/controller-tools/releases>.
+  - Update tool versions in [aqua.yaml](/aqua.yaml) to the latest, then run `aqua upc --prune`.
   - Update `RUNNER_VERSION` in [runner-images/RUNNER_VERSION](/runner-images/RUNNER_VERSION) to the latest version from <https://github.com/actions/runner/releases>.
   - In [kindtest/Makefile](/kindtest/Makefile):
     - Update `KINDTEST_IMAGE_REF` to the latest supported version of [kindest/node](https://hub.docker.com/r/kindest/node/tags) tag and digest.
-    - Update `KUSTOMIZE_VERSION` to the latest version from <https://github.com/kubernetes-sigs/kustomize/releases>.
-    - Update `KIND_VERSION` to the latest version from <https://github.com/kubernetes-sigs/kind/releases>.
     - Update `CERT_MANAGER_VERSION` to the latest version from <https://github.com/cert-manager/cert-manager/releases>.
-- After saving the changes above, update `ENVTEST_K8S_VERSION` in [Makefile](/Makefile) to the latest patch version among the latest supported kubernetes minor versions listed by running `make setup && tmp/bin/setup-envtest list` at the root of this repository. If the latest minor supported version is `1.30.Z`, find `1.30.Z+` from the output but not `1.31.Z`.
+- After saving the changes above, update `ENVTEST_K8S_VERSION` in [Makefile](/Makefile) to the latest patch version among the latest supported kubernetes minor versions listed by running `make setup && setup-envtest list` at the root of this repository. If the latest minor supported version is `1.30.Z`, find `1.30.Z+` from the output but not `1.31.Z`.
 - Other dependencies versions:
   - Update `ghcr.io/cybozu/golang` image in [Dockerfile](/Dockerfile) to the latest version from <https://github.com/cybozu/neco-containers/pkgs/container/golang>.
 - `go.mod` and `go.sum`:

@@ -18,6 +18,9 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
+      - uses: aquaproj/aqua-installer@f6be09d5313d3af86e3ad665911c67b149a4498c # v4.0.4
+        with:
+          aqua_version: v2.58.0
       - run: make setup
       - run: make lint
       - run: make check-generate
@@ -40,6 +43,9 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
+      - uses: aquaproj/aqua-installer@f6be09d5313d3af86e3ad665911c67b149a4498c # v4.0.4
+        with:
+          aqua_version: v2.58.0
       - name: Extract kubernetes version from kind-image-ref
         id: k8s-version
         run: |
@@ -92,7 +98,7 @@ jobs:
           sudo rm -rf /usr/local/bin/kubectl || true
           sudo rm -rf /usr/local/bin/kind || true
           sudo rm -rf /usr/local/bin/helm || true
-      - run: make setup KINDTEST_IMAGE_REF=${{ matrix.kind-image-ref }}
+      - run: make setup
       - run: make -C kindtest start KINDTEST_IMAGE_REF=${{ matrix.kind-image-ref }}
       - run: make -C kindtest test
         env:

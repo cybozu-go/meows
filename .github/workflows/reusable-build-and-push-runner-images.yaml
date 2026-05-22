@@ -38,7 +38,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: v${{ inputs.meows_version }}
-      - run: make setup
       - name: Environment variables
         run: |
           echo "LATEST_TAG=${{ env.PACKAGE_NAME }}:latest" >> $GITHUB_ENV
