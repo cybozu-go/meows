@@ -12,6 +12,11 @@ labels:
     app.kubernetes.io/name: meows
     app.kubernetes.io/component: controller
 
+configMapGenerator:
+- name: controller-config
+  files:
+  - files/config.yaml
+
 resources:
 - certificate.yaml
 - deployment.yaml

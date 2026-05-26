@@ -20,11 +20,8 @@ spec:
       containers:
       - name: controller
         image: ghcr.io/cybozu-go/meows-controller:latest
-        env:
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
+        args:
+        - --config-file=/etc/meows/config.yaml
         securityContext:
           allowPrivilegeEscalation: false
         ports:
@@ -57,10 +54,16 @@ spec:
           - name: cert
             mountPath: /tmp/k8s-webhook-server/serving-certs
             readOnly: true
+          - name: controller-config
+            mountPath: /etc/meows
+            readOnly: true
       terminationGracePeriodSeconds: 10
       volumes:
         - name: cert
           secret:
             defaultMode: 420
             secretName: webhook-server-cert
+        - name: controller-config
+          configMap:
+            name: controller-config
       serviceAccountName: controller

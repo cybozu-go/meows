@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"errors"
 	"flag"
 	"os"
 	"time"
@@ -21,7 +20,7 @@ var config struct {
 	metricsAddr           string
 	probeAddr             string
 	webhookAddr           string
-	controllerNamespace   string
+	configFile            string
 	runnerImage           string
 	runnerManagerInterval time.Duration
 }
@@ -32,10 +31,6 @@ var rootCmd = &cobra.Command{
 	Short: "Kubernetes controller for GitHub Actions self-hosted runner",
 	Long:  `Kubernetes controller for GitHub Actions self-hosted runner`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		config.controllerNamespace = os.Getenv(constants.PodNamespaceEnvName)
-		if config.controllerNamespace == "" {
-			return errors.New(constants.PodNamespaceEnvName + " should be passed")
-		}
 		return run()
 	},
 }
@@ -54,6 +49,7 @@ func init() {
 	fs.StringVar(&config.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "The address the webhook endpoint binds to")
 	fs.StringVar(&config.runnerImage, "runner-image", defaultRunnerImage, "The image of runner container")
+	fs.StringVar(&config.configFile, "config-file", "", "Path to the controller config file (YAML)")
 	fs.DurationVar(&config.runnerManagerInterval, "runner-manager-interval", time.Minute, "Interval to watch and delete Pods.")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
