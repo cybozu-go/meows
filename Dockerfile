@@ -1,10 +1,10 @@
-FROM ghcr.io/cybozu/golang:1.26.3.1_noble@sha256:0da22bb6f9a876d774654892d411131272ae3dd14c530b6b4ad9598b0a74d1da AS builder
+FROM ghcr.io/cybozu/golang:1.26.4.1_noble@sha256:add9d704d4b75df2c51328615be89b61a3e71e4833321aa02c3f325a30d3eb8f AS builder
 
 WORKDIR /workspace
 COPY . .
 RUN make build
 
-FROM ghcr.io/cybozu/ubuntu:24.04.20260508@sha256:ab2735f6893fc167776587097de968c7d66c1cb052326d8cfeb3c4f8cd8bac00 AS controller
+FROM ghcr.io/cybozu/ubuntu:24.04.20260608@sha256:2137d223a483a2870dae87054a21314a69c6d8b9583a9a4ab25ea6e87b178b4a AS controller
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 COPY --from=builder /workspace/tmp/bin/controller /usr/local/bin
