@@ -101,6 +101,26 @@
       "algorithm": "sha256"
     },
     {
+      "id": "github_release/github.com/suzuki-shunsuke/pinact/v4.1.0/pinact_darwin_amd64.tar.gz",
+      "checksum": "6338D0220A28093C2C6916A047EEA8A17F4BA03A8562010DC8E942B2A2884364",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/suzuki-shunsuke/pinact/v4.1.0/pinact_darwin_arm64.tar.gz",
+      "checksum": "B670063CCFA178CDB5C7107D14E3DE896F10B93EDCC7DBE38B840CB99F2536DB",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/suzuki-shunsuke/pinact/v4.1.0/pinact_linux_amd64.tar.gz",
+      "checksum": "8FCBF1B3E95551C82FD995535E3C1DEFA70E23299CE36EB3AFD6C98778DE6CA0",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/suzuki-shunsuke/pinact/v4.1.0/pinact_linux_arm64.tar.gz",
+      "checksum": "2807669CD423A3572BC12EA4A5EAB80CD2F30D5644710E0C97A08A075FDADF10",
+      "algorithm": "sha256"
+    },
+    {
       "id": "http/dl.k8s.io/v1.35.0/bin/darwin/amd64/kubectl",
       "checksum": "2447CB78911B10A667202B078EEB30541EC78D1280C3682921DC81607E148D96",
       "algorithm": "sha256"
@@ -121,29 +141,29 @@
       "algorithm": "sha256"
     },
     {
-      "id": "http/get.helm.sh/helm-v4.1.4-darwin-amd64.tar.gz",
-      "checksum": "ABF09C8503AD1D8EF76D3737A058C3456A998AAE5F5966FCE4BB3031AEB1654E",
+      "id": "http/get.helm.sh/helm-v4.2.0-darwin-amd64.tar.gz",
+      "checksum": "1376EA697140E4DB316736E760D5A47D12AFC1524DCE704476EF06FD7FDEDDC6",
       "algorithm": "sha256"
     },
     {
-      "id": "http/get.helm.sh/helm-v4.1.4-darwin-arm64.tar.gz",
-      "checksum": "7C2ECA678E8001FA863CDF8CBF6AC1B3799F9404A89EB55C08260EF5732E658D",
+      "id": "http/get.helm.sh/helm-v4.2.0-darwin-arm64.tar.gz",
+      "checksum": "F13F959015447B6BC309F9FD506509926543988A39035C088B52522EC95E2ACB",
       "algorithm": "sha256"
     },
     {
-      "id": "http/get.helm.sh/helm-v4.1.4-linux-amd64.tar.gz",
-      "checksum": "70B2C30A19DA4DB264DFD68C8A3664E05093A361CEFD89572FFB36F8ABFA3D09",
+      "id": "http/get.helm.sh/helm-v4.2.0-linux-amd64.tar.gz",
+      "checksum": "97DBEB971BE4AC4B27E3839976D9564C0FB35C6F3B1DA89DD1E292D236AF4096",
       "algorithm": "sha256"
     },
     {
-      "id": "http/get.helm.sh/helm-v4.1.4-linux-arm64.tar.gz",
-      "checksum": "13D03672BE289045D2FF00E4E345D61DE1C6F21C1257A45955A30E8AE036D8F1",
+      "id": "http/get.helm.sh/helm-v4.2.0-linux-arm64.tar.gz",
+      "checksum": "1F8DE130DFBD04DE64978E7B852A7A547BE1404956A366608276D2520B678670",
       "algorithm": "sha256"
     },
     {
-      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.508.0/registry.yaml",
-      "checksum": "38E6A38296AE18EEC1E5FE2F133C17C892FEAF52DBC520B5E8F18297DEEAD48B3782B28014E58F2994F2A1C634B4EF2B9F75A4152FAC47CEA9CD3E0B370F574B",
-      "algorithm": "sha512"
+      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.523.0/registry.yaml",
+      "checksum": "14BFA633212CF508D45DE47AD17CF666E009BCA351787E28F41D63FFD5B99D8B",
+      "algorithm": "sha256"
     }
   ]
 }
