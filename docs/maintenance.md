@@ -35,6 +35,9 @@ If a new Kubernetes version is released, please update the followings:
   - Update `ghcr.io/cybozu/golang` image in [Dockerfile](/Dockerfile) to the latest version from <https://github.com/cybozu/neco-containers/pkgs/container/golang>.
 - `go.mod` and `go.sum`:
   - Run [update-gomod](https://github.com/masa213f/tools/tree/main/cmd/update-gomod).
+- GitHub Actions:
+  - Run [pinact](https://github.com/suzuki-shunsuke/pinact) to update GitHub Actions.
+  - `GITHUB_TOKEN="$(gh auth token)" pinact run --update --min-age 14`
 
 If Kubernetes or controller-runtime API has changed, please update the relevant source code accordingly.
 
