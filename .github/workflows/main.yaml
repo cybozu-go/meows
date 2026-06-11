@@ -18,9 +18,7 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
-      - uses: aquaproj/aqua-installer@f6be09d5313d3af86e3ad665911c67b149a4498c # v4.0.4
-        with:
-          aqua_version: v2.58.0
+      - uses: ./.github/actions/aqua
       - run: make setup
       - run: make lint
       - run: make check-generate
@@ -43,9 +41,7 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
-      - uses: aquaproj/aqua-installer@f6be09d5313d3af86e3ad665911c67b149a4498c # v4.0.4
-        with:
-          aqua_version: v2.58.0
+      - uses: ./.github/actions/aqua
       - name: Extract kubernetes version from kind-image-ref
         id: k8s-version
         run: |
@@ -115,7 +111,7 @@ jobs:
         run: sudo du -sh /usr/local/* /home/* /opt/* /tmp/* /usr/* /var/* | sort -hr
         if: always()
 
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: logs-${{ steps.k8s-version.outputs.version }}
