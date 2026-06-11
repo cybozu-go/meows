@@ -1,0 +1,8 @@
+name: Setup aqua
+description: Install aqua and tools defined in aqua.yaml
+runs:
+  using: composite
+  steps:
+    - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      with:
+        aqua_version: v2.60.0

@@ -47,7 +47,7 @@ jobs:
           echo "LATEST_TAG=${{ env.PACKAGE_NAME }}:latest" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
         if: ${{ inputs.push_image }}
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -64,7 +64,7 @@ jobs:
           TAG_LIST: >
             ${{ env.PACKAGE_NAME }}:${{ inputs.runner_version }}-${{ matrix.os }}-meows${{ inputs.meows_version }}
       - name: Build and Push Image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           build-args: |
             RUNNER_VERSION=${{ inputs.runner_version }}
