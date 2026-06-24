@@ -4,6 +4,11 @@ metadata:
   name: slack-agent
   namespace: meows
 spec:
+  # Run a single (replicas = 1) slack-agent
+  #
+  # Multiple replicas (replicas >= 2) open multiple connections.
+  # They easily reach the rate limit and the test will be flaky.
+  replicas: 1
   template:
     spec:
       containers:

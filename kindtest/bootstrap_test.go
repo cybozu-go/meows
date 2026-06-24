@@ -58,6 +58,6 @@ func testBootstrap() {
 		kubectlSafeWithInput(stdout, "apply", "-n", controllerNS, "-f", "-")
 
 		By("confirming all slack-agent pods are ready")
-		waitDeployment(controllerNS, "slack-agent", 2)
+		waitDeployment(controllerNS, "slack-agent", 1)
 	})
 }
