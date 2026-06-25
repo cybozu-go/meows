@@ -12,7 +12,7 @@ import (
 )
 
 // Please update after confirming that placemat supports the relevant Ubuntu version.
-const defaultRunnerOs = "ubuntu22.04"
+const defaultRunnerOs = "ubuntu24.04"
 const defaultRunnerImage = "ghcr.io/cybozu-go/meows-runner:" + defaultRunnerOs + "-meows" + constants.Version
 
 var config struct {
