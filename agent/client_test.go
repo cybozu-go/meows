@@ -155,3 +155,33 @@ func TestMakePayload(t *testing.T) {
 		})
 	}
 }
+
+// TestJobResultConstantsMatchAgentMaps guards against drift between
+// runner.JobResult* constants and the colors/captions maps here. The same
+// set of values is also referenced by the NotifyOn enum in
+// api/v1alpha1/runnerpool_types.go; if a new JobResult is added, update all
+// three sites together.
+func TestJobResultConstantsMatchAgentMaps(t *testing.T) {
+	jobResults := []string{
+		runner.JobResultSuccess,
+		runner.JobResultFailure,
+		runner.JobResultCancelled,
+		runner.JobResultUnknown,
+	}
+
+	for _, r := range jobResults {
+		if _, ok := colors[r]; !ok {
+			t.Errorf("colors map is missing entry for JobResult %q", r)
+		}
+		if _, ok := captions[r]; !ok {
+			t.Errorf("captions map is missing entry for JobResult %q", r)
+		}
+	}
+
+	if len(colors) != len(jobResults) {
+		t.Errorf("colors has %d entries; want %d (one per JobResult constant)", len(colors), len(jobResults))
+	}
+	if len(captions) != len(jobResults) {
+		t.Errorf("captions has %d entries; want %d (one per JobResult constant)", len(captions), len(jobResults))
+	}
+}

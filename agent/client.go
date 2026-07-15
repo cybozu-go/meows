@@ -22,6 +22,10 @@ const (
 	colorGray   = "#84919e" // RGB(132,145,158)
 )
 
+// NOTE: The keys of colors and captions must cover every runner.JobResult*
+// constant and stay in sync with the NotifyOn enum in
+// api/v1alpha1/runnerpool_types.go. TestJobResultConstantsMatchAgentMaps
+// verifies coverage.
 var colors = map[string]string{
 	runner.JobResultSuccess:   colorGreen,
 	runner.JobResultFailure:   colorRed,

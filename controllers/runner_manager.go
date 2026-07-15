@@ -136,6 +136,7 @@ type manageProcess struct {
 	maxRunnerPods         int32 // This field will be accessed from multiple goroutines. So use mutex to access.
 	needSlackNotification bool
 	slackChannel          string
+	slackResultFilter     map[string]struct{}
 	slackAgentServiceName string
 	extendDuration        time.Duration
 	recreateDeadline      time.Duration
@@ -180,6 +181,7 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, scheme *runtime.
 		slackAgentClient:      agentClient,
 		needSlackNotification: rp.Spec.Notification.Slack.Enable,
 		slackChannel:          rp.Spec.Notification.Slack.Channel,
+		slackResultFilter:     makeResultSet(rp.Spec.Notification.Slack.NotifyOn),
 		slackAgentServiceName: agentName,
 		extendDuration:        extendDuration,
 		recreateDeadline:      recreateDeadline,
@@ -200,6 +202,7 @@ func (p *manageProcess) update(rp *meowsv1alpha1.RunnerPool) error {
 	p.maxRunnerPods = rp.Spec.MaxRunnerPods
 	p.needSlackNotification = rp.Spec.Notification.Slack.Enable
 	p.slackChannel = rp.Spec.Notification.Slack.Channel
+	p.slackResultFilter = makeResultSet(rp.Spec.Notification.Slack.NotifyOn)
 
 	extendDuration, _ := time.ParseDuration(rp.Spec.Notification.ExtendDuration)
 	p.extendDuration = extendDuration
@@ -349,6 +352,30 @@ func (p *manageProcess) updateMetrics(podList *corev1.PodList, runnerList []*git
 	p.prevRunnerNames = currentRunnerNames
 }
 
+// makeResultSet returns a set of job results to notify. A nil return value
+// means "notify all results" (backward-compatible default when notifyOn is
+// unset or empty).
+func makeResultSet(results []string) map[string]struct{} {
+	if len(results) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(results))
+	for _, r := range results {
+		set[r] = struct{}{}
+	}
+	return set
+}
+
+// resultMatches reports whether the given job result should be notified given
+// the configured filter. A nil filter notifies every result.
+func resultMatches(filter map[string]struct{}, result string) bool {
+	if filter == nil {
+		return true
+	}
+	_, ok := filter[result]
+	return ok
+}
+
 func difference(prev, current []string) []string {
 	set := map[string]bool{}
 	for _, val := range current {
@@ -380,6 +407,7 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 	p.mu.Lock()
 	needNotification := p.needSlackNotification
 	slackChannel := p.slackChannel
+	slackResultFilter := p.slackResultFilter
 	extendDuration := p.extendDuration
 	recreateDeadline := p.recreateDeadline
 	numRemovablePods := p.maxRunnerPods - p.replicas - numUnlabeledPods // numRemovablePods can be a negative number.
@@ -412,7 +440,7 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 		if status.State == constants.RunnerPodStateDebugging {
 			needExtend := status.Extend != nil && *status.Extend && extendDuration != 0
 
-			if needNotification && status.FinishedAt.After(lastCheckTime) {
+			if needNotification && status.FinishedAt.After(lastCheckTime) && resultMatches(slackResultFilter, status.Result) {
 				ch := slackChannel
 				if status.SlackChannel != "" {
 					ch = status.SlackChannel

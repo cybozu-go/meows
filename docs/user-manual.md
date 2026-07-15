@@ -210,6 +210,11 @@ spec:
     slack:
       enable: true               # Enable Slack notifications
       channel: "#<channel_name>"
+      # Optional. Notify only the listed job results. If omitted, all results are notified.
+      # Valid values: success, failure, cancelled, unknown.
+      # notifyOn:
+      #   - failure
+      #   - cancelled
     extendDuration: "30s"      # If you want to extend the Pod in case of job failure, set this field.
 ```
 
