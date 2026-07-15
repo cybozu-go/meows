@@ -105,6 +105,11 @@ type SlackConfig struct {
 	// NotifyOn filters which job results trigger Slack notifications.
 	// Valid values are "success", "failure", "cancelled", and "unknown".
 	// If this field is omitted or empty, all results are notified.
+	//
+	// NOTE: The enum values below must stay in sync with the JobResult*
+	// constants in `runner/runner.go` and the captions/colors maps in
+	// `agent/client.go`. `TestJobResultConstantsMatchAgentMaps` guards
+	// against drift between the constants and the agent maps.
 	// +kubebuilder:validation:items:Enum=success;failure;cancelled;unknown
 	// +listType=set
 	// +optional

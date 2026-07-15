@@ -136,7 +136,7 @@ type manageProcess struct {
 	maxRunnerPods         int32 // This field will be accessed from multiple goroutines. So use mutex to access.
 	needSlackNotification bool
 	slackChannel          string
-	slackResultFilter     map[string]bool
+	slackResultFilter     map[string]struct{}
 	slackAgentServiceName string
 	extendDuration        time.Duration
 	recreateDeadline      time.Duration
@@ -353,25 +353,27 @@ func (p *manageProcess) updateMetrics(podList *corev1.PodList, runnerList []*git
 }
 
 // makeResultSet returns a set of job results to notify. A nil return value
-// means "notify all results" (backward-compatible default when Results is unset).
-func makeResultSet(results []string) map[string]bool {
+// means "notify all results" (backward-compatible default when notifyOn is
+// unset or empty).
+func makeResultSet(results []string) map[string]struct{} {
 	if len(results) == 0 {
 		return nil
 	}
-	set := make(map[string]bool, len(results))
+	set := make(map[string]struct{}, len(results))
 	for _, r := range results {
-		set[r] = true
+		set[r] = struct{}{}
 	}
 	return set
 }
 
 // resultMatches reports whether the given job result should be notified given
 // the configured filter. A nil filter notifies every result.
-func resultMatches(filter map[string]bool, result string) bool {
+func resultMatches(filter map[string]struct{}, result string) bool {
 	if filter == nil {
 		return true
 	}
-	return filter[result]
+	_, ok := filter[result]
+	return ok
 }
 
 func difference(prev, current []string) []string {
