@@ -40,9 +40,10 @@ GitHub Actions self-hosted runners.
 
 | Field              | Type   | Description                                                                                                                                                                    |
 | ------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `enable`           | bool   | Flag to toggle Slack notifications sends or not.                                                                                                                               |
-| `channel`          | string | Slack channel which the job results are reported. If this field is omitted, the default channel specified in the `--channel`(`-c`) option of slack-agent command will be used. |
-| `agentServiceName` | string | Service name of Slack agent. If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.                                                                |
+| `enable`           | bool     | Flag to toggle Slack notifications sends or not.                                                                                                                                                          |
+| `channel`          | string   | Slack channel which the job results are reported. If this field is omitted, the default channel specified in the `--channel`(`-c`) option of slack-agent command will be used.                            |
+| `agentServiceName` | string   | Service name of Slack agent. If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.                                                                                           |
+| `notifyOn`         | []string | Filter which job results trigger notifications. Valid values are `success`, `failure`, `cancelled`, and `unknown`. If this field is omitted or empty, all results are notified (backward-compatible).     |
 
 ## RunnerPodTemplateSpec
 

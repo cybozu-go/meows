@@ -101,6 +101,14 @@ type SlackConfig struct {
 	// If this field is omitted, the default name (`slack-agent.meows.svc`) will be used.
 	// +optional
 	AgentServiceName string `json:"agentServiceName,omitempty"`
+
+	// NotifyOn filters which job results trigger Slack notifications.
+	// Valid values are "success", "failure", "cancelled", and "unknown".
+	// If this field is omitted or empty, all results are notified.
+	// +kubebuilder:validation:items:Enum=success;failure;cancelled;unknown
+	// +listType=set
+	// +optional
+	NotifyOn []string `json:"notifyOn,omitempty"`
 }
 
 type RunnerPodTemplateSpec struct {

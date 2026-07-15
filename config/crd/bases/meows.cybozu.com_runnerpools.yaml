@@ -78,6 +78,20 @@ spec:
                       enable:
                         description: Flag to toggle Slack notifications sends or not.
                         type: boolean
+                      notifyOn:
+                        description: |-
+                          NotifyOn filters which job results trigger Slack notifications.
+                          Valid values are "success", "failure", "cancelled", and "unknown".
+                          If this field is omitted or empty, all results are notified.
+                        items:
+                          enum:
+                          - success
+                          - failure
+                          - cancelled
+                          - unknown
+                          type: string
+                        type: array
+                        x-kubernetes-list-type: set
                     type: object
                 type: object
               organization:
