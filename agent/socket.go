@@ -45,7 +45,7 @@ func (s *Server) listenInteractiveEvents(ctx context.Context) error {
 					if err != nil {
 						return err
 					}
-					err = s.extendPod(ctx, cb.Channel.ID, namespace, pod)
+					err = s.extendPod(ctx, cb.Channel.ID, cb.Container.MessageTs, namespace, pod)
 					if err != nil {
 						return err
 					}
@@ -54,7 +54,7 @@ func (s *Server) listenInteractiveEvents(ctx context.Context) error {
 					if err != nil {
 						return err
 					}
-					err = s.deletePod(ctx, cb.Channel.ID, namespace, pod)
+					err = s.deletePod(ctx, cb.Channel.ID, cb.Container.MessageTs, namespace, pod)
 					if err != nil {
 						return err
 					}
@@ -76,7 +76,7 @@ func (s *Server) listenInteractiveEvents(ctx context.Context) error {
 The contents of a callback event is as follows. (some parts are omitted - see https://api.slack.com/reference/interaction-payloads/block-actions for more details)
 
 - When filtering callback events, check the `action_id`(2) and `block_id`(3).
-- The required values for pod extension are (1) and (4).
+- The required values for pod extension are (1), (4) and (5).
 - This structure is depending on the CI result message. See the `messageCIResult()` function.
 
 ---
@@ -85,6 +85,10 @@ The contents of a callback event is as follows. (some parts are omitted - see ht
 	"channel": {
 		"id": "<CHANNEL_ID>",                         // (1)
 		"name": "<CHANNEL_NAME>"
+	},
+	"container": {
+		"type": "message",
+		"message_ts": "<MESSAGE_TS>"                  // (5) Used as thread_ts to reply in the thread of the original message.
 	},
 	"actions": [
 		{
@@ -137,7 +141,7 @@ func getPodFromCallbackEvent(cb *slack.InteractionCallback) (string, string, err
 	return split[0], split[1], nil
 }
 
-func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string) error {
+func (s *Server) extendPod(ctx context.Context, channel, threadTimestamp, namespace, pod string) error {
 	po, err := s.clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
 	if err != nil {
 		s.log.Error(err, "failed to get pod info",
@@ -171,10 +175,10 @@ func (s *Server) extendPod(ctx context.Context, channel, namespace, pod string) 
 		tm = limit
 	}
 
-	return s.putDeletionTime(ctx, channel, namespace, pod, po, tm)
+	return s.putDeletionTime(ctx, channel, threadTimestamp, namespace, pod, po, tm)
 }
 
-func (s *Server) deletePod(ctx context.Context, channel, namespace, pod string) error {
+func (s *Server) deletePod(ctx context.Context, channel, threadTimestamp, namespace, pod string) error {
 	po, err := s.clientset.CoreV1().Pods(namespace).Get(ctx, pod, metav1.GetOptions{})
 	if err != nil {
 		s.log.Error(err, "failed to get pod info",
@@ -184,10 +188,10 @@ func (s *Server) deletePod(ctx context.Context, channel, namespace, pod string) 
 		return err
 	}
 
-	return s.putDeletionTime(ctx, channel, namespace, pod, po, time.Time{})
+	return s.putDeletionTime(ctx, channel, threadTimestamp, namespace, pod, po, time.Time{})
 }
 
-func (s *Server) putDeletionTime(ctx context.Context, channel, namespace, pod string, po *corev1.Pod, tm time.Time) error {
+func (s *Server) putDeletionTime(ctx context.Context, channel, threadTimestamp, namespace, pod string, po *corev1.Pod, tm time.Time) error {
 	success := true
 	if !s.devMood {
 		err := s.runnerClient.PutDeletionTime(ctx, po.Status.PodIP, tm)
@@ -215,9 +219,13 @@ func (s *Server) putDeletionTime(ctx context.Context, channel, namespace, pod st
 	} else {
 		msg = messagePodExtendFailure(namespace + "/" + pod)
 	}
+	msgOptions := []slack.MsgOption{msg}
+	if threadTimestamp != "" {
+		msgOptions = append(msgOptions, slack.MsgOptionTS(threadTimestamp))
+	}
 	ctx, cancel := context.WithTimeout(ctx, slackPostTimeout)
 	defer cancel()
-	_, _, err := s.apiClient.PostMessageContext(ctx, channel, msg)
+	_, _, err := s.apiClient.PostMessageContext(ctx, channel, msgOptions...)
 	if err != nil {
 		s.log.Error(err, "failed to send slack message",
 			"name", pod,
