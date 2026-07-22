@@ -67,10 +67,14 @@ func messageCIResult(color, text, job, pod string, extend bool) slack.MsgOption 
 	)
 }
 
-func messagePodExtendSuccess(pod string, extendedTime time.Time) slack.MsgOption {
-	return slack.MsgOptionText(fmt.Sprintf("%s is updated successfully.\n- %s", pod, extendedTime), false)
+func messagePodExtendSuccess(pod, userID string, extendedTime time.Time) slack.MsgOption {
+	return slack.MsgOptionText(fmt.Sprintf("%s is updated successfully by <@%s>.\n- %s", pod, userID, extendedTime), false)
 }
 
-func messagePodExtendFailure(pod string) slack.MsgOption {
-	return slack.MsgOptionText(fmt.Sprintf("Failed to update pod.\n- %s", pod), false)
+func messagePodDeleteSuccess(pod, userID string) slack.MsgOption {
+	return slack.MsgOptionText(fmt.Sprintf("%s will be deleted immediately by <@%s>.", pod, userID), false)
+}
+
+func messagePodExtendFailure(pod, userID string) slack.MsgOption {
+	return slack.MsgOptionText(fmt.Sprintf("Failed to update pod. (requested by <@%s>)\n- %s", userID, pod), false)
 }
