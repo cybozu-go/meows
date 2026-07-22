@@ -29,11 +29,15 @@ func TestPostMessages(t *testing.T) {
 		},
 		{
 			title:   "PodExtendSuccess",
-			message: messagePodExtendSuccess("my-namespace/my-pod", time.Now()),
+			message: messagePodExtendSuccess("my-namespace/my-pod", "U0000000000", time.Now()),
+		},
+		{
+			title:   "PodDeleteSuccess",
+			message: messagePodDeleteSuccess("my-namespace/my-pod", "U0000000000"),
 		},
 		{
 			title:   "PodExtendFailure",
-			message: messagePodExtendFailure("my-namespace/my-pod"),
+			message: messagePodExtendFailure("my-namespace/my-pod", "U0000000000"),
 		},
 	}
 
