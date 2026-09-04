@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v80/github"
+	"github.com/google/go-github/v91/github"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -78,7 +78,8 @@ var _ = BeforeSuite(func() {
 
 	rt, err := ghinstallation.NewKeyFromFile(http.DefaultTransport, appID, appInstallID, githubAppPrivateKeyPath)
 	Expect(err).ShouldNot(HaveOccurred())
-	githubClient = github.NewClient(&http.Client{Transport: rt})
+	githubClient, err = github.NewClient(github.WithHTTPClient(&http.Client{Transport: rt}))
+	Expect(err).ShouldNot(HaveOccurred())
 
 	By("creating test branch in CI test repository")
 	cloneURL := fmt.Sprintf("git@github.com:%s/%s", orgName, repoName)

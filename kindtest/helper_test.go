@@ -18,7 +18,7 @@ import (
 	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/runner"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/v80/github"
+	"github.com/google/go-github/v91/github"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

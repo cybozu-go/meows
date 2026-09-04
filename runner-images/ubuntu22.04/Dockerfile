@@ -1,11 +1,10 @@
-FROM ghcr.io/cybozu/golang:1.26.4.1_jammy@sha256:4273ab54d46bc2018b65785354589f6af6995c42b71c290b702035f2defa088d AS builder
+FROM ghcr.io/cybozu/golang:1.27.1.1_jammy@sha256:cf6a363d2a421e18a4e0038b69f0b44061903a98ab4c58ea46a68c271e81b327 AS builder
 
 WORKDIR /workspace
 COPY . .
 RUN make build
 
-# Please update after confirming that placemat supports the relevant Ubuntu version.
-FROM ghcr.io/cybozu/ubuntu:22.04.20260608@sha256:a796680ed45f1dd02abef0da037ad7a212a5781f300745ae6fffe4eeacff497e AS runner
+FROM ghcr.io/cybozu/ubuntu:24.04.20260902@sha256:182a16198fafecbce2f813a07de269d28efb885aa4843e611ce44c25ce46cc2b AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 ARG RUNNER_VERSION
