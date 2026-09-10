@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v80/github"
+	"github.com/google/go-github/v91/github"
 	"golang.org/x/oauth2"
 )
 
@@ -79,7 +79,7 @@ func NewFactory() ClientFactory {
 func (f *defaultFactory) New(cred *ClientCredential) (Client, error) {
 	switch {
 	case len(cred.PersonalAccessToken) != 0:
-		return newClientFromPAT(cred.PersonalAccessToken), nil
+		return newClientFromPAT(cred.PersonalAccessToken)
 	case len(cred.PrivateKey) != 0:
 		return newClientFromAppKey(cred.AppID, cred.AppInstallationID, cred.PrivateKey)
 	case len(cred.PrivateKeyPath) != 0:
@@ -95,15 +95,19 @@ type clientWrapper struct {
 }
 
 // newClientFromPAT creates GitHub Actions Client from a personal access token (PAT).
-func newClientFromPAT(pat string) Client {
+func newClientFromPAT(pat string) (Client, error) {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: pat},
 	)
 	tc := oauth2.NewClient(ctx, ts)
-	return &clientWrapper{
-		client: github.NewClient(tc),
+	client, err := github.NewClient(github.WithHTTPClient(tc))
+	if err != nil {
+		return nil, err
 	}
+	return &clientWrapper{
+		client: client,
+	}, nil
 }
 
 // newClientFromAppKey creates GitHub Actions Client from a private key of a GitHub app.
@@ -112,9 +116,11 @@ func newClientFromAppKey(appID, appInstallationID int64, privateKey []byte) (Cli
 	if err != nil {
 		return nil, err
 	}
-	return &clientWrapper{
-		client: github.NewClient(&http.Client{Transport: rt}),
-	}, nil
+	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: rt}))
+	if err != nil {
+		return nil, err
+	}
+	return &clientWrapper{client: client}, nil
 }
 
 // newClientFromAPIKey creates GitHub Actions Client from a private key of a GitHub app.
@@ -123,9 +129,11 @@ func newClientFromAppKeyFile(appID, appInstallationID int64, privateKeyPath stri
 	if err != nil {
 		return nil, err
 	}
-	return &clientWrapper{
-		client: github.NewClient(&http.Client{Transport: rt}),
-	}, nil
+	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: rt}))
+	if err != nil {
+		return nil, err
+	}
+	return &clientWrapper{client: client}, nil
 }
 
 // CreateRegistrationToken creates an Actions token to register self-hosted runner to the organization.

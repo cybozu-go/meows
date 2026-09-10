@@ -11,12 +11,12 @@ registries:
 - type: standard
   ref: v4.523.0
 packages:
-- name: dominikh/go-tools/staticcheck@2026.1
-- name: helm/helm@v4.2.0
-- name: jqlang/jq@jq-1.8.1
-- name: kubernetes/kubectl@v1.35.0
-- name: kubernetes-sigs/controller-runtime/setup-envtest@v0.23.3
-- name: kubernetes-sigs/controller-tools/controller-gen@v0.20.1
-- name: kubernetes-sigs/kind@v0.31.0
+- name: dominikh/go-tools/staticcheck@2026.2.1
+- name: helm/helm@v4.2.4
+- name: jqlang/jq@jq-1.8.2
+- name: kubernetes/kubectl@v1.37.0
+- name: kubernetes-sigs/controller-runtime/setup-envtest@v0.24.1
+- name: kubernetes-sigs/controller-tools/controller-gen@v0.22.0
+- name: kubernetes-sigs/kind@v0.33.0
 - name: kubernetes-sigs/kustomize@kustomize/v5.8.1
-- name: suzuki-shunsuke/pinact@v4.1.0
+- name: suzuki-shunsuke/pinact@v4.1.1
