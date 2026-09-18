@@ -16,9 +16,7 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-go
-        with:
-          bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
+      - uses: ./.github/actions/setup-go-with-takumi-guard
       - uses: ./.github/actions/aqua
       - run: make setup
       - run: make lint
@@ -40,9 +38,7 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-go
-        with:
-          bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
+      - uses: ./.github/actions/setup-go-with-takumi-guard
       - uses: ./.github/actions/aqua
       - name: Extract kubernetes version from kind-image-ref
         id: k8s-version

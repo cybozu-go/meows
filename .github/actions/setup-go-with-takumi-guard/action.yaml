@@ -1,9 +1,5 @@
 name: Setup Go with Takumi Guard
 description: ''
-inputs:
-  bot-id:
-    description: "Takumi Guard bot ID"
-    required: true
 runs:
   using: composite
   steps:
@@ -11,5 +7,3 @@ runs:
       with:
         go-version-file: go.mod
     - uses: flatt-security/setup-takumi-guard-golang@37631ecffa6faf06754444a4807451b7a55c64b5 # v1.2.0
-      with:
-        bot-id: ${{ inputs.bot-id }}
