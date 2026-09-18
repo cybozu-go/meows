@@ -4,7 +4,6 @@ WORKDIR /workspace
 COPY . .
 RUN make build
 
-# Please update after confirming that placemat supports the relevant Ubuntu version.
 FROM ghcr.io/cybozu/ubuntu:24.04.20260911@sha256:a8642cd7dc74baec27629f35b834f719edc0a3850ec8b5bcf10318caabd3297f AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
