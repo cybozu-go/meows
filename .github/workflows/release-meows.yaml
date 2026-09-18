@@ -47,7 +47,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
