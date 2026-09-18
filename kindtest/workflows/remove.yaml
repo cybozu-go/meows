@@ -27,8 +27,7 @@ jobs:
         with:
           repository: cybozu-go/meows
           path: meows
-      # kindtest uses neco-test/meows-ci where TAKUMI_GUARD_BOT_ID is not configured,
-      # so we use raw actions/setup-go here instead of the composite action.
+      # This job only runs cleanup scripts for kindtest, so takumi-guard is intentionally omitted.
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: meows/go.mod
