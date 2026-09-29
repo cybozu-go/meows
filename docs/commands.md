@@ -52,6 +52,7 @@ Usage:
   slack-agent [flags]
 
 Flags:
+      --api-url string       The base URL of the Slack Web API. Only for testing.
       --app-token string     The Slack App token.
       --bot-token string     The Slack Bot token.
   -c, --channel string       The Slack channel to notify messages to
