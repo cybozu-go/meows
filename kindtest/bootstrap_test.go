@@ -43,13 +43,23 @@ func testBootstrap() {
 		waitDeployment(controllerNS, "meows-controller", 2)
 	})
 
+	It("should deploy fake-slack successfully", func() {
+		By("applying manifests")
+		stdout, stderr, err := kustomizeBuild("./manifests/fake-slack")
+		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+		kubectlSafeWithInput(stdout, "apply", "-f", "-")
+
+		By("confirming all fake-slack pods are ready")
+		waitDeployment(controllerNS, "fake-slack", 1)
+	})
+
 	It("should deploy slack-agent successfully", func() {
 		By("creating secret for slack-agent")
 		kubectlSafe("create", "secret", "generic", "slack-app-secret",
 			"-n", controllerNS,
-			"--from-literal=SLACK_CHANNEL="+slackChannel,
-			"--from-literal=SLACK_APP_TOKEN="+slackAppToken,
-			"--from-literal=SLACK_BOT_TOKEN="+slackBotToken,
+			"--from-literal=SLACK_CHANNEL=#default",
+			"--from-literal=SLACK_APP_TOKEN=xapp-fake",
+			"--from-literal=SLACK_BOT_TOKEN=xoxb-fake",
 		)
 
 		By("applying manifests")
@@ -58,6 +68,6 @@ func testBootstrap() {
 		kubectlSafeWithInput(stdout, "apply", "-n", controllerNS, "-f", "-")
 
 		By("confirming all slack-agent pods are ready")
-		waitDeployment(controllerNS, "slack-agent", 1)
+		waitDeployment(controllerNS, "slack-agent", 2)
 	})
 }

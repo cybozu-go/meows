@@ -80,13 +80,16 @@ stop: ## Stop kind cluster
 	kind delete cluster --name $(KIND_CLUSTER_NAME)
 	-docker image rm meows-controller:kindtest
 	-docker image rm meows-runner:kindtest
+	-docker image rm fake-slack:kindtest
 
 .PHONY: load
 load: ## Load docker images onto kind cluster.
 	$(MAKE) -C $(PROJECT_DIR) image tag IMAGE_TAG=kindtest
 	docker build --build-arg RUNNER_VERSION=$(RUNNER_VERSION) --build-arg RUNNER_SHA256=$(RUNNER_SHA256) -f $(RUNNER_IMAGE_DIR)/Dockerfile -t meows-runner:kindtest $(PROJECT_DIR)
+	docker build --target fake-slack -t fake-slack:kindtest $(PROJECT_DIR)
 	kind load docker-image meows-controller:kindtest --name $(KIND_CLUSTER_NAME)
 	kind load docker-image meows-runner:kindtest --name $(KIND_CLUSTER_NAME)
+	kind load docker-image fake-slack:kindtest --name $(KIND_CLUSTER_NAME)
 
 .PHONY: cert-manager
 cert-manager: $(CHART_DIR)/cert-manager/Chart.yaml

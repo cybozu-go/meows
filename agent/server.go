@@ -46,12 +46,15 @@ type Server struct {
 }
 
 // NewServer creates slack agent server.
-func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, appToken, botToken string, devMode bool, verbose bool) (*Server, error) {
-	apiClient := slack.New(
-		botToken,
+func NewServer(logger logr.Logger, listenAddr string, defaultChannel string, appToken, botToken, apiURL string, devMode bool, verbose bool) (*Server, error) {
+	opts := []slack.Option{
 		slack.OptionAppLevelToken(appToken),
 		slack.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
-	)
+	}
+	if apiURL != "" {
+		opts = append(opts, slack.OptionAPIURL(apiURL))
+	}
+	apiClient := slack.New(botToken, opts...)
 	smClient := socketmode.New(
 		apiClient,
 		socketmode.OptionDebug(verbose),

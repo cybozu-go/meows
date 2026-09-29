@@ -1,7 +1,6 @@
 package kindtest
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -20,6 +19,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v91/github"
 	. "github.com/onsi/gomega"
+	"github.com/slack-go/slack"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -241,26 +241,33 @@ func waitDeletion(kind, namespace, name string) {
 }
 
 func slackMessageShouldBeSent(pod *corev1.Pod, channel string) {
-	// When a message is successfully sent, the following log will be output from one of slack-agent pods.
-	// {"level":"info","ts":1632841077.9362473,"caller":"agent/server.go:161","msg":"success to send slack message","pod":"kindtest-2021-09-28-145507-test-runner1/runnerpool1-84c6ff54f-tn89r","channel":"#test1"}
+	stdout, stderr, err := kubectl("get", "--raw", "/api/v1/namespaces/"+controllerNS+"/services/fake-slack:http/proxy/messages")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to get messages from fake-slack, stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
 
-	stdout, stderr, err := kubectl("logs", "-n", controllerNS, "-l", "app.kubernetes.io/component=slack-agent")
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to get slack-agent log, stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
+	var messages []struct {
+		Channel     string             `json:"channel"`
+		Attachments []slack.Attachment `json:"attachments"`
+	}
+	ExpectWithOffset(1, json.Unmarshal(stdout, &messages)).To(Succeed(), "stdout: %s", stdout)
 
-	podName := pod.Namespace + "/" + pod.Name
-	var matchLine string
-	reader := bufio.NewReader(bytes.NewReader(stdout))
-	for {
-		line, isPrefix, err := reader.ReadLine()
-		ExpectWithOffset(1, err).NotTo(HaveOccurred(), "no match line, pod: %s, stdout: %s", podName, stdout)
-		ExpectWithOffset(1, isPrefix).NotTo(BeTrue(), "too long line, line: %s", line)
-		if strings.Contains(string(line), podName) {
-			matchLine = string(line)
-			break
+	podField := "*Pod*\n" + pod.Namespace + "/" + pod.Name
+	var channels []string
+	for _, m := range messages {
+		for _, a := range m.Attachments {
+			for _, b := range a.Blocks.BlockSet {
+				section, ok := b.(*slack.SectionBlock)
+				if !ok {
+					continue
+				}
+				for _, f := range section.Fields {
+					if f.Text == podField {
+						channels = append(channels, m.Channel)
+					}
+				}
+			}
 		}
 	}
-	ExpectWithOffset(1, matchLine).To(ContainSubstring("success to send slack message"), "msg is not match")
-	ExpectWithOffset(1, matchLine).To(ContainSubstring(channel), "channel is not match")
+	ExpectWithOffset(1, channels).To(Equal([]string{channel}), "unexpected messages for the pod, messages: %s", stdout)
 }
 
 func fetchOnlineRunnerNames(repoName, label string) ([]string, error) {

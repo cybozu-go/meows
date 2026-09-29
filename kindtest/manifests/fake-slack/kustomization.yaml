@@ -1,0 +1,4 @@
+namespace: meows
+
+resources:
+- manifests.yaml

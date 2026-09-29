@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fake-slack
+  labels:
+    app.kubernetes.io/name: fake-slack
+spec:
+  # Messages are kept in memory, so a single replica is required.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fake-slack
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fake-slack
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: fake-slack
+          image: fake-slack:kindtest
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fake-slack
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: fake-slack

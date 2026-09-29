@@ -4,6 +4,15 @@ WORKDIR /workspace
 COPY . .
 RUN make build
 
+FROM builder AS fake-slack-builder
+RUN go build -o /workspace/tmp/bin/fake-slack -trimpath ./kindtest/fakeslack
+
+FROM ghcr.io/cybozu/ubuntu:24.04.20260902@sha256:182a16198fafecbce2f813a07de269d28efb885aa4843e611ce44c25ce46cc2b AS fake-slack
+COPY --from=fake-slack-builder /workspace/tmp/bin/fake-slack /usr/local/bin
+
+USER 10000:10000
+ENTRYPOINT ["fake-slack"]
+
 FROM ghcr.io/cybozu/ubuntu:24.04.20260902@sha256:182a16198fafecbce2f813a07de269d28efb885aa4843e611ce44c25ce46cc2b AS controller
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 

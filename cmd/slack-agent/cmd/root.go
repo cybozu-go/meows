@@ -18,6 +18,7 @@ const (
 	channelFlagName     = "channel"
 	appTokenFlagName    = "app-token"
 	botTokenFlagName    = "bot-token"
+	apiURLFlagName      = "api-url"
 	developmentFlagName = "development"
 	verboseFlagName     = "verbose"
 )
@@ -41,6 +42,8 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf(`"%s" should not be empty`, botTokenFlagName)
 		}
 
+		apiURL := viper.GetString(apiURLFlagName)
+
 		cmd.SilenceUsage = true
 
 		zapLog, err := zap.NewProduction()
@@ -49,7 +52,7 @@ var rootCmd = &cobra.Command{
 		}
 		log := zapr.NewLogger(zapLog)
 
-		s, err := agent.NewServer(log, listenAddr, defaultChannel, appToken, botToken, devMode, verbose)
+		s, err := agent.NewServer(log, listenAddr, defaultChannel, appToken, botToken, apiURL, devMode, verbose)
 		if err != nil {
 			return err
 		}
@@ -68,6 +71,7 @@ func init() {
 
 	fs.String(appTokenFlagName, "", "The Slack App token.")
 	fs.String(botTokenFlagName, "", "The Slack Bot token.")
+	fs.String(apiURLFlagName, "", "The base URL of the Slack Web API. Only for testing.")
 
 	if err := viper.BindPFlags(fs); err != nil {
 		panic(err)
