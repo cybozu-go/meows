@@ -8,8 +8,9 @@ BIN_DIR := $(PROJECT_DIR)/tmp/bin
 LOGS_DIR := $(PROJECT_DIR)/tmp/logs
 REPO_DIR := $(PROJECT_DIR)/tmp/repo
 CHART_DIR := $(PROJECT_DIR)/tmp/charts
-# Default RUNNER for kindtest
-RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/ubuntu22.04
+# Default RUNNER for kindtest. Override RUNNER_IMAGE_OS to test another runner image.
+RUNNER_IMAGE_OS ?= ubuntu24.04
+RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/$(RUNNER_IMAGE_OS)
 RUNNER_JSON := $(PROJECT_DIR)/runner-images/runner.json
 RUNNER_VERSION := $(shell jq -r ".version" $(RUNNER_JSON))
 RUNNER_SHA256 := $(shell jq -r ".sha256" $(RUNNER_JSON))
