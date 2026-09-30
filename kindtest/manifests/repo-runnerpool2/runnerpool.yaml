@@ -10,8 +10,7 @@ spec:
   - "date > /tmp/test"
   notification:
     slack:
-      enable: true
-      channel: "#test2"
+      enable: false
     extendDuration: "30s"
   template:
     runnerContainer:

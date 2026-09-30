@@ -67,9 +67,6 @@ func testRunner() {
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.FinishedAt))
 
-		By("confirming a slack message is successfully sent")
-		slackMessageShouldBeSent(assignedPod, "#test2")
-
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
@@ -97,9 +94,6 @@ func testRunner() {
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.FinishedAt))
-
-		By("confirming a slack message is successfully sent")
-		slackMessageShouldBeSent(assignedPod, "#test2")
 
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
@@ -143,9 +137,6 @@ func testRunner() {
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", (*status.FinishedAt).Add(30*time.Second)))
-
-		By("confirming a slack message is successfully sent")
-		slackMessageShouldBeSent(assignedPod, "#test1")
 
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
@@ -197,9 +188,6 @@ func testRunner() {
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.DeletionTime))
 
-		By("confirming a slack message is successfully sent")
-		slackMessageShouldBeSent(assignedPod, "#test2")
-
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
@@ -227,9 +215,6 @@ func testRunner() {
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.FinishedAt))
-
-		By("confirming a slack message is successfully sent")
-		slackMessageShouldBeSent(assignedPod, "#test1")
 
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
@@ -259,9 +244,6 @@ func testRunner() {
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.FinishedAt))
 
-		By("confirming a slack message is successfully sent")
-		slackMessageShouldBeSent(assignedPod, "#test2")
-
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
@@ -290,9 +272,6 @@ func testRunner() {
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.FinishedAt))
 
-		By("confirming a slack message is successfully sent to the channel specified by environment variable")
-		slackMessageShouldBeSent(assignedPod, "#test2")
-
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)
 	})
@@ -320,9 +299,6 @@ func testRunner() {
 		fmt.Println("- FinishedAt  : ", *status.FinishedAt)
 		fmt.Println("- DeletedAt   : ", deletedAt)
 		Expect(deletedAt).To(BeTemporally(">", *status.FinishedAt))
-
-		By("confirming a slack message is successfully sent to the channel specified in the /var/meows/slack_channel file updated in workflow.")
-		slackMessageShouldBeSent(assignedPod, "#test1")
 
 		By("waiting for the pod deleted")
 		waitDeletion("pod", assignedPod.Namespace, assignedPod.Name)

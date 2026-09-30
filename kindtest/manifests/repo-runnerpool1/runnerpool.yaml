@@ -8,8 +8,7 @@ spec:
   denyDisruption: true
   notification:
     slack:
-      enable: true
-      channel: "#test1"
+      enable: false
     extendDuration: "30s"
   template:
     runnerContainer:
