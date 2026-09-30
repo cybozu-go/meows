@@ -5,7 +5,7 @@ jobs:
   build:
     name: job-success
     runs-on: [self-hosted, "{{.Namespace}}/{{.RunnerPool}}"]
-    # It expects a notification to be sent to "#test2".
+    # Used to verify the Slack channel recorded in runner status.
     env:
       MEOWS_SLACK_CHANNEL: "#test2"
     steps:

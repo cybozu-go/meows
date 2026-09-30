@@ -47,9 +47,9 @@ func testBootstrap() {
 		By("creating secret for slack-agent")
 		kubectlSafe("create", "secret", "generic", "slack-app-secret",
 			"-n", controllerNS,
-			"--from-literal=SLACK_CHANNEL="+slackChannel,
-			"--from-literal=SLACK_APP_TOKEN="+slackAppToken,
-			"--from-literal=SLACK_BOT_TOKEN="+slackBotToken,
+			"--from-literal=SLACK_CHANNEL=dummy",
+			"--from-literal=SLACK_APP_TOKEN=dummy",
+			"--from-literal=SLACK_BOT_TOKEN=dummy",
 		)
 
 		By("applying manifests")
