@@ -41,9 +41,6 @@ var (
 	githubAppID             = os.Getenv("GITHUB_APP_ID")
 	githubAppInstallationID = os.Getenv("GITHUB_APP_INSTALLATION_ID")
 	githubAppPrivateKeyPath = os.Getenv("GITHUB_APP_PRIVATE_KEY_PATH")
-	slackChannel            = os.Getenv("SLACK_CHANNEL")
-	slackAppToken           = os.Getenv("SLACK_APP_TOKEN")
-	slackBotToken           = os.Getenv("SLACK_BOT_TOKEN")
 )
 
 func TestOnKind(t *testing.T) {
@@ -63,9 +60,6 @@ var _ = BeforeSuite(func() {
 	Expect(githubAppID).ShouldNot(BeEmpty())
 	Expect(githubAppInstallationID).ShouldNot(BeEmpty())
 	Expect(githubAppPrivateKeyPath).ShouldNot(BeEmpty())
-	Expect(slackChannel).ShouldNot(BeEmpty())
-	Expect(slackAppToken).ShouldNot(BeEmpty())
-	Expect(slackBotToken).ShouldNot(BeEmpty())
 
 	By("initializing github client")
 	appID, err := strconv.ParseInt(githubAppID, 10, 64)

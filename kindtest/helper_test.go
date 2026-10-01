@@ -1,7 +1,6 @@
 package kindtest
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -238,29 +237,6 @@ func waitDeletion(kind, namespace, name string) {
 		}
 		return nil
 	}).ShouldNot(HaveOccurred())
-}
-
-func slackMessageShouldBeSent(pod *corev1.Pod, channel string) {
-	// When a message is successfully sent, the following log will be output from one of slack-agent pods.
-	// {"level":"info","ts":1632841077.9362473,"caller":"agent/server.go:161","msg":"success to send slack message","pod":"kindtest-2021-09-28-145507-test-runner1/runnerpool1-84c6ff54f-tn89r","channel":"#test1"}
-
-	stdout, stderr, err := kubectl("logs", "-n", controllerNS, "-l", "app.kubernetes.io/component=slack-agent")
-	ExpectWithOffset(1, err).NotTo(HaveOccurred(), "failed to get slack-agent log, stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-
-	podName := pod.Namespace + "/" + pod.Name
-	var matchLine string
-	reader := bufio.NewReader(bytes.NewReader(stdout))
-	for {
-		line, isPrefix, err := reader.ReadLine()
-		ExpectWithOffset(1, err).NotTo(HaveOccurred(), "no match line, pod: %s, stdout: %s", podName, stdout)
-		ExpectWithOffset(1, isPrefix).NotTo(BeTrue(), "too long line, line: %s", line)
-		if strings.Contains(string(line), podName) {
-			matchLine = string(line)
-			break
-		}
-	}
-	ExpectWithOffset(1, matchLine).To(ContainSubstring("success to send slack message"), "msg is not match")
-	ExpectWithOffset(1, matchLine).To(ContainSubstring(channel), "channel is not match")
 }
 
 func fetchOnlineRunnerNames(repoName, label string) ([]string, error) {
