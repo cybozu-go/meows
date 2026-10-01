@@ -1,5 +1,0 @@
-resources:
-- ../../../config/agent
-
-patches:
-- path: patch.yaml

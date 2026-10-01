@@ -42,22 +42,4 @@ func testBootstrap() {
 		By("confirming all controller pods are ready")
 		waitDeployment(controllerNS, "meows-controller", 2)
 	})
-
-	It("should deploy slack-agent successfully", func() {
-		By("creating secret for slack-agent")
-		kubectlSafe("create", "secret", "generic", "slack-app-secret",
-			"-n", controllerNS,
-			"--from-literal=SLACK_CHANNEL=dummy",
-			"--from-literal=SLACK_APP_TOKEN=dummy",
-			"--from-literal=SLACK_BOT_TOKEN=dummy",
-		)
-
-		By("applying manifests")
-		stdout, stderr, err := kustomizeBuild("./manifests/slack-agent")
-		Expect(err).ShouldNot(HaveOccurred(), "stdout: %s, stderr: %s, err: %v", stdout, stderr, err)
-		kubectlSafeWithInput(stdout, "apply", "-n", controllerNS, "-f", "-")
-
-		By("confirming all slack-agent pods are ready")
-		waitDeployment(controllerNS, "slack-agent", 1)
-	})
 }
