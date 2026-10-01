@@ -2,10 +2,13 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	meowsv1alpha1 "github.com/cybozu-go/meows/api/v1alpha1"
@@ -848,6 +851,113 @@ var _ = Describe("RunnerManager", func() {
 		MetricsShouldNotExist(metricsURL, "meows_runner_busy")
 		runnerList, _ := githubClientFactory.ListRunners(ctx, rp1.GetOwner(), rp1.GetRepository(), nil)
 		Expect(runnerList).To(BeEmpty())
+	})
+
+	It("should send notifications to slack-agent", func() {
+		type result struct {
+			Channel string `json:"channel"`
+			Pod     string `json:"pod"`
+			Extend  bool   `json:"extend"`
+		}
+		var mu sync.Mutex
+		var results []result
+		agentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var res result
+			if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			results = append(results, res)
+		}))
+		defer agentServer.Close()
+
+		testCases := []struct {
+			name         string
+			slack        meowsv1alpha1.SlackConfig
+			jobResult    string
+			jobChannel   string
+			extend       bool
+			expectedSent []result
+		}{
+			{
+				name:         "use the channel of the RunnerPool",
+				slack:        meowsv1alpha1.SlackConfig{Enable: true, Channel: "#rp"},
+				jobResult:    runner.JobResultSuccess,
+				expectedSent: []result{{Channel: "#rp", Pod: "test-ns1/pod1"}},
+			},
+			{
+				name:         "use the channel specified in the job",
+				slack:        meowsv1alpha1.SlackConfig{Enable: true, Channel: "#rp"},
+				jobResult:    runner.JobResultFailure,
+				jobChannel:   "#job",
+				extend:       true,
+				expectedSent: []result{{Channel: "#job", Pod: "test-ns1/pod1", Extend: true}},
+			},
+			{
+				name:      "notification is disabled",
+				slack:     meowsv1alpha1.SlackConfig{Enable: false, Channel: "#rp"},
+				jobResult: runner.JobResultSuccess,
+			},
+			{
+				name:      "result does not match notifyOn",
+				slack:     meowsv1alpha1.SlackConfig{Enable: true, Channel: "#rp", NotifyOn: []string{runner.JobResultFailure}},
+				jobResult: runner.JobResultSuccess,
+			},
+		}
+
+		for _, tt := range testCases {
+			By(tt.name)
+			ttName := fmt.Sprintf("test case name is '%s'", tt.name)
+			mu.Lock()
+			results = nil
+			mu.Unlock()
+
+			runnerPodClient := runner.NewFakeClient()
+			githubClientFactory := github.NewFakeClientFactory()
+			runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
+
+			rp := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
+			rp.Spec.Notification.Slack = tt.slack
+			rp.Spec.Notification.Slack.AgentServiceName = agentServer.URL
+			rp.Spec.Notification.ExtendDuration = "30s"
+
+			po := makePod("pod1", "test-ns1", "rp1")
+			Expect(k8sClient.Create(ctx, po)).To(Succeed(), ttName)
+			po.Status.PodIP = "10.0.0.1"
+			po.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, po)).To(Succeed(), ttName)
+
+			Expect(runnerManager.StartOrUpdate(rp, nil)).To(Succeed(), ttName)
+
+			// FinishedAt must be later than the start of the manager to trigger the notification.
+			finishedAt := time.Now()
+			deletionTime := finishedAt.Add(time.Hour)
+			runnerPodClient.SetStatus(po.Status.PodIP, &runner.Status{
+				State:        "debugging",
+				Result:       tt.jobResult,
+				FinishedAt:   &finishedAt,
+				DeletionTime: &deletionTime,
+				Extend:       &tt.extend,
+				JobInfo:      &runner.JobInfo{Repository: "owner/repo1"},
+				SlackChannel: tt.jobChannel,
+			})
+
+			// Wait for several loops to check that the notification is sent only once.
+			time.Sleep(5 * time.Second)
+			mu.Lock()
+			if len(tt.expectedSent) == 0 {
+				Expect(results).To(BeEmpty(), ttName)
+			} else {
+				Expect(results).To(Equal(tt.expectedSent), ttName)
+			}
+			mu.Unlock()
+
+			Expect(runnerManager.Stop(rp)).To(Succeed(), ttName)
+			k8sClient.DeleteAllOf(ctx, &corev1.Pod{}, client.InNamespace("test-ns1"))
+			time.Sleep(500 * time.Millisecond)
+		}
 	})
 })
 

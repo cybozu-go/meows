@@ -30,20 +30,20 @@ What kindtest covers is:
 - Runner `Pod`s are registered to GitHub Actions on a test repository.
   - At present, the test repository is a fixed one (`github.com/neco-test/meows-ci`).
 - GitHub Actions workflows run on the `Pod`s.
-- Runner `Pod`s send messages to Slack agent.
-- Slack agent sends messages to Slack.
 - The controller can delete runner `Pod`s with deletion time exposed by API.
 - The controller can delete runner registrations of unexisting `Pod`s from GitHub Actions.
 
 What kindtest does not cover is:
 
+- The controller sends messages to Slack agent. envtest covers it.
+- Slack agent sends messages to Slack.
 - Slack agent extends a runner `Pod`'s lifetime.
 
 So, you might need to test the Slack agent behavior manually if you make a change on Slack agent.
 
 In order to run the kindtest, you need to prepare as follows.
 
-1. Create GitHub App and Slack App. Please follow [user manual](./user-manual.md).
+1. Create GitHub App. Please follow [user manual](./user-manual.md).
 2. Get the write access permission to the test repository.
     - In the kindtest, test branch and workflow files are generated and pushed dynamically.
 3. Set the [remove](../kindtest/workflows/remove.yaml) workflow to the test repository.
@@ -61,9 +61,6 @@ You can run the kindtest as following.
     #
     # export GITHUB_APP_ID=<your GitHub App ID>
     # export GITHUB_APP_INSTALLATION_ID=<your GitHub App Installation ID>
-    # export SLACK_CHANNEL=#<your Slack Channel>
-    # export SLACK_APP_TOKEN=<your Slack App Token>
-    # export SLACK_BOT_TOKEN=<your Slack Bot Token>
     ```
 
 2. Install tools.
@@ -84,6 +81,18 @@ You can run the kindtest as following.
     # Stop kind cluster.
     make -C kindtest stop
     ```
+
+### Test Slack messages manually
+
+CI does not post messages to the real Slack.
+When you change `agent/message.go` or update `github.com/slack-go/slack`, check that Slack accepts all messages:
+
+```bash
+SLACK_CHANNEL='#<your Slack Channel>' SLACK_BOT_TOKEN=<your Slack Bot Token> \
+  go test -v -count=1 -run TestPostMessages ./agent
+```
+
+The test is skipped when `SLACK_CHANNEL` or `SLACK_BOT_TOKEN` is empty.
 
 ### Run slack agent manually
 
