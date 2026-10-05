@@ -296,19 +296,21 @@ Here's a procedure for how to configure the Slack App.
 
 1. Go to [this](https://api.slack.com/apps) page.
 2. Click the **Create New App** button.
-   - Choose **From scratch**.
-   - Fill the application name field and choose a Slack workspace.
+   - Choose **Blank app**.
+   - Fill the **App name** field and choose a Slack workspace.
 3. Go to **Socket Mode** from the sidebar.
-   - Enable **Enable Socket Mode**.
-   - Create App-Level Token on the windows coming up and keep the generated App Token.
-4. Go to **OAuth & Permissions** from the sidebar.
+   - Make sure **Enable Socket Mode** is ON. (Default is ON)
+4. Go to **Basic Information** from the sidebar and go to **App-Level Tokens** section.
+   - Click **Generate Token and Scopes** button.
+   - Generate an app-level token with the `connections:write` scope.
+   - Keep **App-Level Token** as `SLACK_APP_TOKEN`. (Starts with `xapp-`)
+5. Go to **OAuth & Permissions** from the sidebar and go to **Scopes** section.
    - Add the `chat:write` permission under **Bot Token Scopes**.
-5. Go to **Basic Information** from the sidebar.
-   - Make sure **Bots** is enabled in `Add features and functionality`
-   - Click **Install(Reinstall) to Workspace** in `Install your app` and (re)install the bot in your desired channel.
-6. Go to **OAuth & Permissions** from the sidebar again.
-   - Keep **Bot User OAuth Token**.
-7. Open your Slack desktop app and go to your desired channel.
-   - Click the `i` button on the top right corner.
-   - Click **more** and then **Add apps**.
+6. Go to **Install App** from the sidebar and go to **OAuth Tokens** section.
+   - Click **Install (Reinstall) to Workspace**.
+7. Go to **OAuth & Permissions** from the sidebar again.
+   - Keep **Bot User OAuth Token** as `SLACK_BOT_TOKEN`. (Starts with `xoxb-`)
+8. Open your Slack desktop app and go to your desired channel.
+   - Click the channel name at the top left to open the channel details.
+   - Select the **Agents & apps** tab.
    - Add the created Slack App to the channel.
