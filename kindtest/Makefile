@@ -83,8 +83,16 @@ stop: ## Stop kind cluster
 
 .PHONY: load
 load: ## Load docker images onto kind cluster.
-	$(MAKE) -C $(PROJECT_DIR) image tag IMAGE_TAG=kindtest
-	docker build --build-arg RUNNER_VERSION=$(RUNNER_VERSION) --build-arg RUNNER_SHA256=$(RUNNER_SHA256) -f $(RUNNER_IMAGE_DIR)/Dockerfile -t meows-runner:kindtest $(PROJECT_DIR)
+	@TAKUMI_NETRC="$$(grep -sF 'machine golang.flatt.tech ' "$${NETRC:-$$HOME/.netrc}" || true)"; \
+	export TAKUMI_NETRC; \
+	$(MAKE) -C $(PROJECT_DIR) image tag IMAGE_TAG=kindtest; \
+	docker build \
+		$${TAKUMI_NETRC:+--secret id=netrc,env=TAKUMI_NETRC} \
+		--build-arg RUNNER_VERSION=$(RUNNER_VERSION) \
+		--build-arg RUNNER_SHA256=$(RUNNER_SHA256) \
+		-f $(RUNNER_IMAGE_DIR)/Dockerfile \
+		-t meows-runner:kindtest \
+		$(PROJECT_DIR)
 	kind load docker-image meows-controller:kindtest --name $(KIND_CLUSTER_NAME)
 	kind load docker-image meows-runner:kindtest --name $(KIND_CLUSTER_NAME)
 

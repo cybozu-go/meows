@@ -1,8 +1,16 @@
 FROM ghcr.io/cybozu/golang:1.27.1.1_noble@sha256:e38fe3b72f61d034394ee2c2592d41fa753226718bbc111bb6bb9a21601f0859 AS builder
 
 WORKDIR /workspace
+
+ENV GOPROXY=https://golang.flatt.tech
+ENV NETRC=/run/secrets/netrc
+
+COPY go.mod go.sum ./
+RUN --mount=type=secret,id=netrc,target=/run/secrets/netrc,required=false \
+    go mod download
+
 COPY . .
-RUN make build
+RUN GOPROXY=off make build
 
 FROM ghcr.io/cybozu/ubuntu:24.04.20260911@sha256:a8642cd7dc74baec27629f35b834f719edc0a3850ec8b5bcf10318caabd3297f AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
