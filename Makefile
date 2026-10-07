@@ -53,7 +53,11 @@ build: ## Build all binaries.
 
 .PHONY: image
 image: ## Build controller container image.
-	docker build --target controller -t meows-controller:devel .
+	@TAKUMI_NETRC="$$(grep -sF 'machine golang.flatt.tech ' "$${NETRC:-$$HOME/.netrc}" || true)"; \
+	export TAKUMI_NETRC; \
+	docker build $${TAKUMI_NETRC:+--secret id=netrc,env=TAKUMI_NETRC} \
+		--target controller \
+		-t meows-controller:devel .
 
 .PHONY: tag
 tag: ## Tag controller container image.

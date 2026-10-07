@@ -27,6 +27,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     env:
       PACKAGE_NAME: "ghcr.io/cybozu-go/meows-runner"
     strategy:
@@ -43,6 +44,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: v${{ inputs.meows_version }}
+      - uses: ./.github/actions/setup-go-with-takumi-guard
+        with:
+          bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
       - name: Environment variables
         run: |
           echo "LATEST_TAG=${{ env.PACKAGE_NAME }}:latest" >> $GITHUB_ENV
@@ -78,3 +82,5 @@ jobs:
             ${{ env.PACKAGE_NAME }}:${{ matrix.os }}-meows${{ inputs.meows_version }}
             ${{ env.PACKAGE_NAME }}:${{ inputs.runner_version }}-${{ matrix.os }}-meows${{ inputs.meows_version }}
             ${{ matrix.latest &&  env.LATEST_TAG || '' }}
+          secret-files: |
+            netrc=/home/runner/.netrc
