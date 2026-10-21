@@ -1,4 +1,4 @@
-FROM ghcr.io/cybozu/golang:1.27.1.1_noble@sha256:e38fe3b72f61d034394ee2c2592d41fa753226718bbc111bb6bb9a21601f0859 AS builder
+FROM ghcr.io/cybozu/golang:1.27.3.2_noble@sha256:d78937fddb26c4350824d4022f5c9dfe20bf762811ea31065f8c6d467c58bc30 AS builder
 
 WORKDIR /workspace
 
@@ -12,7 +12,7 @@ RUN --mount=type=secret,id=netrc,target=/run/secrets/netrc,required=false \
 COPY . .
 RUN GOPROXY=off make build
 
-FROM ghcr.io/cybozu/ubuntu:24.04.20260911@sha256:a8642cd7dc74baec27629f35b834f719edc0a3850ec8b5bcf10318caabd3297f AS runner
+FROM ghcr.io/cybozu/ubuntu:24.04.20261021@sha256:7bc89f8e6e4dfe609ca671526e3bbee91753422b8a766d90cef4de8b7c73a3b9 AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 ARG RUNNER_VERSION
