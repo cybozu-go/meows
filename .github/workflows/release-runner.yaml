@@ -29,7 +29,7 @@ jobs:
         id: versions
         run: |
           echo "meows_version=$(cat VERSION)" >> $GITHUB_OUTPUT
-          echo "runner_version=$(jq -r '.version' runner-images/runner.json)" >> $GITHUB_OUTPUT
+          echo "runner_version=$(jq -r '.version | ltrimstr("v")' runner-images/runner.json)" >> $GITHUB_OUTPUT
           echo "runner_sha256=$(jq -r '.sha256' runner-images/runner.json)" >> $GITHUB_OUTPUT
   build-and-push-runner-images:
     name: Build and push runner images
