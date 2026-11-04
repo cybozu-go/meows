@@ -221,10 +221,6 @@ type RunnerPoolList struct {
 	Items           []RunnerPool `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&RunnerPool{}, &RunnerPoolList{})
-}
-
 func (s *RunnerPoolSpec) validateCreate() field.ErrorList {
 	return s.validateCommon()
 }
