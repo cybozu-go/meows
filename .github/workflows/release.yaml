@@ -1,18 +1,15 @@
-name: Release meows
+name: Release
+
 on:
-  pull_request:
-    paths:
-      - VERSION
   push:
     branches:
       - main
-    paths:
-      - VERSION
   workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: read
@@ -20,9 +17,10 @@ permissions:
 jobs:
   version:
     name: Read and validate version
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+      release_required: ${{ steps.version.outputs.release_required }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate inputs
@@ -33,19 +31,61 @@ jobs:
             echo "Invalid tag format. Please use X.Y.Z"
             exit 1
           fi
+
           git fetch --tags
-          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists"
-            exit 1
+          if git rev-parse "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "release_required=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_required=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  # Release runner images before publishing the controller image.
+  get-released-versions:
+    name: Get versions for runner images
+    needs: version
+    runs-on: ubuntu-26.04
+    outputs:
+      meows_version: ${{ steps.versions.outputs.meows_version }}
+      runner_version: ${{ steps.versions.outputs.runner_version }}
+      runner_sha256: ${{ steps.versions.outputs.runner_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read versions
+        id: versions
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          echo "meows_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "runner_version=$(jq -r '.version | ltrimstr("v")' runner-images/runner.json)" >> "$GITHUB_OUTPUT"
+          echo "runner_sha256=$(jq -r '.sha256' runner-images/runner.json)" >> "$GITHUB_OUTPUT"
+
+  build-and-push-runner-images:
+    name: Build and push runner images
+    needs:
+     - get-released-versions
+     - version
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/reusable-build-and-push-runner-images.yaml
+    with:
+      meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
+      runner_version: ${{ needs.get-released-versions.outputs.runner_version }}
+      runner_sha256: ${{ needs.get-released-versions.outputs.runner_sha256 }}
+      push_image: ${{ github.ref == 'refs/heads/main' }}
+      # Build from the current commit for a new release, or use the release tag by default.
+      # An empty source_ref falls back to v<meows_version> in the reusable workflow.
+      source_ref: ${{ needs.version.outputs.release_required == 'true' && github.sha || '' }}
+
   push-controller-image:
     name: Push controller image
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    if: ${{ github.ref == 'refs/heads/main' && needs.version.outputs.release_required == 'true' }}
     needs:
       - version
       - build-and-push-runner-images
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write
@@ -66,9 +106,10 @@ jobs:
       - run: make image
       - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${VERSION}
       - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=latest
+
   release:
     name: Release on GitHub
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    if: ${{ github.ref == 'refs/heads/main' && needs.version.outputs.release_required == 'true' }}
     needs:
       - version
       - push-controller-image
@@ -95,41 +136,3 @@ jobs:
           gh release create "v${VERSION}" \
             -t "Release v${VERSION}" \
             --generate-notes
-
-  # Release runner images first, based on the runner.json from the release commit,
-  # so that the controller is never published before its default runner images
-  get-released-versions:
-    name: Get versions for runner images
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-    needs:
-      - version
-    runs-on: ubuntu-24.04
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
-    outputs:
-      meows_version: ${{ steps.versions.outputs.meows_version }}
-      runner_version: ${{ steps.versions.outputs.runner_version }}
-      runner_sha256: ${{ steps.versions.outputs.runner_sha256 }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Read versions
-        id: versions
-        run: |
-          echo "meows_version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "runner_version=$(jq -r '.version' runner-images/runner.json)" >> $GITHUB_OUTPUT
-          echo "runner_sha256=$(jq -r '.sha256' runner-images/runner.json)" >> $GITHUB_OUTPUT
-  build-and-push-runner-images:
-    name: Build and push runner images
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-    needs: get-released-versions
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    uses: ./.github/workflows/reusable-build-and-push-runner-images.yaml
-    with:
-      meows_version: ${{ needs.get-released-versions.outputs.meows_version }}
-      runner_version: ${{ needs.get-released-versions.outputs.runner_version }}
-      runner_sha256: ${{ needs.get-released-versions.outputs.runner_sha256 }}
-      push_image: true
-      source_ref: ${{ github.sha }}

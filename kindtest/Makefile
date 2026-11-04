@@ -12,7 +12,7 @@ CHART_DIR := $(PROJECT_DIR)/tmp/charts
 RUNNER_IMAGE_OS ?= ubuntu24.04
 RUNNER_IMAGE_DIR := $(PROJECT_DIR)/runner-images/$(RUNNER_IMAGE_OS)
 RUNNER_JSON := $(PROJECT_DIR)/runner-images/runner.json
-RUNNER_VERSION := $(shell jq -r ".version" $(RUNNER_JSON))
+RUNNER_VERSION := $(shell jq -r '.version | ltrimstr("v")' $(RUNNER_JSON))
 RUNNER_SHA256 := $(shell jq -r ".sha256" $(RUNNER_JSON))
 
 # Set the shell used to bash for better error handling.
