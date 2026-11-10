@@ -1,0 +1,93 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  gitAuthor: 'cybozu-neco <neco@cybozu.com>',
+  extends: [
+    'config:best-practices',
+    ':semanticCommitTypeAll(chore)',
+    ':timezone(Asia/Tokyo)',
+  ],
+  labels: [
+    'dependencies',
+  ],
+  prConcurrentLimit: 10,
+  branchConcurrentLimit: 10,
+  prHourlyLimit: 10,
+  separateMinorPatch: false,
+  separateMajorMinor: false,
+  dependencyDashboard: false,
+  minimumReleaseAge: '14 days',
+  enabledManagers: ['dockerfile','custom.regex'],
+  customManagers: [
+    {
+      customType: 'regex',
+      managerFilePatterns: ['/^runner-images/runner\\.json$/'],
+      matchStrings: [
+        '"version"\\s*:\\s*"(?<currentValue>v\\d+\\.\\d+\\.\\d+)"\\s*,\\s*"sha256"\\s*:\\s*"(?<currentDigest>[a-f0-9]{64})"',
+      ],
+      depNameTemplate: 'actions/runner',
+      datasourceTemplate: 'github-release-attachments',
+      versioningTemplate: 'semver',
+      autoReplaceStringTemplate:
+        '"version": "{{{newValue}}}",\n  "sha256": "{{{newDigest}}}"',
+    },
+  ],
+  packageRules: [
+    {
+      matchManagers: ['custom.regex'],
+      // GitHub requires self-hosted runners to be updated within 30 days,
+      // so we should not delay runner updates.
+      // - https://docs.github.com/en/actions/reference/runners/self-hosted-runners#runner-software-updates-on-self-hosted-runners
+      minimumReleaseAge: '0 days',
+    },
+    {
+      matchManagers: ["dockerfile"],
+      matchPackageNames: ["ghcr.io/cybozu/golang"],
+      versioning: "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)_(?<compatibility>.+)$"
+    },
+    {
+      matchManagers: ["dockerfile"],
+      matchPackageNames: ["ghcr.io/cybozu/ubuntu"],
+      versioning: "regex:^(?<compatibility>\\d+\\.\\d+)\\.(?<major>\\d{8})$"
+    },
+    {
+      matchManagers: ["dockerfile"],
+      // No release age restriction because we only use Cybozu-maintained images.
+      minimumReleaseAge: '0 days',
+      bumpVersions: [
+        {
+          name: 'Bump VERSION',
+          filePatterns: ['VERSION'],
+          matchStrings: [
+            '^(?<version>\\d+\\.\\d+\\.\\d+)'
+          ],
+          bumpType: 'patch'
+        },
+        {
+          name: 'Bump Go version',
+          filePatterns: ['constants.go'],
+          matchStrings: [
+            'Version\\s*=\\s*\"(?<version>\\d+\\.\\d+\\.\\d+)\"'
+          ],
+          bumpType: 'patch'
+        },
+        {
+          name: 'Bump image tags',
+          filePatterns: [
+            'config/controller/kustomization.yaml',
+            'config/agent/kustomization.yaml'
+          ],
+          matchStrings: [
+            'newTag:\\s*(?<version>\\d+\\.\\d+\\.\\d+)'
+          ],
+          bumpType: 'patch'
+        }
+      ]
+    },
+    {
+      matchManagers: ['dockerfile', 'custom.regex'],
+      groupName: 'Routine dependency updates',
+      groupSlug: 'routine-dependency-updates',
+      prTitle: 'Routine dependency updates'
+    }
+  ]
+}

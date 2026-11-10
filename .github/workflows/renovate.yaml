@@ -1,0 +1,29 @@
+
+name: Renovate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  statuses: write
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@39b914146caeff8cd512e61c8992f1d5913af85c # v46.2.5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: cybozu-go/meows
+          RENOVATE_CONFIG_FILE: .github/renovate.json5
+          RENOVATE_REQUIRE_CONFIG: ignored
+          RENOVATE_ONBOARDING: 'false'
