@@ -59,14 +59,16 @@ $ curl -s -XGET localhost:8080/status
     "finished_at": "2021-01-01T00:00:00Z", ... The time the job was finished.
     "deletion_time": "2021-01-01T00:20:00Z", ... Scheduled deletion time. This field remains nil until `PUT /deletion_time` is called.
     "extend": true, ... Pod extension is required or not.
-    "job_info": {
+    "job_info": { ... Job information written by `job-started`. Omitted if `job-started` was not called in the job.
         "actor": "user",
         "git_ref": "branch/name",
         "job_id": "job",
+        "pull_request_number": 123, ... Omitted if the job was not triggered by a pull request.
         "repository": "owner/repo",
         "run_id": 123456789,
         "run_number": 987,
-        "workflow_name": "Work flow"
+        "workflow_name": "Work flow",
+        "started_at": "2021-01-01T00:00:00Z" ... The time when `job-started` was called.
     },
     "slack_channel": "" ... May be blank. The name of the Slack channel specified in the workflow.
 }
