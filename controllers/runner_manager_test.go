@@ -778,8 +778,47 @@ var _ = Describe("RunnerManager", func() {
 		rp := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
 		runnerManager.StartOrUpdate(rp, nil)
 		time.Sleep(1 * time.Second)
-		CounterShouldNotExist(metricsURL, "meows_runnerpool_job_results_total")
-		HistogramShouldNotExist(metricsURL, "meows_runnerpool_job_duration_seconds")
+		By("checking metrics are initialized with zero values")
+		CounterShouldHaveValue(metricsURL, "meows_runnerpool_job_results_total", ConsistOf(
+			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("success")}),
+				"Value": BeNumerically("==", 0.0),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("failure")}),
+				"Value": BeNumerically("==", 0.0),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("cancelled")}),
+				"Value": BeNumerically("==", 0.0),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("unknown")}),
+				"Value": BeNumerically("==", 0.0),
+			})),
+		))
+		HistogramShouldHaveValue(metricsURL, "meows_runnerpool_job_duration_seconds", ConsistOf(
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("success")}),
+				"SampleCount": BeNumerically("==", 0),
+				"SampleSum":   BeNumerically("~", 0, 1),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("failure")}),
+				"SampleCount": BeNumerically("==", 0),
+				"SampleSum":   BeNumerically("~", 0, 1),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("cancelled")}),
+				"SampleCount": BeNumerically("==", 0),
+				"SampleSum":   BeNumerically("~", 0, 1),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("unknown")}),
+				"SampleCount": BeNumerically("==", 0),
+				"SampleSum":   BeNumerically("~", 0, 1),
+			})),
+		))
 
 		By("creating debugging pods")
 		finishedAt := time.Now()
@@ -831,6 +870,10 @@ var _ = Describe("RunnerManager", func() {
 				"Value": BeNumerically("==", 1.0),
 			})),
 			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("cancelled")}),
+				"Value": BeNumerically("==", 0.0),
+			})),
+			PointTo(MatchAllFields(Fields{
 				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("unknown")}),
 				"Value": BeNumerically("==", 2.0),
 			})),
@@ -845,6 +888,16 @@ var _ = Describe("RunnerManager", func() {
 				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("failure")}),
 				"SampleCount": BeNumerically("==", 1),
 				"SampleSum":   BeNumerically("~", 1800, 1),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("cancelled")}),
+				"SampleCount": BeNumerically("==", 0),
+				"SampleSum":   BeNumerically("~", 0, 1),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("unknown")}),
+				"SampleCount": BeNumerically("==", 0),
+				"SampleSum":   BeNumerically("~", 0, 1),
 			})),
 		))
 

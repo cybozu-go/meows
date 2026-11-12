@@ -114,6 +114,15 @@ func DeleteRunnerPoolMetrics(runnerpool string) {
 	jobDurationVec.DeletePartialMatch(prometheus.Labels{"runnerpool": runnerpool})
 }
 
+// InitJobMetrics exposes the job metrics of the RunnerPool with zero values for all results.
+// Without this, the first job of each result would not be counted as an increase by rate() or increase().
+func InitJobMetrics(runnerpool string) {
+	for result := range knownJobResults {
+		jobResultsVec.WithLabelValues(runnerpool, result)
+		jobDurationVec.WithLabelValues(runnerpool, result)
+	}
+}
+
 // RecordJobResult records the result of a finished job.
 // duration is nil if the start time of the job is unknown.
 func RecordJobResult(runnerpool, result string, duration *time.Duration) {

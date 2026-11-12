@@ -16,6 +16,7 @@ Aside from [the standard Go runtime and process metrics][standard], it exposes m
 
 The controller records the result of a job when it finds a runner pod in the `debugging` state, once per pod.
 `result` is one of `success`, `failure`, `cancelled` and `unknown`.
+The series for all results are exposed with zero values when the controller starts managing the RunnerPool.
 The duration is measured from the time when `job-started` was called to the end of the job,
 so it is not recorded for jobs that did not call `job-started`.
 Jobs that finished before the controller started are not recorded.

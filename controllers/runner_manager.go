@@ -167,6 +167,7 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, scheme *runtime.
 	}
 
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
+	metrics.InitJobMetrics(rpNamespacedName)
 	now := time.Now().UTC()
 	process := &manageProcess{
 		log:                   log,
