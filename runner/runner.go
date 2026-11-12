@@ -96,7 +96,7 @@ func NewRunner(listener Listener, listenAddr, runnerDir, workDir, varDir string)
 
 func (r *Runner) Run(ctx context.Context) error {
 	registry := prometheus.NewRegistry()
-	metrics.InitRunnerPodMetrics(registry, r.envs.podNamespace+"/"+r.envs.runnerPoolName)
+	metrics.InitRunnerPodMetrics(registry, r.envs.podNamespace+"/"+r.envs.runnerPoolName, r.jobInfoMetricsLabels)
 
 	env := well.NewEnvironment(ctx)
 	env.Go(r.runListener)
@@ -221,6 +221,16 @@ func (r *Runner) updateToDebuggingState(logger logr.Logger) {
 	r.jobInfo = jobInfo
 	r.slackChannel = slackChannel
 	r.mu.Unlock()
+}
+
+// jobInfoMetricsLabels reads the job info file written by `job-started`.
+// It returns nil if the file does not exist or is invalid.
+func (r *Runner) jobInfoMetricsLabels() *metrics.JobInfoLabels {
+	jobInfo, err := GetJobInfoFromFile(r.jobInfoFile)
+	if err != nil || jobInfo == nil {
+		return nil
+	}
+	return jobInfo.MetricsLabels()
 }
 
 func (r *Runner) readSlackChannel() (string, error) {

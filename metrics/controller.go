@@ -2,9 +2,21 @@ package metrics
 
 import (
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+// jobDurationBuckets are the buckets of meows_runnerpool_job_duration_seconds, from 1 minute to 6 hours.
+var jobDurationBuckets = []float64{60, 300, 600, 900, 1200, 1800, 2700, 3600, 5400, 7200, 10800, 14400, 21600}
+
+// knownJobResults are the values of the result label. Other values are recorded as "unknown".
+var knownJobResults = map[string]struct{}{
+	"success":   {},
+	"failure":   {},
+	"cancelled": {},
+	"unknown":   {},
+}
 
 // Controller related metrics
 var (
@@ -12,6 +24,8 @@ var (
 	runnerPoolReplicas         *prometheus.GaugeVec
 	runnerOnlineVec            *prometheus.GaugeVec
 	runnerBusyVec              *prometheus.GaugeVec
+	jobResultsVec              *prometheus.CounterVec
+	jobDurationVec             *prometheus.HistogramVec
 	runnerLabelSet             map[string]map[string]struct{} // runnerpool -> runner -> struct{}
 	runnerLabelSetMutex        sync.Mutex
 )
@@ -57,6 +71,27 @@ func InitControllerMetrics(registry prometheus.Registerer) {
 		[]string{"runnerpool", "runner"},
 	)
 
+	jobResultsVec = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: runnerPoolSubsystem,
+			Name:      "job_results_total",
+			Help:      "The number of finished jobs by result",
+		},
+		[]string{"runnerpool", "result"},
+	)
+
+	jobDurationVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: metricsNamespace,
+			Subsystem: runnerPoolSubsystem,
+			Name:      "job_duration_seconds",
+			Help:      "The duration of finished jobs from job-started to the end of the job",
+			Buckets:   jobDurationBuckets,
+		},
+		[]string{"runnerpool", "result"},
+	)
+
 	runnerLabelSet = map[string]map[string]struct{}{}
 
 	registry.MustRegister(
@@ -64,6 +99,8 @@ func InitControllerMetrics(registry prometheus.Registerer) {
 		runnerPoolReplicas,
 		runnerOnlineVec,
 		runnerBusyVec,
+		jobResultsVec,
+		jobDurationVec,
 	)
 }
 
@@ -73,6 +110,20 @@ func UpdateRunnerPoolMetrics(runnerpool string, replicas int) {
 
 func DeleteRunnerPoolMetrics(runnerpool string) {
 	runnerPoolReplicas.DeleteLabelValues(runnerpool)
+	jobResultsVec.DeletePartialMatch(prometheus.Labels{"runnerpool": runnerpool})
+	jobDurationVec.DeletePartialMatch(prometheus.Labels{"runnerpool": runnerpool})
+}
+
+// RecordJobResult records the result of a finished job.
+// duration is nil if the start time of the job is unknown.
+func RecordJobResult(runnerpool, result string, duration *time.Duration) {
+	if _, ok := knownJobResults[result]; !ok {
+		result = "unknown"
+	}
+	jobResultsVec.WithLabelValues(runnerpool, result).Inc()
+	if duration != nil {
+		jobDurationVec.WithLabelValues(runnerpool, result).Observe(duration.Seconds())
+	}
 }
 
 func UpdateRunnerMetrics(runnerpool, runner string, online, busy bool) {

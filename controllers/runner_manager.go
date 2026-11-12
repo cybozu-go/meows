@@ -144,6 +144,8 @@ type manageProcess struct {
 
 	// Update internally.
 	lastCheckTime   time.Time
+	startedAt       time.Time
+	recordedJobs    map[types.UID]struct{} // UIDs of the pods whose job results have been recorded in metrics.
 	env             *well.Environment
 	cancel          context.CancelFunc
 	prevRunnerNames []string
@@ -165,6 +167,7 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, scheme *runtime.
 	}
 
 	rpNamespacedName := types.NamespacedName{Namespace: rp.Namespace, Name: rp.Name}.String()
+	now := time.Now().UTC()
 	process := &manageProcess{
 		log:                   log,
 		k8sClient:             k8sClient,
@@ -186,7 +189,9 @@ func newManageProcess(log logr.Logger, k8sClient client.Client, scheme *runtime.
 		extendDuration:        extendDuration,
 		recreateDeadline:      recreateDeadline,
 		denyDisruption:        rp.Spec.DenyDisruption,
-		lastCheckTime:         time.Now().UTC(),
+		lastCheckTime:         now,
+		startedAt:             now,
+		recordedJobs:          map[types.UID]struct{}{},
 		deleteMetrics: func() {
 			metrics.DeleteAllRunnerMetrics(rpNamespacedName)
 			metrics.DeleteRunnerPoolMetrics(rpNamespacedName)
@@ -352,6 +357,38 @@ func (p *manageProcess) updateMetrics(podList *corev1.PodList, runnerList []*git
 	p.prevRunnerNames = currentRunnerNames
 }
 
+// recordJobResult records the result of the job in metrics once per pod.
+// Jobs that finished before this process started are not recorded, to avoid counting them again after the controller restarts.
+func (p *manageProcess) recordJobResult(po *corev1.Pod, status *runner.Status) {
+	if status.FinishedAt == nil || !status.FinishedAt.After(p.startedAt) {
+		return
+	}
+	if _, ok := p.recordedJobs[po.UID]; ok {
+		return
+	}
+	p.recordedJobs[po.UID] = struct{}{}
+
+	var duration *time.Duration
+	if status.JobInfo != nil && status.JobInfo.StartedAt != nil && status.FinishedAt.After(*status.JobInfo.StartedAt) {
+		d := status.FinishedAt.Sub(*status.JobInfo.StartedAt)
+		duration = &d
+	}
+	metrics.RecordJobResult(p.rpNamespacedName(), status.Result, duration)
+}
+
+// forgetDeletedJobs removes the pods that no longer exist from recordedJobs.
+func (p *manageProcess) forgetDeletedJobs(podList *corev1.PodList) {
+	exists := make(map[types.UID]struct{}, len(podList.Items))
+	for i := range podList.Items {
+		exists[podList.Items[i].UID] = struct{}{}
+	}
+	for uid := range p.recordedJobs {
+		if _, ok := exists[uid]; !ok {
+			delete(p.recordedJobs, uid)
+		}
+	}
+}
+
 // makeResultSet returns a set of job results to notify. A nil return value
 // means "notify all results" (backward-compatible default when notifyOn is
 // unset or empty).
@@ -413,6 +450,8 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 	numRemovablePods := p.maxRunnerPods - p.replicas - numUnlabeledPods // numRemovablePods can be a negative number.
 	p.mu.Unlock()
 
+	p.forgetDeletedJobs(podList)
+
 	for i := range podList.Items {
 		po := &podList.Items[i]
 		log := p.log.WithValues("pod", types.NamespacedName{Namespace: po.Namespace, Name: po.Name}.String())
@@ -438,6 +477,7 @@ func (p *manageProcess) maintainRunnerPods(ctx context.Context, runnerList []*gi
 		}
 
 		if status.State == constants.RunnerPodStateDebugging {
+			p.recordJobResult(po, status)
 			needExtend := status.Extend != nil && *status.Extend && extendDuration != 0
 
 			if needNotification && status.FinishedAt.After(lastCheckTime) && resultMatches(slackResultFilter, status.Result) {

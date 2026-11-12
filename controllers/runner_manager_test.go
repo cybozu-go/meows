@@ -760,6 +760,101 @@ var _ = Describe("RunnerManager", func() {
 		Expect(runnerManager.Stop(rp3)).To(Succeed())
 	})
 
+	It("should expose metrics about job results", func() {
+		By("preparing fake clients")
+		runnerPodClient := runner.NewFakeClient()
+		githubClientFactory := github.NewFakeClientFactory()
+		runnerManager := NewRunnerManager(ctrl.Log, k8sClient, scheme, githubClientFactory, runnerPodClient, time.Second)
+
+		By("starting metrics server")
+		server := &http.Server{Addr: metricsPort, Handler: promhttp.Handler()}
+		go func() {
+			server.ListenAndServe()
+		}()
+		defer server.Shutdown(context.Background())
+		time.Sleep(1 * time.Second)
+
+		By("starting runnerpool manager")
+		rp := makeRunnerPoolWithRepository("rp1", "test-ns1", "owner/repo1")
+		runnerManager.StartOrUpdate(rp, nil)
+		time.Sleep(1 * time.Second)
+		CounterShouldNotExist(metricsURL, "meows_runnerpool_job_results_total")
+		HistogramShouldNotExist(metricsURL, "meows_runnerpool_job_duration_seconds")
+
+		By("creating debugging pods")
+		finishedAt := time.Now()
+		deletionTime := finishedAt.Add(24 * time.Hour)
+		startedAt := func(d time.Duration) *time.Time {
+			t := finishedAt.Add(-d)
+			return &t
+		}
+		inputPods := []struct {
+			spec       *corev1.Pod
+			ip         string
+			result     string
+			finishedAt time.Time
+			jobInfo    *runner.JobInfo
+		}{
+			{spec: makePod("pod1", "test-ns1", "rp1"), ip: "10.0.0.1", result: "success", finishedAt: finishedAt, jobInfo: &runner.JobInfo{StartedAt: startedAt(10 * time.Minute)}},
+			{spec: makePod("pod2", "test-ns1", "rp1"), ip: "10.0.0.2", result: "failure", finishedAt: finishedAt, jobInfo: &runner.JobInfo{StartedAt: startedAt(30 * time.Minute)}},
+			{spec: makePod("pod3", "test-ns1", "rp1"), ip: "10.0.0.3", result: "unknown", finishedAt: finishedAt},                                                               // job-started was not called.
+			{spec: makePod("pod4", "test-ns1", "rp1"), ip: "10.0.0.4", result: "invalid", finishedAt: finishedAt, jobInfo: &runner.JobInfo{StartedAt: startedAt(-time.Minute)}}, // invalid result and start time.
+			{spec: makePod("pod5", "test-ns1", "rp1"), ip: "10.0.0.5", result: "success", finishedAt: finishedAt.Add(-time.Hour)},                                               // finished before the manager started.
+		}
+		for _, inputPod := range inputPods {
+			Expect(k8sClient.Create(ctx, inputPod.spec)).To(Succeed())
+			created := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: inputPod.spec.Name, Namespace: inputPod.spec.Namespace}, created)).To(Succeed())
+			created.Status.PodIP = inputPod.ip
+			created.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, created)).To(Succeed())
+
+			podFinishedAt := inputPod.finishedAt
+			runnerPodClient.SetStatus(inputPod.ip, &runner.Status{
+				State:        "debugging",
+				Result:       inputPod.result,
+				FinishedAt:   &podFinishedAt,
+				DeletionTime: &deletionTime,
+				JobInfo:      inputPod.jobInfo,
+			})
+		}
+
+		By("checking metrics are recorded once per job")
+		time.Sleep(3 * time.Second)
+		CounterShouldHaveValue(metricsURL, "meows_runnerpool_job_results_total", ConsistOf(
+			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("success")}),
+				"Value": BeNumerically("==", 1.0),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("failure")}),
+				"Value": BeNumerically("==", 1.0),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label": MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("unknown")}),
+				"Value": BeNumerically("==", 2.0),
+			})),
+		))
+		HistogramShouldHaveValue(metricsURL, "meows_runnerpool_job_duration_seconds", ConsistOf(
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("success")}),
+				"SampleCount": BeNumerically("==", 1),
+				"SampleSum":   BeNumerically("~", 600, 1),
+			})),
+			PointTo(MatchAllFields(Fields{
+				"Label":       MatchAllKeys(Keys{"runnerpool": Equal("test-ns1/rp1"), "result": Equal("failure")}),
+				"SampleCount": BeNumerically("==", 1),
+				"SampleSum":   BeNumerically("~", 1800, 1),
+			})),
+		))
+
+		By("deleting runnerpool")
+		Expect(runnerManager.Stop(rp)).To(Succeed())
+		time.Sleep(2 * time.Second)
+		CounterShouldNotExist(metricsURL, "meows_runnerpool_job_results_total")
+		HistogramShouldNotExist(metricsURL, "meows_runnerpool_job_duration_seconds")
+	})
+
 	It("should delete all runners and metrics", func() {
 		By("preparing fake clients")
 		runnerPodClient := runner.NewFakeClient()
@@ -858,6 +953,28 @@ func MetricsShouldNotExist(url, name string) {
 
 func MetricsShouldHaveValue(url, name string, matcher gomegatypes.GomegaMatcher) {
 	m, err := metrics.FetchGauge(context.Background(), url, name)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+	ExpectWithOffset(1, m).To(matcher)
+}
+
+func CounterShouldNotExist(url, name string) {
+	_, err := metrics.FetchCounter(context.Background(), url, name)
+	ExpectWithOffset(1, err).Should(MatchError(metrics.ErrNotExist))
+}
+
+func CounterShouldHaveValue(url, name string, matcher gomegatypes.GomegaMatcher) {
+	m, err := metrics.FetchCounter(context.Background(), url, name)
+	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
+	ExpectWithOffset(1, m).To(matcher)
+}
+
+func HistogramShouldNotExist(url, name string) {
+	_, err := metrics.FetchHistogram(context.Background(), url, name)
+	ExpectWithOffset(1, err).Should(MatchError(metrics.ErrNotExist))
+}
+
+func HistogramShouldHaveValue(url, name string, matcher gomegatypes.GomegaMatcher) {
+	m, err := metrics.FetchHistogram(context.Background(), url, name)
 	ExpectWithOffset(1, err).ShouldNot(HaveOccurred())
 	ExpectWithOffset(1, m).To(matcher)
 }
