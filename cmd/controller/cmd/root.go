@@ -27,9 +27,10 @@ var config struct {
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "controller",
-	Short: "Kubernetes controller for GitHub Actions self-hosted runner",
-	Long:  `Kubernetes controller for GitHub Actions self-hosted runner`,
+	Use:     "controller",
+	Short:   "Kubernetes controller for GitHub Actions self-hosted runner",
+	Long:    `Kubernetes controller for GitHub Actions self-hosted runner`,
+	Version: constants.Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return run()
 	},
