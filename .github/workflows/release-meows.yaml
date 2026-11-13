@@ -63,6 +63,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: make image
       - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=${VERSION}
+      - run: make tag push IMAGE_PREFIX=ghcr.io/cybozu-go/ IMAGE_TAG=latest
   release:
     name: Release on GitHub
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}

@@ -19,9 +19,10 @@ var config struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "entrypoint",
-	Short: "GitHub Actions runner Entrypoint",
-	Long:  "GitHub Actions runner Entrypoint",
+	Use:     "entrypoint",
+	Short:   "GitHub Actions runner Entrypoint",
+	Long:    "GitHub Actions runner Entrypoint",
+	Version: constants.Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		listener := runner.NewListener(constants.RunnerRootDirPath)
 		r, err := runner.NewRunner(listener, config.listenAddr, constants.RunnerRootDirPath, constants.RunnerWorkDirPath, constants.RunnerVarDirPath)
