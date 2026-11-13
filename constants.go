@@ -1,9 +1,15 @@
 package constants
 
-const (
-	// Version is the meows version.
-	Version = "0.29.1"
+import (
+	_ "embed"
+	"strings"
 )
+
+//go:embed VERSION
+var versionFile string
+
+// Version is the meows version.
+var Version = strings.TrimSpace(versionFile)
 
 // Container names
 const (

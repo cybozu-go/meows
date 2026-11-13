@@ -31,7 +31,6 @@ You can check the rules for labeling in [release.yml](.github/release.yaml).
 
     ```bash
     echo "$VERSION" > VERSION
-    sed -i -E "s/(.*newTag: ).*/\1${VERSION}/" config/controller/kustomization.yaml config/agent/kustomization.yaml
     sed -i -E "s/(.*Version = ).*/\1\"${VERSION}\"/" constants.go
     ```
 

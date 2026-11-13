@@ -37,11 +37,19 @@ For example, when deploying from a local checkout, update `config/controller/fil
 
 ### Deploying Controller
 
-Deploy the controller as follows.
+The manifests under `config/` refer to the `latest` controller image.
+Pin the image to the release version with `kustomize edit set image` and deploy the controller as follows.
 
 ```bash
-MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
-kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
+MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r '.tag_name | ltrimstr("v")')
+
+mkdir -p meows-controller && cd meows-controller
+cat > kustomization.yaml <<EOF
+resources:
+- github.com/cybozu-go/meows/config/controller?ref=v${MEOWS_VERSION}
+EOF
+kustomize edit set image ghcr.io/cybozu-go/meows-controller:${MEOWS_VERSION}
+kustomize build . | kubectl apply -f -
 ```
 
 ### Deploying Slack Agent (Optional)
@@ -65,8 +73,15 @@ kubectl create secret generic slack-app-secret -n meows \
 After that deploy the agent.
 
 ```bash
-MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r .tag_name)
-kustomize build github.com/cybozu-go/meows/config/controller?ref=${MEOWS_VERSION} | kubectl apply -f -
+MEOWS_VERSION=$(curl -s https://api.github.com/repos/cybozu-go/meows/releases/latest | jq -r '.tag_name | ltrimstr("v")')
+
+mkdir -p meows-agent && cd meows-agent
+cat > kustomization.yaml <<EOF
+resources:
+- github.com/cybozu-go/meows/config/agent?ref=v${MEOWS_VERSION}
+EOF
+kustomize edit set image ghcr.io/cybozu-go/meows-controller:${MEOWS_VERSION}
+kustomize build . | kubectl apply -f -
 ```
 
 ## Creating RunnerPool
