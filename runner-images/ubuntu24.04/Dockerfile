@@ -12,7 +12,7 @@ RUN --mount=type=secret,id=netrc,target=/run/secrets/netrc,required=false \
 COPY . .
 RUN GOPROXY=off make build
 
-FROM ghcr.io/cybozu/ubuntu:24.04.20261021@sha256:7bc89f8e6e4dfe609ca671526e3bbee91753422b8a766d90cef4de8b7c73a3b9 AS runner
+FROM ghcr.io/cybozu/ubuntu:24.04.20261113@sha256:74243e15b3f04c67d11f86a43092d1e54f73ee8a1049f3175ea8b87273abc723 AS runner
 LABEL org.opencontainers.image.source="https://github.com/cybozu-go/meows"
 
 ARG RUNNER_VERSION
