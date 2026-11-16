@@ -1,0 +1,18 @@
+name: Dockerfile Pin
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+jobs:
+  verify-dockerfile-pin:
+    name: Verify Dockerfile image tags and digests
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/aqua
+      - name: Verify image digests match tags
+        run: |
+          dockerfile-pin check --glob '**/Dockerfile*' --verify-tag
