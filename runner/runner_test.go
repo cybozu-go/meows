@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -69,6 +70,7 @@ var _ = Describe("Runner", func() {
 			}),
 		)
 		metricsShouldNotExist("meows_runner_listener_exit_state")
+		metricsShouldNotExist("meows_runner_job_info")
 
 		By("checking running state")
 		createJobInfoFile()
@@ -106,6 +108,21 @@ var _ = Describe("Runner", func() {
 			}),
 		)
 		metricsShouldNotExist("meows_runner_listener_exit_state")
+		metricsShouldHaveValue("meows_runner_job_info",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{
+						"runnerpool":   Equal("fake-pod-ns/fake-runnerpool"),
+						"repository":   Equal("meows"),
+						"workflow":     Equal("workflow"),
+						"job_id":       Equal("job"),
+						"run_id":       Equal("123"),
+						"pull_request": Equal("45"),
+					}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
 
 		By("checking debugging state")
 		listener.listenCh <- nil
@@ -127,6 +144,7 @@ var _ = Describe("Runner", func() {
 				"Actor":      Equal("actor"),
 				"Repository": Equal("meows"),
 				"GitRef":     Equal("branch"),
+				"StartedAt":  PointTo(BeTemporally("~", startedAt)),
 			})),
 			"SlackChannel": BeEmpty(),
 		})))
@@ -151,6 +169,57 @@ var _ = Describe("Runner", func() {
 			}),
 		)
 		metricsShouldNotExist("meows_runner_listener_exit_state")
+		metricsShouldHaveValue("meows_runner_job_info",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{
+						"runnerpool":   Equal("fake-pod-ns/fake-runnerpool"),
+						"repository":   Equal("meows"),
+						"workflow":     Equal("workflow"),
+						"job_id":       Equal("job"),
+						"run_id":       Equal("123"),
+						"pull_request": Equal("45"),
+					}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
+	})
+
+	It("should expose sanitized job info metrics", func() {
+		By("starting runner")
+		resetEnv(false)
+		listener := newListenerMock()
+		cancel := startRunner(listener)
+		defer cancel()
+		listener.configureCh <- nil
+		time.Sleep(time.Second)
+
+		By("writing a job info without run ID")
+		writeJobInfoFile(`{"repository":"owner/repo","workflow_name":"workflow","job_id":"job"}`)
+		metricsShouldNotExist("meows_runner_job_info")
+
+		By("writing a job info with an invalid run ID")
+		writeJobInfoFile(`{"repository":"owner/repo","run_id":"123"}`)
+		metricsShouldNotExist("meows_runner_job_info")
+
+		By("writing a job info with a long workflow name and no pull request")
+		writeJobInfoFile(fmt.Sprintf(`{"repository":"owner/repo","workflow_name":"%s","job_id":"job","run_id":1}`, strings.Repeat("あ", 200)))
+		metricsShouldHaveValue("meows_runner_job_info",
+			MatchAllElementsWithIndex(IndexIdentity, Elements{
+				"0": PointTo(MatchAllFields(Fields{
+					"Label": MatchAllKeys(Keys{
+						"runnerpool":   Equal("fake-pod-ns/fake-runnerpool"),
+						"repository":   Equal("owner/repo"),
+						"workflow":     Equal(strings.Repeat("あ", 128)),
+						"job_id":       Equal("job"),
+						"run_id":       Equal("1"),
+						"pull_request": BeEmpty(),
+					}),
+					"Value": BeNumerically("==", 1.0),
+				})),
+			}),
+		)
 	})
 
 	It("should extend default duration when extend file exists", func() {
@@ -551,15 +620,27 @@ func createFakeTokenFile() {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 }
 
+var startedAt = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+
 func createJobInfoFile() {
 	jobInfo := &JobInfo{
-		Actor:      "actor",
-		Repository: "meows",
-		GitRef:     "branch",
+		Actor:          "actor",
+		Repository:     "meows",
+		GitRef:         "branch",
+		WorkflowName:   "workflow",
+		JobID:          "job",
+		RunID:          123,
+		PullRequestNum: 45,
+		StartedAt:      &startedAt,
 	}
 	data, err := json.Marshal(jobInfo)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	err = os.WriteFile(filepath.Join(testVarDir, "github.env"), data, 0664)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+}
+
+func writeJobInfoFile(data string) {
+	err := os.WriteFile(filepath.Join(testVarDir, "github.env"), []byte(data), 0664)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 }
 

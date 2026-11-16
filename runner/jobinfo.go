@@ -6,6 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/cybozu-go/meows/metrics"
 )
 
 // JobInfo represents information about a CI job.
@@ -18,12 +21,21 @@ type JobInfo struct {
 	RunID          int    `json:"run_id,omitempty"`
 	RunNumber      int    `json:"run_number,omitempty"`
 	WorkflowName   string `json:"workflow_name,omitempty"`
+	// StartedAt is the time when `job-started` was called.
+	StartedAt *time.Time `json:"started_at,omitempty"`
 }
 
 // GetJobInfo reads environment variables and creates JobInfo.
+// StartedAt is set to the current time.
 func GetJobInfo() (*JobInfo, error) {
 	env := readEnv()
-	return envToJobInfo(env)
+	info, err := envToJobInfo(env)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	info.StartedAt = &now
+	return info, nil
 }
 
 func GetJobInfoFromFile(file string) (*JobInfo, error) {
@@ -44,6 +56,17 @@ func GetJobInfoFromFile(file string) (*JobInfo, error) {
 		return nil, err
 	}
 	return &jobInfo, nil
+}
+
+// MetricsLabels returns the label values of meows_runner_job_info.
+func (info *JobInfo) MetricsLabels() *metrics.JobInfoLabels {
+	return &metrics.JobInfoLabels{
+		Repository:  info.Repository,
+		Workflow:    info.WorkflowName,
+		JobID:       info.JobID,
+		RunID:       info.RunID,
+		PullRequest: info.PullRequestNum,
+	}
 }
 
 func (info *JobInfo) RepositoryURL() string {
