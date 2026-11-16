@@ -42,7 +42,9 @@ jobs:
   push-controller-image:
     name: Push controller image
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-    needs: version
+    needs:
+      - version
+      - build-and-push-runner-images
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -94,14 +96,13 @@ jobs:
             -t "Release v${VERSION}" \
             --generate-notes
 
-  # After the controller released successfully,
-  # release runner images based on the runner.json from the released tag
+  # Release runner images first, based on the runner.json from the release commit,
+  # so that the controller is never published before its default runner images
   get-released-versions:
-    name: Get released versions for runner images
+    name: Get versions for runner images
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     needs:
       - version
-      - release
     runs-on: ubuntu-24.04
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -111,8 +112,6 @@ jobs:
       runner_sha256: ${{ steps.versions.outputs.runner_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: v${{ env.VERSION }}
       - name: Read versions
         id: versions
         run: |
@@ -133,3 +132,4 @@ jobs:
       runner_version: ${{ needs.get-released-versions.outputs.runner_version }}
       runner_sha256: ${{ needs.get-released-versions.outputs.runner_sha256 }}
       push_image: true
+      source_ref: ${{ github.sha }}

@@ -19,6 +19,10 @@ on:
         default: false
         required: false
         type: boolean
+      source_ref:
+        description: "Git ref to checkout. Defaults to v<meows_version>"
+        required: false
+        type: string
 
 jobs:
   build-and-push-runner-images:
@@ -43,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: v${{ inputs.meows_version }}
+          ref: ${{ inputs.source_ref || format('v{0}', inputs.meows_version) }}
       - uses: ./.github/actions/setup-go-with-takumi-guard
         with:
           bot-id: ${{ vars.TAKUMI_GUARD_BOT_ID }}
