@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - VERSION
+      - runner-images/runner.json
   push:
     branches:
       - main
@@ -26,6 +27,8 @@ jobs:
       release_required: ${{ steps.version.outputs.release_required }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
       - name: Validate inputs
         id: version
         run: |
@@ -36,8 +39,9 @@ jobs:
           fi
 
           git fetch --tags
+          # Reject existing tags only when VERSION changes in a pull request.
           if git rev-parse "refs/tags/v${VERSION}" >/dev/null 2>&1; then
-            if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] &&　! git diff --quiet HEAD^1 HEAD -- VERSION; then
               echo "Tag v${VERSION} already exists"
               exit 1
             fi

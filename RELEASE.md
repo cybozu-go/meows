@@ -70,11 +70,19 @@ The runner images are pushed with the following tags:
 | `latest` | Same as the newest OS image |
 
 The workflow runs on every push to `main`.
-If the tag `vX.Y.Z` already exists (i.e. `VERSION` was not changed), steps 2 and 3 are skipped, and only the runner images are rebuilt from the existing tag `vX.Y.Z`.
+If the tag `vX.Y.Z` already exists, steps 2 and 3 are skipped, and only the runner images are rebuilt from the existing tag `vX.Y.Z`.
 This is how runner images are updated for a new GitHub Actions runner version without releasing a new meows version (see [docs/maintenance.md](docs/maintenance.md)).
 
-If the workflow fails, fix the cause and re-run it, or trigger it manually on `main` via `workflow_dispatch`.
+If the workflow fails before creating the Git tag, fix the issue and rerun the workflow.
+If the Git tag was created but the GitHub Release failed, create the release manually:
 
-Once the automated workflow completes, the release will be available at <https://github.com/cybozu-go/meows/releases>.
+```
+gh release create "vX.Y.Z" \
+  --verify-tag \
+  -t "Release vX.Y.Z" \
+  --generate-notes
+```
+
+Once a new meows version is released, it will be available at <https://github.com/cybozu-go/meows/releases>.
 
 [semver]: https://semver.org/spec/v2.0.0.html
