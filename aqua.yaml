@@ -11,6 +11,7 @@ registries:
 - type: standard
   ref: v4.523.0
 packages:
+- name: azu/dockerfile-pin@v1.7.0
 - name: dominikh/go-tools/staticcheck@2026.2.1
 - name: helm/helm@v4.2.4
 - name: jqlang/jq@jq-1.8.2
