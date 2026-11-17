@@ -8,12 +8,15 @@ Follow [semantic versioning 2.0.0][semver] to choose the new version number.
 
 ## 2. Prepare change log entries
 
-Before you release, label pull requests appropriately. The release workflow creates a release note referring to the labels on the pull requests.
-You can check the rules for labeling in [release.yml](.github/release.yaml).
+Release notes are generated from the pull requests merged since the previous release.
+Label them according to [.github/release.yaml](.github/release.yaml) so they are categorized correctly.
 
 ## 3. Bump version
 
-1. Determine a new version number. Then set `VERSION` variable.
+The version of meows is managed only in the [VERSION](VERSION) file.
+The controller embeds it at build time, and the manifests under `config/` refer to the `latest` image, so no other files need to be updated.
+
+1. Determine a new version number.
 
     ```bash
     # Set VERSION and confirm it. It should not have "v" prefix.
@@ -31,8 +34,6 @@ You can check the rules for labeling in [release.yml](.github/release.yaml).
 
     ```bash
     echo "$VERSION" > VERSION
-    sed -i -E "s/(.*newTag: ).*/\1${VERSION}/" config/controller/kustomization.yaml config/agent/kustomization.yaml
-    sed -i -E "s/(.*Version = ).*/\1\"${VERSION}\"/" constants.go
     ```
 
 4. Commit the change and push it.
@@ -44,7 +45,13 @@ You can check the rules for labeling in [release.yml](.github/release.yaml).
 
 5. Create a pull request and merge it after review.
 
-After the change is merged into `main`, the release workflow will automatically build and push artifacts.
+    The [release workflow](.github/workflows/release-meows.yaml) validates `VERSION` on the pull request. Make sure it passes before merging.
+
+## 4. Release
+
+After the change is merged into `main`, the release workflow automatically pushes the controller and runner images, creates the tag `vX.Y.Z`, and publishes the GitHub release.
+The controller image is also tagged as `latest`.
+
 Once the automated workflow completes, the release will be available at <https://github.com/cybozu-go/meows/releases>.
 
 [semver]: https://semver.org/spec/v2.0.0.html

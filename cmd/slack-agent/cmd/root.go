@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/agent"
 	"github.com/cybozu-go/well"
 	"github.com/go-logr/zapr"
@@ -23,9 +24,10 @@ const (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "slack-agent",
-	Short: "Slack agent notifies CI results and accepts requests for extending Pods' lifecycles",
-	Long:  `Slack agent notifies CI results and accepts requests for extending Pods' lifecycles`,
+	Use:     "slack-agent",
+	Short:   "Slack agent notifies CI results and accepts requests for extending Pods' lifecycles",
+	Long:    `Slack agent notifies CI results and accepts requests for extending Pods' lifecycles`,
+	Version: constants.Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		listenAddr := viper.GetString(listenAddrFlagName)
 		devMode := viper.GetBool(developmentFlagName)

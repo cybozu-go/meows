@@ -3,13 +3,15 @@ package cmd
 import (
 	"os"
 
+	constants "github.com/cybozu-go/meows"
 	"github.com/cybozu-go/meows/cmd/meows/cmd/runner"
 	"github.com/cybozu-go/meows/cmd/meows/cmd/slackagent"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use: "meows",
+	Use:     "meows",
+	Version: constants.Version,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

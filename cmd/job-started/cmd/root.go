@@ -15,8 +15,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:  "job-started",
-	Args: cobra.NoArgs,
+	Use:     "job-started",
+	Version: constants.Version,
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		jobInfo, err := runner.GetJobInfo()
 		if err != nil {
