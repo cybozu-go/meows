@@ -16,6 +16,10 @@ Label them according to [.github/release.yaml](.github/release.yaml) so they are
 The version of meows is managed only in the [VERSION](VERSION) file.
 It is embedded into the binaries at build time, and the manifests under `config/` refer to the `latest` image, so no other files need to be updated.
 
+> [!NOTE]
+> Renovate's "Routine dependency updates" pull requests that update base images in Dockerfiles also bump the patch version in `VERSION`.
+> Merging such a pull request releases a new version, so you do not need to follow the steps below for it.
+
 1. Determine a new version number.
 
     ```bash
@@ -45,15 +49,30 @@ It is embedded into the binaries at build time, and the manifests under `config/
 
 5. Create a pull request and merge it after review.
 
-    The [release workflow](.github/workflows/release.yaml) does not run on pull requests.
-    Before merging, make sure that the tag `vX.Y.Z` does not exist yet.
+    On pull requests that change `VERSION`, the [release workflow](.github/workflows/release.yaml) fails if `VERSION` is not in the `X.Y.Z` format or the tag `vX.Y.Z` already exists.
 
 ## 4. Release
 
-After the change is merged into `main`, the release workflow pushes the runner and controller images, creates the tag `vX.Y.Z`, and publishes the GitHub release with generated release notes.
-The controller image is also tagged as `latest`.
+After the change is merged into `main`, the [release workflow](.github/workflows/release.yaml) runs as follows:
 
-If the tag `vX.Y.Z` already exists, the controller image push, the tag creation, and the GitHub release are skipped.
+1. Build and push the runner images (`ghcr.io/cybozu-go/meows-runner`) from the merged commit,
+   using the GitHub Actions runner version in [runner-images/runner.json](runner-images/runner.json).
+2. Build and push the controller image (`ghcr.io/cybozu-go/meows-controller`) tagged as `X.Y.Z` and `latest`.
+3. Create the tag `vX.Y.Z` and publish the GitHub release with generated release notes.
+
+The runner images are pushed with the following tags:
+
+| Tag | Description |
+| --- | --- |
+| `<os>` | Latest image for the OS (e.g. `ubuntu24.04`) |
+| `<os>-meows<X.Y.Z>` | Latest image for the OS and meows version |
+| `<runner version>-<os>-meows<X.Y.Z>` | Immutable tag, pushed only if it does not exist yet |
+| `latest` | Same as the newest OS image |
+
+The workflow runs on every push to `main`.
+If the tag `vX.Y.Z` already exists (i.e. `VERSION` was not changed), steps 2 and 3 are skipped, and only the runner images are rebuilt from the existing tag `vX.Y.Z`.
+This is how runner images are updated for a new GitHub Actions runner version without releasing a new meows version (see [docs/maintenance.md](docs/maintenance.md)).
+
 If the workflow fails, fix the cause and re-run it, or trigger it manually on `main` via `workflow_dispatch`.
 
 Once the automated workflow completes, the release will be available at <https://github.com/cybozu-go/meows/releases>.
