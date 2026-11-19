@@ -32,13 +32,15 @@ jobs:
           - "v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0"
           - "v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"
         runner-image-os:
-          # The latest runner-image-os is tested with each Kubernetes version.
+          # The default runner-image-os (tagged as `latest`) is tested with each Kubernetes version.
           - "ubuntu24.04"
         # Other runner-image-os are tested with only the latest Kubernetes version.
         # This avoids increasing test runs.
         include:
           - kind-image-ref: "v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"
             runner-image-os: "ubuntu22.04"
+          - kind-image-ref: "v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"
+            runner-image-os: "ubuntu26.04"
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -118,5 +120,5 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: logs-${{ steps.k8s-version.outputs.version }}
+          name: logs-${{ steps.k8s-version.outputs.version }}-${{ matrix.runner-image-os }}
           path: ./tmp/logs/
