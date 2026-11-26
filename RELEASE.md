@@ -69,7 +69,7 @@ The runner images are pushed with the following tags:
 | `<runner version>-<os>-meows<X.Y.Z>` | Immutable tag, pushed only if it does not exist yet |
 | `latest` | Same as the newest OS image |
 
-The workflow runs on every push to `main`.
+The workflow runs on every push to `main` that changes `VERSION` or `runner-images/runner.json`.
 If the tag `vX.Y.Z` already exists, steps 2 and 3 are skipped, and only the runner images are rebuilt from the existing tag `vX.Y.Z`.
 This is how runner images are updated for a new GitHub Actions runner version without releasing a new meows version (see [docs/maintenance.md](docs/maintenance.md)).
 
