@@ -8,6 +8,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - VERSION
+      - runner-images/runner.json
   workflow_dispatch:
 
 concurrency:
@@ -41,7 +44,7 @@ jobs:
           git fetch --tags
           # Reject existing tags only when VERSION changes in a pull request.
           if git rev-parse "refs/tags/v${VERSION}" >/dev/null 2>&1; then
-            if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] &&　! git diff --quiet HEAD^1 HEAD -- VERSION; then
+            if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]] && ! git diff --quiet HEAD^1 HEAD -- VERSION; then
               echo "Tag v${VERSION} already exists"
               exit 1
             fi
